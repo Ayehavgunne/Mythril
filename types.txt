@@ -1,0 +1,12 @@
+any
+int
+dec
+float
+complex
+str
+bool
+byte
+list
+tuple
+dict
+enum

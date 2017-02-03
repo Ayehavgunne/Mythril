@@ -1,0 +1,21 @@
++ Addition
+- Subtraction
+* Multiplication
+/ Division
+// Floor Division
+% Modulus
+** Power of
+< Less Than
+> Greater Than
+<= Less Than or Equal
+>= Greater Than or Equal
+== Equal
+!= Not Equal
+= Assign
++= Add and Assign
+-= Subtract and Assign
+*= Multiply and Assign
+/= Divide and Assign
+//= Floor Divide and Assign
+%= Modulus and Assign
+**= Power andw Assign
