@@ -1,23 +1,30 @@
+int greets
 hello = 2
 hi = hello + 1
 what = 'what'
+str where
 
 if hello == 2
 	print('whosits')
-else:
+else
 	print('whatsits')
 
-func scoots(sploots)
+def scoots(func sploots)
+	whats = 'loves'
 	print('snoots')
-	sploots()
+	sploots(whats)
 
-whats = 'loves'
+def int fib(int num)
+	if num = 0
+		return 0
+	else if num = 1
+		return 1
+	else
+		return fib(n - 1) + fib(n - 2)
 
 scoots(
-	func(whats)
+	func(str verb)
 		print('Snape')
-		print(whats)
+		print(verb)
 		print('Dumbledore')
 	)
-
-class Person

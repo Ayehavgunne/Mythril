@@ -3,10 +3,11 @@ else
 for
 in
 switch
-func
-False
-True
-Null
+case
+def
+false
+true
+null
 class
 this
 is
