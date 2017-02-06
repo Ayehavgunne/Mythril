@@ -1,10 +1,12 @@
 int greets
-hello = 2
-hi = hello + 1
-what = 'what'
+hello = 23
+hi2 = hello + 1.2
+hmm = "what is going' on"
 str where
+things = [1, 2, 3]
+stuff = {'first_name': 'samus', 'last_name': 'aran'}
 
-if hello == 2
+if hello == 23
 	print('whosits')
 else
 	print('whatsits')
