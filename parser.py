@@ -1,7 +1,19 @@
-class Parser(object):
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
-        self.current_token = next(self.tokenizer)
+from tokenizer import tokenize
 
-    def parse(self):
-        pass
+
+class AST(object):
+	pass
+
+
+class BinOp(AST):
+	def __init__(self, left, op, right, precedence):
+		pass
+
+
+class Parser(object):
+	def __init__(self, string):
+		self.lexer = tokenize(string)
+		self.current_token = next(self.lexer)
+
+	def parse(self):
+		pass

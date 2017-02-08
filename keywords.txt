@@ -1,7 +1,6 @@
 if
 else
 for
-in
 switch
 case
 def
@@ -10,15 +9,11 @@ true
 null
 class
 this
-is
 return
 try
 catch
 finally
 while
-not
-and
-or
 yield
 break
 continue

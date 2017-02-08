@@ -4,12 +4,15 @@ hi2 = hello + 1.2
 hmm = "what is going' on"
 str where
 things = [1, 2, 3]
-stuff = {'first_name': 'samus', 'last_name': 'aran'}
+stuff = {first_name: 'samus', last_name: 'aran'}
 
 if hello == 23
 	print('whosits')
 else
 	print('whatsits')
+
+if 2 in things
+	print('yes')
 
 def scoots(func sploots)
 	whats = 'loves'

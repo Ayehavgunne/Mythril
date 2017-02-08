@@ -1,3 +1,4 @@
+#arithmetic operators
 + Addition
 - Subtraction
 * Multiplication
@@ -5,12 +6,8 @@
 // Floor Division
 % Modulus
 ** Power of
-< Less Than
-> Greater Than
-<= Less Than or Equal
->= Greater Than or Equal
-== Equal
-!= Not Equal
+
+#assignment operators
 = Assign
 += Add and Assign
 -= Subtract and Assign
@@ -19,3 +16,32 @@
 //= Floor Divide and Assign
 %= Modulus and Assign
 **= Power andw Assign
+
+#comparison operators
+< Less Than
+> Greater Than
+<= Less Than or Equal
+>= Greater Than or Equal
+== Equal
+!= Not Equal
+
+#logical operators
+not
+and
+or
+
+#bitwise operators
+& Binary AND
+| Binary OR
+^ Binary XOR
+~ Binary Ones Complement
+<< Binary Left Shift
+>> Binary Right Shift
+
+#membership operators
+in
+not in
+
+#identity operators
+is
+is not
