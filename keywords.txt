@@ -8,6 +8,7 @@ false
 true
 null
 class
+super
 this
 return
 try
@@ -30,7 +31,10 @@ require
 ensure
 override
 doc
-abstract
-property
+abst
+prop
 get
 set
+void
+test
+assert
