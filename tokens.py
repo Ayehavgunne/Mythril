@@ -482,6 +482,10 @@ class Assign(Operator):
 		super().__init__(line_num)
 		self.value = '='
 
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
 
 class TernIf(Operator):
 	lbp = 20

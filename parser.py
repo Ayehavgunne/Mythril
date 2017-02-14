@@ -30,6 +30,6 @@ class Parser(object):
 
 
 if __name__ == '__main__':
-	p = Parser(open('math.dm').read())
+	p = Parser(open('math.my').read())
 	tree = p.parse()
 	print(tree)

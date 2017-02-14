@@ -153,7 +153,7 @@ def analyze(string):
 	yield End(line_num)
 
 if __name__ == '__main__':
-	for t in analyze(open('math.dm').read()):
+	for t in analyze(open('math.my').read()):
 		if t.type != 'newline':
 			print(t, end=' ')
 		else:
