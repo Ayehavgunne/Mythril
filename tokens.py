@@ -1,10 +1,10 @@
 from abc import ABCMeta
 
+op_map = {}
 
 class Token(object, metaclass=ABCMeta):
 	def __init__(self, line_num):
 		self.line_num = line_num
-		self.value = None
 		self.type = str(self.__class__.__name__).lower()
 
 	def __str__(self):
@@ -70,6 +70,8 @@ class String(Literal):
 
 
 class Operator(Token):
+	value = None
+
 	def __init__(self, line_num):
 		super().__init__(line_num)
 		self.first = None
@@ -90,10 +92,10 @@ class Operator(Token):
 
 class Add(Operator):
 	lbp = 110
+	value = '+'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '+'
 
 	def nud(self, parser):
 		self.first = parser.expression(130)
@@ -108,10 +110,10 @@ class Add(Operator):
 
 class Sub(Operator):
 	lbp = 110
+	value = '-'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '-'
 
 	def nud(self, parser):
 		self.first = parser.expression(130)
@@ -126,10 +128,10 @@ class Sub(Operator):
 
 class Mul(Operator):
 	lbp = 120
+	value = '*'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '*'
 
 	def led(self, left, parser):
 		self.first = left
@@ -139,10 +141,10 @@ class Mul(Operator):
 
 class Div(Operator):
 	lbp = 120
+	value = '/'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '/'
 
 	def led(self, left, parser):
 		self.first = left
@@ -152,10 +154,10 @@ class Div(Operator):
 
 class FloorDiv(Operator):
 	lbp = 120
+	value = '//'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '//'
 
 	def led(self, left, parser):
 		self.first = left
@@ -163,12 +165,38 @@ class FloorDiv(Operator):
 		return self
 
 
-class Equal(Operator):
-	lbp = 60
+class Mod(Operator):
+	lbp = 130
+	value = '%'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '=='
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
+
+
+class PowerOf(Operator):
+	lbp = 140
+	value = '**'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp - 1)
+		return self
+
+
+class Equal(Operator):
+	lbp = 60
+	value = '=='
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
 
 	def led(self, left, parser):
 		self.first = left
@@ -178,10 +206,10 @@ class Equal(Operator):
 
 class NotEqual(Operator):
 	lbp = 60
+	value = '!='
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '!='
 
 	def led(self, left, parser):
 		self.first = left
@@ -191,10 +219,10 @@ class NotEqual(Operator):
 
 class Or(Operator):
 	lbp = 30
+	value = 'or'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'or'
 
 	def led(self, left, parser):
 		self.first = left
@@ -204,10 +232,10 @@ class Or(Operator):
 
 class And(Operator):
 	lbp = 40
+	value = 'and'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'and'
 
 	def led(self, left, parser):
 		self.first = left
@@ -217,10 +245,10 @@ class And(Operator):
 
 class Not(Operator):
 	lbp = 50
+	value = 'not'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'not'
 
 	def led(self, left, parser):
 		self.first = left
@@ -235,10 +263,10 @@ class Not(Operator):
 
 class Is(Operator):
 	lbp = 60
+	value = 'is'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'is'
 
 	def led(self, left, parser):
 		self.first = left
@@ -248,10 +276,10 @@ class Is(Operator):
 
 class IsNot(Operator):
 	lbp = 60
+	value = 'is not'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'is not'
 
 	def led(self, left, parser):
 		self.first = left
@@ -261,10 +289,10 @@ class IsNot(Operator):
 
 class In(Operator):
 	lbp = 60
+	value = 'in'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'in'
 
 	def led(self, left, parser):
 		self.first = left
@@ -274,10 +302,10 @@ class In(Operator):
 
 class NotIn(Operator):
 	lbp = 60
+	value = 'not in'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'not in'
 
 	def led(self, left, parser):
 		self.first = left
@@ -287,10 +315,10 @@ class NotIn(Operator):
 
 class Greater(Operator):
 	lbp = 60
+	value = '>'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '>'
 
 	def led(self, left, parser):
 		self.first = left
@@ -300,10 +328,10 @@ class Greater(Operator):
 
 class GreaterEqual(Operator):
 	lbp = 60
+	value = '>='
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '>='
 
 	def led(self, left, parser):
 		self.first = left
@@ -313,10 +341,10 @@ class GreaterEqual(Operator):
 
 class Less(Operator):
 	lbp = 60
+	value = '<'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '<'
 
 	def led(self, left, parser):
 		self.first = left
@@ -326,10 +354,10 @@ class Less(Operator):
 
 class LessEqual(Operator):
 	lbp = 60
+	value = '<='
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '<='
 
 	def led(self, left, parser):
 		self.first = left
@@ -339,10 +367,10 @@ class LessEqual(Operator):
 
 class LParen(Operator):
 	lbp = 150
+	value = '('
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '('
 
 	def nud(self, parser):
 		self.first = []
@@ -375,20 +403,20 @@ class LParen(Operator):
 		return self
 
 
-class RParen(Token):
+class RParen(Operator):
 	lbp = 0
+	value = ')'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = ')'
 
 
 class LSquareBracket(Operator):
 	lbp = 150
+	value = '['
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '['
 
 	def nud(self, parser):
 		self.first = []
@@ -404,20 +432,20 @@ class LSquareBracket(Operator):
 		return self
 
 
-class RSquareBracket(Token):
+class RSquareBracket(Operator):
 	lbp = 0
+	value = ']'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = ']'
 
 
 class LSquiglyBracket(Operator):
 	lbp = 150
+	value = '{'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '{'
 
 	def nud(self, parser):
 		self.first = []
@@ -435,20 +463,20 @@ class LSquiglyBracket(Operator):
 		return self
 
 
-class RSquiglyBracket(Token):
+class RSquiglyBracket(Operator):
 	lbp = 0
+	value = '}'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '}'
 
 
 class Dot(Operator):
 	lbp = 150
+	value = '.'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '.'
 
 	def led(self, left, parser):
 		if parser.current_token.__class__.__name__ != 'Name':
@@ -461,26 +489,26 @@ class Dot(Operator):
 
 class Comma(Operator):
 	lbp = 0
+	value = ','
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = ','
 
 
 class Colon(Operator):
 	lbp = 0
+	value = ':'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = ':'
 
 
 class Assign(Operator):
 	lbp = 10
+	value = '='
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = '='
 
 	def led(self, left, parser):
 		self.first = left
@@ -489,10 +517,10 @@ class Assign(Operator):
 
 class TernIf(Operator):
 	lbp = 20
+	value = 'if'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'if'
 
 	def led(self, left, parser):
 		self.first = left
@@ -502,37 +530,107 @@ class TernIf(Operator):
 		return self
 
 
-class TernElse(Token):
+class TernElse(Operator):
 	lbp = 0
+	value = 'else'
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = 'else'
+
+
+class BinAnd(Operator):
+	lbp = 90
+	value = '&'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
+
+
+class BinOr(Operator):
+	lbp = 70
+	value = '|'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
+
+
+class BinXOr(Operator):
+	lbp = 80
+	value = '^'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
+
+
+class BinOnesComp(Operator):
+	lbp = 130
+	value = '~'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def nud(self, parser):
+		self.first = parser.expression(self.lbp)
+		self.second = None
+		return self
+
+
+class BinLeftShift(Operator):
+	lbp = 100
+	value = '<<'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
+
+
+class BinRightShift(Operator):
+	lbp = 100
+	value = '>>'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.first = left
+		self.second = parser.expression(self.lbp)
+		return self
 
 
 class End(Token):
 	lbp = 0
+	value = ''
 
 	def __init__(self, line_num):
 		super().__init__(line_num)
-		self.value = ''
 
 
-# infix('|', 70); infix('^', 80); infix('&', 90)
-#
-# infix('<<', 100); infix('>>', 100)
-#
-# infix('%', 120)
-#
-# prefix('~', 130)
-#
-# infix_r('**', 140)
+from sys import modules
+from inspect import getmembers
+from inspect import isclass
 
-op_map = {
-	'+': Add, '-': Sub, '*': Mul, '/': Div, '//': FloorDiv, '(': LParen, ')': RParen, 'if': TernIf, 'else': TernElse,
-	'.': Dot, ',': Comma, ':': Colon, 'is': Is, 'is not': IsNot, 'in': In, '[': LSquareBracket, ']': RSquareBracket,
-	'{': LSquiglyBracket, '}': RSquiglyBracket, '=': Assign, '==': Equal, '!=': NotEqual
-}
-operators = (
-	',', ':', '.', '&', '|', '@', '^', '~', '+', '-', '*', '/', '<', '>', '%', '=', '//', '**', '<=', '>=', '==', '!=',
-	'+=', '-=', '*=', '/=', '//=', '%=', '**=', '<<', '>>', 'is not', 'not in', 'is', 'in', 'not', 'and', 'or')
+for name, obj in getmembers(modules[__name__]):
+	if isclass(obj):
+		if issubclass(obj, Operator):
+			op_map[obj.value] = obj
+
+operators_left = ('@', '+=', '-=', '*=', '/=', '//=', '%=', '**=')
