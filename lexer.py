@@ -1,161 +1,166 @@
-from tokens import Keyword
-from tokens import PrimitiveType
-from tokens import Escape
-from tokens import NewLine
-from tokens import Indent
-from tokens import Name
-from tokens import Number
-from tokens import String
-from tokens import op_map
-from tokens import kw_map
-from tokens import End
+from tokens import Token
 
-primitive_types = ('any', 'int', 'dec', 'float', 'complex', 'str', 'bool', 'byte', 'list', 'tuple', 'dict', 'enum', 'func')
-operators = (
+ALPHANUMERIC = 'alphanumeric'
+NUMERIC = 'numeric'
+OPERATIC = 'operatic'
+WHITESPACE = 'whitespace'
+COMMENT = 'comment'
+ESCAPE = 'escape'
+OPERATORS = (
 	'(', ')', '[', ']', '{', '}', ',', ':', '.', '&', '|', '@',	'^', '~', '+', '-', '*', '/', '<', '>', '%',
 	'=', '//', '**', '<=', '>=', '==', '!=', '+=', '-=', '*=', '/=', '//=', '%=', '**=', '<<', '>>', 'is not',
 	'not in', 'is', 'in', 'not', 'and', 'or'
 )
-single_operators = (')', ']', '}', ',', ':', '.', '&', '|', '@', '^', '~',)
-keywords = (
-	'if', 'else', 'for', 'switch', 'case', 'def', 'false', 'true', 'null', 'class', 'super', 'this', 'return', 'test',
-	'try', 'catch', 'finally', 'while', 'yield', 'break', 'continue', 'del', 'from', 'import', 'as', 'pass', 'void',
-	'raise', 'with', 'union', 'struct', 'require', 'ensure', 'override', 'doc', 'abst', 'prop', 'get', 'set', 'assert'
-)
 
-def is_float(s):
-	try:
-		float(s)
-		return True
-	except ValueError:
-		return False
 
-def get_type(char):
-	if char in operators:
-		return 'operatic'
-	try:
-		int(char)
-		return 'numeric'
-	except ValueError:
-		return 'alphanumeric'
+class Lexer(object):
+	def __init__(self, text):
+		self.text = text
+		self.pos = 0
+		self.current_char = self.text[self.pos]
+		self.char_type = None
+		self.word = ''
+		self.word_type = None
+		self.line_num = 1
 
-def get_token_of_type(string, line_num):
-	if string.isdecimal() or string.isnumeric() or is_float(string):
-		return Number(string, line_num)
-	elif string in operators:
-		return op_map[string](line_num)
-	elif string in keywords:
-		return kw_map[string](line_num)
-	elif string in primitive_types:
-		return PrimitiveType(string, line_num)
-	else:
-		return Name(string, line_num)
-
-def analyze(string):
-	word = ''
-	in_str = False
-	comment = False
-	single_quote = False
-	line_num = 1
-	word_type = None
-	escape = False
-	for x, char in enumerate(string):
-		if not escape:
-			if char == '\\':
-				escape = True
-			elif not in_str:
-				if char == '\n':
-					if word:
-						yield get_token_of_type(word, line_num)
-					yield NewLine(line_num)
-					line_num += 1
-					comment = False
-					word = ''
-					word_type = None
-				elif char == '#':
-					comment = True
-				elif not comment:
-					if char == '\t':
-						yield Indent(line_num)
-						word = ''
-						word_type = None
-					elif char.isspace():
-						if word == 'is':
-							if x + 4 < len(string) - 1 and string[x + 1] == 'n' and string[x + 2] == 'o' and string[x + 3] == 't' and string[x + 4] == ' ':
-								word += char
-								continue
-						elif word == 'not':
-							if x + 3 < len(string) - 1 and string[x + 1] == 'i' and string[x + 2] == 'n' and string[x + 3] == ' ':
-								word += char
-								continue
-						if word:
-							yield get_token_of_type(word, line_num)
-						word = ''
-						word_type = None
-					elif char == "'" or char == '"':
-						in_str = True
-						if char == "'":
-							single_quote = True
-						if word:
-							yield get_token_of_type(word, line_num)
-						word = ''
-						word_type = None
-					else:
-						char_type = get_type(char)
-						if word == '':
-							word_type = get_type(char)
-						if word_type == 'alphanumeric' and char_type != 'operatic':
-							word += char
-						if word_type == 'alphanumeric' and char_type == 'operatic':
-							yield get_token_of_type(word, line_num)
-							word = char
-							word_type = char_type
-						elif word_type == 'numeric' and char_type == 'alphanumeric':
-							raise ValueError('Variables cannot start with numbers')
-						elif word_type == 'numeric' and (char == '.' or char_type == 'numeric'):
-							word += char
-						elif char_type == 'operatic' and (word_type == 'alphanumeric' or word_type == 'numeric'):
-							yield get_token_of_type(word, line_num)
-							word = char
-							word_type = char_type
-						elif char_type == 'operatic' and word_type == 'operatic':
-							if char not in single_operators:
-								word += char
-							else:
-								yield get_token_of_type(char, line_num)
-								word = ''
-						elif word_type == 'operatic' and char_type != 'operatic':
-							yield get_token_of_type(word, line_num)
-							word = char
-							word_type = char_type
-			else:
-				if char == "'" and single_quote:
-					in_str = False
-					single_quote = False
-					yield String(word, line_num)
-					word = ''
-					word_type = None
-				elif char == '"' and not single_quote:
-					in_str = False
-					yield String(word, line_num)
-					word = ''
-					word_type = None
-				else:
-					if word == '':
-						word_type = get_type(char)
-					word += char
+	def next(self):
+		self.pos += 1
+		if self.pos > len(self.text) - 1:
+			self.current_char = None
+			self.char_type = None
 		else:
-			if not in_str:
-				yield Escape(line_num)
-			word += '\\' + char
-			escape = False
-	if word:
-		yield get_token_of_type(word, line_num)
-	yield End(line_num)
+			self.current_char = self.text[self.pos]
+			self.char_type = self.get_type(self.current_char)
+
+	def reset_word(self):
+		old_word = self.word
+		self.word = ''
+		self.word_type = None
+		return old_word
+
+	def peek(self, num):
+		peek_pos = self.pos + num
+		if peek_pos > len(self.text) - 1:
+			return None
+		else:
+			return self.text[peek_pos]
+
+	def skip_whitespace(self):
+		while self.current_char is not None and self.current_char.isspace():
+			self.next()
+
+	@staticmethod
+	def get_type(char):
+		if char.isspace():
+			return WHITESPACE
+		if char == '#':
+			return COMMENT
+		if char == '\\':
+			return ESCAPE
+		if char in OPERATORS:
+			return OPERATIC
+		try:
+			int(char)
+			return NUMERIC
+		except ValueError:
+			return ALPHANUMERIC
+
+	def get_next_token(self):
+		if self.current_char is None:
+			return Token('END', '', self.line_num)
+
+		if self.current_char == '#':
+			while self.current_char != '\n':
+				self.next()
+
+		if self.current_char == '\n':
+			self.reset_word()
+			self.line_num += 1
+			self.next()
+			return Token('NEWLINE', '\\n', self.line_num - 1)
+		elif self.current_char == '\t':
+			self.reset_word()
+			self.next()
+			return Token('INDENT', '\\t', self.line_num)
+
+		if self.current_char.isspace():
+			self.skip_whitespace()
+
+		if self.current_char == '#':
+			while self.current_char != '\n':
+				self.next()
+			self.reset_word()
+			self.line_num += 1
+			self.next()
+			return Token('NEWLINE', '\\n', self.line_num - 1)
+
+		if self.current_char == '"':
+			self.next()
+			while self.current_char != '"':
+				if self.current_char == '\\' and self.peek(1) == '"':
+					self.next()
+				self.word += self.current_char
+				self.next()
+			self.next()
+			return Token('STRING', self.reset_word(), self.line_num)
+		elif self.current_char == "'":
+			self.next()
+			while self.current_char != "'":
+				if self.current_char == '\\' and self.peek(1) == "'":
+					self.next()
+				self.word += self.current_char
+				self.next()
+			self.next()
+			return Token('STRING', self.reset_word(), self.line_num)
+
+		if not self.char_type:
+			self.char_type = self.get_type(self.current_char)
+		if not self.word_type:
+			self.word_type = self.char_type
+
+		if self.word_type == ALPHANUMERIC:
+			while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
+				self.word += self.current_char
+				self.next()
+			return Token('NAME', self.reset_word(), self.line_num)
+
+		if self.word_type == NUMERIC:
+			while self.char_type == NUMERIC or self.current_char == '.':
+				self.word += self.current_char
+				self.next()
+				if self.char_type == ALPHANUMERIC:
+					raise SyntaxError('Variables cannot start with numbers')
+			return Token('NUMBER', self.reset_word(), self.line_num)
+
+		if self.word_type == OPERATIC:
+			while self.char_type == OPERATIC:
+				self.word += self.current_char
+				self.next()
+			return Token('OP', self.reset_word(), self.line_num)
+
+		if self.char_type == ESCAPE:
+			self.reset_word()
+			self.next()
+			line_num = self.line_num
+			if self.current_char == '\n':
+				self.line_num += 1
+			self.next()
+			return Token(ESCAPE, '\\', line_num)
+
+		raise SyntaxError('Unknown character')
+
+	def analyze(self):
+		token = self.get_next_token()
+		while token.type != 'END':
+			yield token
+			token = self.get_next_token()
+		yield token
+
 
 if __name__ == '__main__':
-	for t in analyze(open('example.my').read()):
-		if not isinstance(t, NewLine):
+	lexer = Lexer(open('example.my').read())
+	for t in lexer.analyze():
+		if t.type != 'NEWLINE':
 			print(t, end=' ')
 		else:
 			print(t)
