@@ -1,14 +1,18 @@
 from abc import ABCMeta
 
+precidence = {}
 op_map = {}
+kw_map = {}
 
 class Token(object, metaclass=ABCMeta):
+	value = None
+
 	def __init__(self, line_num):
 		self.line_num = line_num
 		self.type = str(self.__class__.__name__).lower()
 
 	def __str__(self):
-		return '({})'.format(self.type)
+		return '({} {})'.format(self.type, self.value)
 
 	def __repr__(self):
 		return self.__str__()
@@ -34,9 +38,29 @@ class Name(Literal):
 		super().__init__(value, line_num)
 
 
-class Keyword(Literal):
-	def __init__(self, value, line_num):
-		super().__init__(value, line_num)
+class Keyword(Token):
+	def __init__(self, line_num):
+		super().__init__(line_num)
+
+	def __str__(self):
+		return '({})'.format(self.value)
+
+	def __repr__(self):
+		return self.__str__()
+
+class If(Keyword):
+	lbp = 6
+	value = 'if'
+
+	def __init__(self, line_num):
+		super().__init__(line_num)
+		self.first = None
+		self.second = None
+
+	def nud(self, parser=None):
+		self.first = parser.expression(self.lbp)
+		self.second = None
+		return self
 
 
 class PrimitiveType(Literal):
@@ -49,14 +73,51 @@ class Escape(Literal):
 		super().__init__('\\', line_num)
 
 
-class NewLine(Literal):
+class NewLine(Token):
+	lbp = 5
+	value = '\\n'
+	statements = []
+
 	def __init__(self, line_num):
-		super().__init__('\\n', line_num)
+		super().__init__(line_num)
+
+	def led(self, left, parser):
+		self.statements.append(left)
+		if not isinstance(parser.current_token, NewLine):
+			while 1:
+				if isinstance(parser.current_token, End):
+					break
+				stmt = parser.expression()
+				if not isinstance(stmt, NewLine):
+					self.statements.append(stmt)
+				if isinstance(parser.current_token, End):
+					break
+		return self
 
 
 class Indent(Literal):
 	def __init__(self, line_num):
 		super().__init__('\\t', line_num)
+
+	def nud(self, parser=None):
+		return Scope().led(parser.advance(), parser)
+
+
+class Scope(object):
+	statements = []
+
+	def led(self, left, parser):
+		self.statements.append(left)
+		if isinstance(parser.current_token, Scope):
+			while 1:
+				if isinstance(parser.current_token, End):
+					break
+				stmt = parser.expression()
+				if not isinstance(stmt, NewLine):
+					self.statements.append(stmt)
+				if isinstance(parser.current_token, End):
+					break
+		return self
 
 
 class Number(Literal):
@@ -68,6 +129,11 @@ class String(Literal):
 	def __init__(self, value, line_num):
 		super().__init__(value, line_num)
 
+	def __str__(self):
+		if '"' in self.value:
+			return "({} '{}')".format(self.type, self.value)
+		else:
+			return '({} "{}")'.format(self.type, self.value)
 
 class Operator(Token):
 	value = None
@@ -79,10 +145,7 @@ class Operator(Token):
 		self.third = None
 
 	def __str__(self):
-		name = self.__class__.__name__
-		if name == 'Name' or name == 'Number' or name == 'String':
-			return '({} {})'.format(name.lower(), self.value)
-		out = [name.lower(), self.first, self.second, self.third]
+		out = [self.type, self.first, self.second, self.third]
 		out = map(str, filter(None, out))
 		return '(' + ' '.join(out) + ')'
 
@@ -512,7 +575,7 @@ class Assign(Operator):
 
 	def led(self, left, parser):
 		self.first = left
-		self.second = parser.expression(self.lbp)
+		self.second = parser.expression(self.lbp - 1)
 		return self
 
 class TernIf(Operator):
@@ -632,5 +695,7 @@ for name, obj in getmembers(modules[__name__]):
 	if isclass(obj):
 		if issubclass(obj, Operator):
 			op_map[obj.value] = obj
+		elif issubclass(obj, Keyword):
+			kw_map[obj.value] = obj
 
 operators_left = ('@', '+=', '-=', '*=', '/=', '//=', '%=', '**=')

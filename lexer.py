@@ -7,6 +7,7 @@ from tokens import Name
 from tokens import Number
 from tokens import String
 from tokens import op_map
+from tokens import kw_map
 from tokens import End
 
 primitive_types = ('any', 'int', 'dec', 'float', 'complex', 'str', 'bool', 'byte', 'list', 'tuple', 'dict', 'enum', 'func')
@@ -44,7 +45,7 @@ def get_token_of_type(string, line_num):
 	elif string in operators:
 		return op_map[string](line_num)
 	elif string in keywords:
-		return Keyword(string, line_num)
+		return kw_map[string](line_num)
 	elif string in primitive_types:
 		return PrimitiveType(string, line_num)
 	else:
@@ -153,8 +154,8 @@ def analyze(string):
 	yield End(line_num)
 
 if __name__ == '__main__':
-	for t in analyze(open('math.my').read()):
-		if t.type != 'newline':
+	for t in analyze(open('example.my').read()):
+		if not isinstance(t, NewLine):
 			print(t, end=' ')
 		else:
 			print(t)
