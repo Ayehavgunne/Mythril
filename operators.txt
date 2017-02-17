@@ -17,6 +17,9 @@
 %= Modulus and Assign
 **= Power andw Assign
 
+#type cast operator
+::
+
 #comparison operators
 < Less Than
 > Greater Than

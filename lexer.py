@@ -8,9 +8,15 @@ COMMENT = 'comment'
 ESCAPE = 'escape'
 OPERATORS = (
 	'(', ')', '[', ']', '{', '}', ',', ':', '.', '&', '|', '@',	'^', '~', '+', '-', '*', '/', '<', '>', '%',
-	'=', '//', '**', '<=', '>=', '==', '!=', '+=', '-=', '*=', '/=', '//=', '%=', '**=', '<<', '>>', 'is not',
-	'not in', 'is', 'in', 'not', 'and', 'or'
+	'=', '//', '**', '<=', '>=', '==', '!=', '+=', '-=', '*=', '/=', '//=', '%=', '**=', '<<', '>>', '::',
+	'is not', 'not in', 'is', 'in', 'not', 'and', 'or'
 )
+KEYWORDS = (
+	'if', 'else', 'for', 'switch', 'case', 'def', 'false', 'true', 'null', 'class', 'super', 'this', 'return', 'test',
+	'try', 'catch', 'finally', 'while', 'yield', 'break', 'continue', 'del', 'from', 'import', 'as', 'pass', 'void',
+	'raise', 'with', 'union', 'struct', 'require', 'ensure', 'override', 'doc', 'abst', 'prop', 'get', 'set', 'assert'
+)
+TYPES = ('any', 'int', 'dec', 'float', 'complex', 'str', 'bool', 'byte', 'list', 'tuple', 'dict', 'enum', 'func')
 
 
 class Lexer(object):
@@ -49,6 +55,21 @@ class Lexer(object):
 		while self.current_char is not None and self.current_char.isspace():
 			self.next()
 
+	def skip_comment(self):
+		while self.current_char != '\n':
+			self.next()
+
+	def eat_newline(self):
+		self.reset_word()
+		self.line_num += 1
+		self.next()
+		return Token('NEWLINE', '\\n', self.line_num - 1)
+
+	def eat_indent(self):
+		self.reset_word()
+		self.next()
+		return Token('INDENT', '\\t', self.line_num)
+
 	@staticmethod
 	def get_type(char):
 		if char.isspace():
@@ -69,30 +90,18 @@ class Lexer(object):
 		if self.current_char is None:
 			return Token('END', '', self.line_num)
 
-		if self.current_char == '#':
-			while self.current_char != '\n':
-				self.next()
-
 		if self.current_char == '\n':
-			self.reset_word()
-			self.line_num += 1
-			self.next()
-			return Token('NEWLINE', '\\n', self.line_num - 1)
+			return self.eat_newline()
+
 		elif self.current_char == '\t':
-			self.reset_word()
-			self.next()
-			return Token('INDENT', '\\t', self.line_num)
+			return self.eat_indent()
 
 		if self.current_char.isspace():
 			self.skip_whitespace()
 
 		if self.current_char == '#':
-			while self.current_char != '\n':
-				self.next()
-			self.reset_word()
-			self.line_num += 1
-			self.next()
-			return Token('NEWLINE', '\\n', self.line_num - 1)
+			self.skip_comment()
+			return self.eat_newline()
 
 		if self.current_char == '"':
 			self.next()
@@ -103,7 +112,8 @@ class Lexer(object):
 				self.next()
 			self.next()
 			return Token('STRING', self.reset_word(), self.line_num)
-		elif self.current_char == "'":
+
+		if self.current_char == "'":
 			self.next()
 			while self.current_char != "'":
 				if self.current_char == '\\' and self.peek(1) == "'":
@@ -122,7 +132,12 @@ class Lexer(object):
 			while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
 				self.word += self.current_char
 				self.next()
-			return Token('NAME', self.reset_word(), self.line_num)
+			if self.word in KEYWORDS:
+				return Token('KEYWORD', self.reset_word(), self.line_num)
+			elif self.word in TYPES:
+				return Token('TYPE', self.reset_word(), self.line_num)
+			else:
+				return Token('NAME', self.reset_word(), self.line_num)
 
 		if self.word_type == NUMERIC:
 			while self.char_type == NUMERIC or self.current_char == '.':
@@ -150,7 +165,7 @@ class Lexer(object):
 		raise SyntaxError('Unknown character')
 
 	def analyze(self):
-		token = self.get_next_token()
+		token = Token('BEGIN', '', 0)
 		while token.type != 'END':
 			yield token
 			token = self.get_next_token()
@@ -160,7 +175,7 @@ class Lexer(object):
 if __name__ == '__main__':
 	lexer = Lexer(open('example.my').read())
 	for t in lexer.analyze():
-		if t.type != 'NEWLINE':
-			print(t, end=' ')
-		else:
+		if t.type == 'NEWLINE' or t.type == 'BEGIN':
 			print(t)
+		else:
+			print(t, end=' ')

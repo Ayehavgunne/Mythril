@@ -1,7 +1,6 @@
 any
 int
 dec
-float
 complex
 str
 bool
@@ -11,3 +10,4 @@ tuple
 dict
 enum
 func
+null
