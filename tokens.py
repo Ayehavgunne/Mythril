@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 class Token(object):
 	def __init__(self, token_type, value, line_num):
 		self.type = token_type
@@ -11,7 +13,7 @@ class Token(object):
 				self.value = int(self.value)
 			except ValueError:
 				try:
-					self.value = float(self.value)
+					self.value = Decimal(self.value)
 				except ValueError:
 					pass
 

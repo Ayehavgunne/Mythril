@@ -1,5 +1,9 @@
 from collections import OrderedDict
-import ast
+from decimal import Decimal
+from enum import Enum
+from ast import Type
+from ast import Null
+from grammar import *
 
 
 class Symbol(object):
@@ -34,19 +38,19 @@ class SymbolTable(object):
 		self._init_builtins()
 
 	def _init_builtins(self):
-		self.define(BuiltinTypeSymbol('any'))
-		self.define(BuiltinTypeSymbol('int'))
-		self.define(BuiltinTypeSymbol('dec'))
-		self.define(BuiltinTypeSymbol('complex'))
-		self.define(BuiltinTypeSymbol('bool'))
-		self.define(BuiltinTypeSymbol('byte'))
-		self.define(BuiltinTypeSymbol('str'))
-		self.define(BuiltinTypeSymbol('list'))
-		self.define(BuiltinTypeSymbol('tuple'))
-		self.define(BuiltinTypeSymbol('dict'))
-		self.define(BuiltinTypeSymbol('enum'))
-		self.define(BuiltinTypeSymbol('func'))
-		self.define(BuiltinTypeSymbol('null'))
+		self.define(BuiltinTypeSymbol(ANY))
+		self.define(BuiltinTypeSymbol(INT))
+		self.define(BuiltinTypeSymbol(DEC))
+		self.define(BuiltinTypeSymbol(COMPLEX))
+		self.define(BuiltinTypeSymbol(BOOL))
+		self.define(BuiltinTypeSymbol(BYTES))
+		self.define(BuiltinTypeSymbol(STR))
+		self.define(BuiltinTypeSymbol(LIST))
+		self.define(BuiltinTypeSymbol(TUPLE))
+		self.define(BuiltinTypeSymbol(DICT))
+		self.define(BuiltinTypeSymbol(ENUM))
+		self.define(BuiltinTypeSymbol(FUNC))
+		self.define(BuiltinTypeSymbol(NULLTYPE))
 
 	def __str__(self):
 		s = 'Symbols: {symbols}'.format(
@@ -63,24 +67,40 @@ class SymbolTable(object):
 		symbol = self._symbols.get(name)
 		return symbol
 
-	# def assign_val(self, symbol, value):
-	# 	self._symbols[symbol] = value
-
 	def infer_type(self, value):
 		if isinstance(value, BuiltinTypeSymbol):
 			return value
 		elif isinstance(value, VarSymbol):
 			return value.type
-		elif isinstance(value, ast.Type):
+		elif isinstance(value, Type):
 			return self.lookup(value.value)
 		else:
 			if isinstance(value, int):
 				return self.lookup('int')
-			elif isinstance(value, float):
+			elif isinstance(value, Decimal):
 				return self.lookup('dec')
+			elif isinstance(value, complex):
+				return self.lookup('complex')
+			elif isinstance(value, str):
+				return self.lookup('str')
+			elif isinstance(value, bool):
+				return self.lookup('bool')
+			elif isinstance(value, bytes):
+				return self.lookup('byte')
+			elif isinstance(value, list):
+				return self.lookup('list')
+			elif isinstance(value, tuple):
+				return self.lookup('tuple')
+			elif isinstance(value, dict):
+				return self.lookup('dict')
+			elif isinstance(value, Enum):
+				return self.lookup('enum')
+			elif callable(value):
+				return self.lookup('func')
+			elif value is None:
+				return self.lookup('nulltype')
 			else:
-				raise TypeError
-				# return self.lookup('any')
+				raise TypeError('Type not recognized: {}'.format(value))
 
 
 class NodeVisitor(object):
@@ -125,6 +145,9 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_num(self, node):
 		return self.symtab.infer_type(node.value)
 
+	def visit_str(self, node):
+		return self.symtab.infer_type(node.value)
+
 	@staticmethod
 	def visit_type(node):
 		return node.value
@@ -134,7 +157,6 @@ class SymbolTableBuilder(NodeVisitor):
 		value = self.visit(node.right)
 		if not self.symtab.lookup(var_name):
 			self.symtab.define(VarSymbol(var_name, value))
-		# self.symtab.assign_val(var_name, value)
 
 	def visit_opassign(self, node):
 		left = self.visit(node.left)
@@ -184,7 +206,7 @@ class Interpreter(NodeVisitor):
 			self.visit(child)
 
 	def visit_vardecl(self, node):
-		self.GLOBAL_SCOPE[node.var_node.value] = ast.Null()
+		self.GLOBAL_SCOPE[node.var_node.value] = Null()
 
 	def visit_type(self, node):
 		pass
@@ -195,51 +217,73 @@ class Interpreter(NodeVisitor):
 	def visit_comparison(self, node):
 		comp = node.comp
 		op = comp.op.value
-		if op == ast.EQUALS:
+		if op == EQUALS:
 			result = self.visit(comp.left) == self.visit(comp.right)
-		elif op == ast.NOT_EQUALS:
+		elif op == NOT_EQUALS:
 			result = self.visit(comp.left) != self.visit(comp.right)
-		elif op == ast.LESS_THAN:
+		elif op == LESS_THAN:
 			result = self.visit(comp.left) < self.visit(comp.right)
-		elif op == ast.LESS_THAN_OR_EQUAL_TO:
+		elif op == LESS_THAN_OR_EQUAL_TO:
 			result = self.visit(comp.left) <= self.visit(comp.right)
-		elif op == ast.GREATER_THAN:
+		elif op == GREATER_THAN:
 			result = self.visit(comp.left) > self.visit(comp.right)
-		elif op == ast.GREATER_THAN_OR_EQUAL_TO:
+		elif op == GREATER_THAN_OR_EQUAL_TO:
 			result = self.visit(comp.left) >= self.visit(comp.right)
 		else:
 			raise SyntaxError('Unknown comparison operator: {}'.format(op))
 		if result:
-			if node.op.value == ast.WHILE:
+			if node.op.value == WHILE:
 				self.visit(node.block)
 				self.visit_comparison(node)
-			elif node.op.value == ast.IF:
+			elif node.op.value == IF:
 				self.visit(node.block)
 
 	def visit_binop(self, node):
 		op = node.op.value
-		if op == ast.PLUS:
+		if op == PLUS:
 			return self.visit(node.left) + self.visit(node.right)
-		elif op == ast.MINUS:
+		elif op == MINUS:
 			return self.visit(node.left) - self.visit(node.right)
-		elif op == ast.MUL:
+		elif op == MUL:
 			return self.visit(node.left) * self.visit(node.right)
-		elif op == ast.FLOORDIV:
+		elif op == FLOORDIV:
 			return self.visit(node.left) // self.visit(node.right)
-		elif op == ast.DIV:
+		elif op == DIV:
 			return self.visit(node.left) / self.visit(node.right)
-		elif op == ast.MOD:
+		elif op == MOD:
 			return self.visit(node.left) % self.visit(node.right)
-		elif op == ast.POWER:
+		elif op == POWER:
 			return self.visit(node.left) ** self.visit(node.right)
-		elif op == ast.CAST:
-			return int(self.visit(node.left))
+		elif op == CAST:
+			cast_type = node.right.value
+			if cast_type == INT:
+				return int(self.visit(node.left))
+			elif cast_type == DEC:
+				return Decimal(self.visit(node.left))
+			elif cast_type == COMPLEX:
+				return complex(self.visit(node.left))
+			elif cast_type == STR:
+				return str(self.visit(node.left))
+			elif cast_type == BOOL:
+				return bool(self.visit(node.left))
+			elif cast_type == BYTES:
+				return bytes(self.visit(node.left))
+			elif cast_type == LIST:
+				return list(self.visit(node.left))
+			elif cast_type == TUPLE:
+				return tuple(self.visit(node.left))
+			elif cast_type == DICT:
+				return dict(self.visit(node.left))
+			elif cast_type == ENUM:
+				return Enum(node.left.value, self.visit(node.left))
+			elif cast_type in (ANY, FUNC, NULL):
+				raise TypeError('Cannot cast to type {}'.format(cast_type))
 
 	def visit_unaryop(self, node):
 		op = node.op.value
-		if op == ast.PLUS:
+		if op == PLUS:
 			return +self.visit(node.expr)
-		elif op == ast.MINUS:
+		elif op == MINUS:
 			return -self.visit(node.expr)
 
 	def visit_assign(self, node):
@@ -249,19 +293,19 @@ class Interpreter(NodeVisitor):
 	def visit_opassign(self, node):
 		var_name = node.left.value
 		op = node.op.value
-		if op == ast.PLUS_ASSIGN:
+		if op == PLUS_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] += self.visit(node.right)
-		elif op == ast.MINUS_ASSIGN:
+		elif op == MINUS_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] -= self.visit(node.right)
-		elif op == ast.MUL_ASSIGN:
+		elif op == MUL_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] *= self.visit(node.right)
-		elif op == ast.FLOORDIV_ASSIGN:
+		elif op == FLOORDIV_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] //= self.visit(node.right)
-		elif op == ast.DIV_ASSIGN:
+		elif op == DIV_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] /= self.visit(node.right)
-		elif op == ast.MOD_ASSIGN:
+		elif op == MOD_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] %= self.visit(node.right)
-		elif op == ast.POWER_ASSIGN:
+		elif op == POWER_ASSIGN:
 			self.GLOBAL_SCOPE[var_name] **= self.visit(node.right)
 
 	def visit_var(self, node):
@@ -276,9 +320,12 @@ class Interpreter(NodeVisitor):
 	def visit_num(node):
 		return node.value
 
+	@staticmethod
+	def visit_str(node):
+		return node.value
+
 	def interpret(self, tree):
 		return self.visit(tree)
-		# return self.visit(self.parser.parse())
 
 if __name__ == '__main__':
 	from lexer import Lexer

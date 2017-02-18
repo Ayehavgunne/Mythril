@@ -1,5 +1,8 @@
 dec a
 b = 3
+first_name = 'Anthony'
+last_name = 'Post'
+full_name = first_name + ' ' + last_name
 a = 2.5
 d = 0
 c = a::int ** b

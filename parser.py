@@ -1,4 +1,5 @@
 from ast import *
+from grammar import *
 
 class Parser(object):
 	def __init__(self, lexer):
@@ -119,6 +120,9 @@ class Parser(object):
 		elif token.type == NUMBER:
 			self.eat_type(NUMBER)
 			return Num(token)
+		elif token.type == STRING:
+			self.eat_type(STRING)
+			return Str(token)
 		elif token.type == TYPE:
 			self.eat_type(TYPE)
 			return Type(token)
@@ -133,10 +137,10 @@ class Parser(object):
 
 	def term(self):
 		node = self.factor()
-		while self.current_token.value in (MUL, DIV, FLOORDIV, MOD, POWER, CAST) or self.current_token.value in COMP_OP:
+		while self.current_token.value in (MUL, DIV, FLOORDIV, MOD, POWER, CAST) or self.current_token.value in COMPARISON_OP:
 			token = self.current_token
 			self.next_token()
-			if token.value in COMP_OP:
+			if token.value in COMPARISON_OP:
 				node = BinOp(left=node, op=token, right=self.expr())
 			else:
 				node = BinOp(left=node, op=token, right=self.factor())

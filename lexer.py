@@ -1,22 +1,5 @@
 from tokens import Token
-
-ALPHANUMERIC = 'alphanumeric'
-NUMERIC = 'numeric'
-OPERATIC = 'operatic'
-WHITESPACE = 'whitespace'
-COMMENT = 'comment'
-ESCAPE = 'escape'
-OPERATORS = (
-	'(', ')', '[', ']', '{', '}', ',', ':', '.', '&', '|', '@',	'^', '~', '+', '-', '*', '/', '<', '>', '%',
-	'=', '//', '**', '<=', '>=', '==', '!=', '+=', '-=', '*=', '/=', '//=', '%=', '**=', '<<', '>>', '::',
-	'is not', 'not in', 'is', 'in', 'not', 'and', 'or'
-)
-KEYWORDS = (
-	'if', 'else', 'for', 'switch', 'case', 'then', 'false', 'true', 'null', 'class', 'super', 'this', 'return', 'test',
-	'try', 'catch', 'finally', 'while', 'yield', 'break', 'continue', 'del', 'from', 'import', 'as', 'pass', 'void',
-	'raise', 'with', 'union', 'struct', 'require', 'ensure', 'override', 'doc', 'abst', 'prop', 'get', 'set', 'assert'
-)
-TYPES = ('any', 'int', 'dec', 'float', 'complex', 'str', 'bool', 'byte', 'list', 'tuple', 'dict', 'enum', 'func')
+from grammar import *
 
 
 class Lexer(object):
@@ -138,6 +121,8 @@ class Lexer(object):
 				return Token('KEYWORD', self.reset_word(), self.line_num)
 			elif self.word in TYPES:
 				return Token('TYPE', self.reset_word(), self.line_num)
+			elif self.word in CONSTANTS:
+				return Token('CONSTANT', self.reset_word(), self.line_num)
 			else:
 				return Token('NAME', self.reset_word(), self.line_num)
 
