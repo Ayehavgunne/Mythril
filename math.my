@@ -1,3 +1,8 @@
-int a
+dec a
 b = 3
-c = 1.5::int + b
+a = 2.5
+d = 0
+c = a::int ** b
+while b < 30
+	b += c + 1
+d += c + b

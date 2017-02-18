@@ -12,7 +12,7 @@ OPERATORS = (
 	'is not', 'not in', 'is', 'in', 'not', 'and', 'or'
 )
 KEYWORDS = (
-	'if', 'else', 'for', 'switch', 'case', 'def', 'false', 'true', 'null', 'class', 'super', 'this', 'return', 'test',
+	'if', 'else', 'for', 'switch', 'case', 'then', 'false', 'true', 'null', 'class', 'super', 'this', 'return', 'test',
 	'try', 'catch', 'finally', 'while', 'yield', 'break', 'continue', 'del', 'from', 'import', 'as', 'pass', 'void',
 	'raise', 'with', 'union', 'struct', 'require', 'ensure', 'override', 'doc', 'abst', 'prop', 'get', 'set', 'assert'
 )
@@ -52,6 +52,8 @@ class Lexer(object):
 			return self.text[peek_pos]
 
 	def skip_whitespace(self):
+		if self.peek(-1) == '\n':
+			raise SyntaxError('Only tab characters can indent')
 		while self.current_char is not None and self.current_char.isspace():
 			self.next()
 
@@ -165,7 +167,7 @@ class Lexer(object):
 		raise SyntaxError('Unknown character')
 
 	def analyze(self):
-		token = Token('BEGIN', '', 0)
+		token = self.get_next_token()
 		while token.type != 'END':
 			yield token
 			token = self.get_next_token()

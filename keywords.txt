@@ -3,7 +3,6 @@ else
 for
 switch
 case
-def
 false
 true
 null
@@ -15,6 +14,7 @@ return
 try
 catch
 finally
+then
 while
 yield
 break

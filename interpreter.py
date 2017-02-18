@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from ast import PLUS, MINUS, MUL, DIV, FLOORDIV, Null, Type
+import ast
 
 
 class Symbol(object):
@@ -71,7 +71,7 @@ class SymbolTable(object):
 			return value
 		elif isinstance(value, VarSymbol):
 			return value.type
-		elif isinstance(value, Type):
+		elif isinstance(value, ast.Type):
 			return self.lookup(value.value)
 		else:
 			if isinstance(value, int):
@@ -79,7 +79,8 @@ class SymbolTable(object):
 			elif isinstance(value, float):
 				return self.lookup('dec')
 			else:
-				return self.lookup('any')
+				raise TypeError
+				# return self.lookup('any')
 
 
 class NodeVisitor(object):
@@ -113,10 +114,13 @@ class SymbolTableBuilder(NodeVisitor):
 			right = self.visit(node.right)
 			left_type = self.symtab.infer_type(left)
 			right_type = self.symtab.infer_type(right)
-			if right_type is left_type:
+			if right_type is left_type or left_type is self.symtab.lookup('any') or right_type is self.symtab.lookup('any'):
 				return left_type
 			else:
 				raise TypeError
+
+	def visit_comparison(self, node):
+		self.visit(node.comp)
 
 	def visit_num(self, node):
 		return self.symtab.infer_type(node.value)
@@ -129,9 +133,18 @@ class SymbolTableBuilder(NodeVisitor):
 		var_name = node.left.value
 		value = self.visit(node.right)
 		if not self.symtab.lookup(var_name):
-			var_type = self.symtab.infer_type(value)
-			self.symtab.define(VarSymbol(var_name, var_type))
+			self.symtab.define(VarSymbol(var_name, value))
 		# self.symtab.assign_val(var_name, value)
+
+	def visit_opassign(self, node):
+		left = self.visit(node.left)
+		right = self.visit(node.right)
+		left_type = self.symtab.infer_type(left)
+		right_type = self.symtab.infer_type(right)
+		if right_type is left_type or left_type is self.symtab.lookup('any') or right_type is self.symtab.lookup('any'):
+			return left_type
+		else:
+			raise TypeError
 
 	def visit_var(self, node):
 		var_name = node.value
@@ -160,8 +173,7 @@ class SymbolTableBuilder(NodeVisitor):
 
 
 class Interpreter(NodeVisitor):
-	def __init__(self, par):
-		self.parser = par
+	def __init__(self):
 		self.GLOBAL_SCOPE = {}
 
 	def visit_program(self, node):
@@ -172,7 +184,7 @@ class Interpreter(NodeVisitor):
 			self.visit(child)
 
 	def visit_vardecl(self, node):
-		self.GLOBAL_SCOPE[node.var_node.value] = Null()
+		self.GLOBAL_SCOPE[node.var_node.value] = ast.Null()
 
 	def visit_type(self, node):
 		pass
@@ -180,29 +192,77 @@ class Interpreter(NodeVisitor):
 	def visit_noop(self, node):
 		pass
 
+	def visit_comparison(self, node):
+		comp = node.comp
+		op = comp.op.value
+		if op == ast.EQUALS:
+			result = self.visit(comp.left) == self.visit(comp.right)
+		elif op == ast.NOT_EQUALS:
+			result = self.visit(comp.left) != self.visit(comp.right)
+		elif op == ast.LESS_THAN:
+			result = self.visit(comp.left) < self.visit(comp.right)
+		elif op == ast.LESS_THAN_OR_EQUAL_TO:
+			result = self.visit(comp.left) <= self.visit(comp.right)
+		elif op == ast.GREATER_THAN:
+			result = self.visit(comp.left) > self.visit(comp.right)
+		elif op == ast.GREATER_THAN_OR_EQUAL_TO:
+			result = self.visit(comp.left) >= self.visit(comp.right)
+		else:
+			raise SyntaxError('Unknown comparison operator: {}'.format(op))
+		if result:
+			if node.op.value == ast.WHILE:
+				self.visit(node.block)
+				self.visit_comparison(node)
+			elif node.op.value == ast.IF:
+				self.visit(node.block)
+
 	def visit_binop(self, node):
 		op = node.op.value
-		if op == PLUS:
+		if op == ast.PLUS:
 			return self.visit(node.left) + self.visit(node.right)
-		elif op == MINUS:
+		elif op == ast.MINUS:
 			return self.visit(node.left) - self.visit(node.right)
-		elif op == MUL:
+		elif op == ast.MUL:
 			return self.visit(node.left) * self.visit(node.right)
-		elif node.op.type == FLOORDIV:
+		elif op == ast.FLOORDIV:
 			return self.visit(node.left) // self.visit(node.right)
-		elif op == DIV:
+		elif op == ast.DIV:
 			return self.visit(node.left) / self.visit(node.right)
+		elif op == ast.MOD:
+			return self.visit(node.left) % self.visit(node.right)
+		elif op == ast.POWER:
+			return self.visit(node.left) ** self.visit(node.right)
+		elif op == ast.CAST:
+			return int(self.visit(node.left))
 
 	def visit_unaryop(self, node):
 		op = node.op.value
-		if op == PLUS:
+		if op == ast.PLUS:
 			return +self.visit(node.expr)
-		elif op == MINUS:
+		elif op == ast.MINUS:
 			return -self.visit(node.expr)
 
 	def visit_assign(self, node):
 		var_name = node.left.value
 		self.GLOBAL_SCOPE[var_name] = self.visit(node.right)
+
+	def visit_opassign(self, node):
+		var_name = node.left.value
+		op = node.op.value
+		if op == ast.PLUS_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] += self.visit(node.right)
+		elif op == ast.MINUS_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] -= self.visit(node.right)
+		elif op == ast.MUL_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] *= self.visit(node.right)
+		elif op == ast.FLOORDIV_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] //= self.visit(node.right)
+		elif op == ast.DIV_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] /= self.visit(node.right)
+		elif op == ast.MOD_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] %= self.visit(node.right)
+		elif op == ast.POWER_ASSIGN:
+			self.GLOBAL_SCOPE[var_name] **= self.visit(node.right)
 
 	def visit_var(self, node):
 		var_name = node.value
@@ -216,17 +276,19 @@ class Interpreter(NodeVisitor):
 	def visit_num(node):
 		return node.value
 
-	def interpret(self):
-		return self.visit(self.parser.parse())
+	def interpret(self, tree):
+		return self.visit(tree)
+		# return self.visit(self.parser.parse())
 
 if __name__ == '__main__':
 	from lexer import Lexer
 	from parser import Parser
-	lexer = Lexer(open('math.my').read())
+	code = open('math.my').read()
+	lexer = Lexer(code)
 	parser = Parser(lexer)
-	tree = parser.parse()
+	t = parser.parse()
 	symtab_builder = SymbolTableBuilder()
-	symtab_builder.visit(tree)
-	# interpreter = Interpreter(parser)
-	# result = interpreter.interpret()
-	# print(interpreter.GLOBAL_SCOPE)
+	symtab_builder.visit(t)
+	interpreter = Interpreter()
+	interpreter.interpret(t)
+	print(interpreter.GLOBAL_SCOPE)

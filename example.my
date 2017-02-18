@@ -15,6 +15,10 @@ if hello == 23
 else
 	print('whatsits')
 
+while hello > 1:
+	hello = hello - 1
+	print(hello)
+
 if 2 in things
 	print('yes')
 

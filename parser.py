@@ -1,9 +1,10 @@
 from ast import *
 
 class Parser(object):
-	def __init__(self, lex):
-		self.lexer = lex
+	def __init__(self, lexer):
+		self.lexer = lexer
 		self.current_token = self.lexer.get_next_token()
+		self.indent_level = 0
 
 	def eat_type(self, token_type):
 		if self.current_token.type == token_type:
@@ -17,9 +18,16 @@ class Parser(object):
 		else:
 			raise SyntaxError
 
+	def next_token(self):
+		self.current_token = self.lexer.get_next_token()
+
 	def program(self):
-		program_node = Program(self.compound_statement())
-		return program_node
+		root = Compound()
+		# program_node = Program(self.compound_statement(0))
+		while self.current_token.type != EOF:
+			comp = self.compound_statement(0)
+			root.children.extend(comp.children)
+		return Program(root)
 
 	def variable_declaration(self):
 		type_node = self.type_spec()
@@ -34,24 +42,32 @@ class Parser(object):
 		node = Type(token)
 		return node
 
-	def compound_statement(self):
-		nodes = self.statement_list()
+	def compound_statement(self, indent_level):
+		nodes = self.statement_list(indent_level)
 		root = Compound()
 		for node in nodes:
 			root.children.append(node)
 		return root
 
-	def statement_list(self):
+	def statement_list(self, indent_level):
 		node = self.statement()
 		results = [node]
 		while self.current_token.type == NEWLINE:
+			indents = 0
 			self.eat_type(NEWLINE)
+			while self.current_token.type == INDENT:
+				self.next_token()
+				indents += 1
+			if indents < indent_level:
+				self.indent_level -= 1
+				return results
 			results.append(self.statement())
 		return results
 
 	def statement(self):
-		if self.current_token.type == BEGIN:
-			node = self.compound_statement()
+		if self.current_token.value in (IF, WHILE):
+			self.indent_level += 1
+			node = self.comparison_statement(self.indent_level)
 		elif self.current_token.type == NAME:
 			node = self.assignment_statement()
 		elif self.current_token.type == TYPE:
@@ -60,12 +76,25 @@ class Parser(object):
 			node = self.empty()
 		return node
 
+	def comparison_statement(self, indent_level):
+		token = self.current_token
+		self.next_token()
+		comp = self.expr()
+		return Comparison(token, comp, self.compound_statement(indent_level))
+
 	def assignment_statement(self):
 		left = self.variable()
 		token = self.current_token
-		self.eat_value(ASSIGN)
-		right = self.expr()
-		node = Assign(left, token, right)
+		if token.value == ASSIGN:
+			self.eat_value(ASSIGN)
+			right = self.expr()
+			node = Assign(left, token, right)
+		elif token.value in (PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN, MOD_ASSIGN, POWER_ASSIGN):
+			self.next_token()
+			right = self.expr()
+			node = OpAssign(left, token, right)
+		else:
+			raise SyntaxError('Unknown assignment operator: {}'.format(token.value))
 		return node
 
 	def variable(self):
@@ -104,27 +133,20 @@ class Parser(object):
 
 	def term(self):
 		node = self.factor()
-		while self.current_token.value in (MUL, DIV, FLOORDIV, CAST):
+		while self.current_token.value in (MUL, DIV, FLOORDIV, MOD, POWER, CAST) or self.current_token.value in COMP_OP:
 			token = self.current_token
-			if token.value == MUL:
-				self.eat_value(MUL)
-			elif token.value == DIV:
-				self.eat_value(DIV)
-			elif token.value == FLOORDIV:
-				self.eat_value(FLOORDIV)
-			elif token.value == CAST:
-				self.eat_value(CAST)
-			node = BinOp(left=node, op=token, right=self.factor())
+			self.next_token()
+			if token.value in COMP_OP:
+				node = BinOp(left=node, op=token, right=self.expr())
+			else:
+				node = BinOp(left=node, op=token, right=self.factor())
 		return node
 
 	def expr(self):
 		node = self.term()
 		while self.current_token.value in (PLUS, MINUS):
 			token = self.current_token
-			if token.value == PLUS:
-				self.eat_value(PLUS)
-			elif token.value == MINUS:
-				self.eat_value(MINUS)
+			self.next_token()
 			node = BinOp(left=node, op=token, right=self.term())
 		return node
 
@@ -137,7 +159,7 @@ class Parser(object):
 
 if __name__ == '__main__':
 	from lexer import Lexer
-	lexer = Lexer(open('math.my').read())
-	parser = Parser(lexer)
+	l = Lexer(open('math.my').read())
+	parser = Parser(l)
 	tree = parser.parse()
 	print(tree)
