@@ -1,5 +1,31 @@
-from tokens import Token
 from grammar import *
+from decimal import Decimal
+
+class Token(object):
+	def __init__(self, token_type, value, line_num):
+		self.type = token_type
+		self.value = value
+		self.cast()
+		self.line_num = line_num
+
+	def cast(self):
+		if self.type == 'NUMBER':
+			try:
+				self.value = int(self.value)
+			except ValueError:
+				try:
+					self.value = Decimal(self.value)
+				except ValueError:
+					pass
+
+	def __str__(self):
+		return 'Token(type={type}, value={value}, line_num={line_num})'.format(
+			type=self.type,
+			value=repr(self.value),
+			line_num=self.line_num
+		)
+
+	__repr__ = __str__
 
 
 class Lexer(object):
@@ -33,6 +59,24 @@ class Lexer(object):
 			return None
 		else:
 			return self.text[peek_pos]
+
+	def preview_token(self, num=1):
+		if num < 1:
+			raise ValueError('num argument must be 1 or greater')
+		next_token = None
+		current_pos = self.pos
+		current_char = self.current_char
+		current_char_type = self.char_type
+		current_word = self.word
+		current_word_type = self.word_type
+		for _ in range(num):
+			next_token = self.get_next_token()
+		self.pos = current_pos
+		self.current_char = current_char
+		self.char_type = current_char_type
+		self.word = current_word
+		self.word_type = current_word_type
+		return next_token
 
 	def skip_whitespace(self):
 		if self.peek(-1) == '\n':

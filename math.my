@@ -6,6 +6,18 @@ full_name = first_name + ' ' + last_name
 a = 2.5
 d = 0
 c = a::int ** b
+
+int foo(int first, int second)
+	third = first + second
+	fourth = first * second
+	return third
+
+e = foo(c, b)
+
 while b < 30
 	b += c + 1
+	if b >= 20
+		b += 2
+	else
+		b += 1
 d += c + b

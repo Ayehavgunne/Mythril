@@ -51,19 +51,19 @@ enum genders(
 	OTHER
 )
 
-abst class Person
+abstract class Person
 	str species = 'Human'
 
 	void Person(str name, int age, enum gender, str haircolor)
 		this.age = age
-		this.gender # Automtically assigns gender from parameter
+		this.gender # Automtically assigns gender from parameter if they have the same name
 		this.haircolor = haircolor
 		str this.fav_color
 
 vulgar_words[str] = ['Trump', 'Pence']
 
 class Boy(Person)
-	void Boy(str, name, int age, haircolor)
+	void Boy(str, name, int age, haircolor='blond')
 		require age < 18
 		super.Person(name=name, age=age, gender=gender.MALE, haircolor=haircolor)
 

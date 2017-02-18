@@ -26,37 +26,63 @@ class Compound(AST):
 	__repr__ = __str__
 
 
+class FuncDecl(AST):
+	def __init__(self, name, return_type, parameters, body):
+		self.name = name
+		self.return_type = return_type
+		self.parameters = parameters
+		self.body = body
+
+	def __str__(self):
+		return '<{name}:{type} ({params})>'.format(name=self.name.value, type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+
+	__repr__ = __str__
+
+
+class FuncCall(AST):
+	def __init__(self, name, arguments):
+		self.name = name
+		self.arguments = arguments
+
+
+class Return(AST):
+	def __init__(self, var, parent=None):
+		self.var = var
+		self.parent = parent
+
+
 class Assign(AST):
 	def __init__(self, left, op, right):
 		self.left = left
-		self.token = self.op = op
+		self.op = op
 		self.right = right
 
 
 class OpAssign(AST):
 	def __init__(self, left, op, right):
 		self.left = left
-		self.token = self.op = op
+		self.op = op
 		self.right = right
 
 
 class Comparison(AST):
-	def __init__(self, op, comp, block):
-		self.token = self.op = op
+	def __init__(self, op, comp, block, alt_block=None):
+		self.op = op
 		self.comp = comp
 		self.block = block
+		self.alt_block = alt_block
 
 
 class BinOp(AST):
 	def __init__(self, left, op, right):
 		self.left = left
-		self.token = self.op = op
+		self.op = op
 		self.right = right
 
 
 class UnaryOp(AST):
 	def __init__(self, op, expr):
-		self.token = self.op = op
+		self.op = op
 		self.expr = expr
 
 

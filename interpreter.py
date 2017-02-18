@@ -3,6 +3,8 @@ from decimal import Decimal
 from enum import Enum
 from ast import Type
 from ast import Null
+from ast import Assign
+from ast import Return
 from grammar import *
 
 
@@ -22,6 +24,21 @@ class BuiltinTypeSymbol(Symbol):
 	__repr__ = __str__
 
 
+ANY_BUILTIN = BuiltinTypeSymbol(ANY)
+INT_BUILTIN = BuiltinTypeSymbol(INT)
+DEC_BUILTIN = BuiltinTypeSymbol(DEC)
+COMPLEX_BUILTIN = BuiltinTypeSymbol(COMPLEX)
+BOOL_BUILTIN = BuiltinTypeSymbol(BOOL)
+BYTES_BUILTIN = BuiltinTypeSymbol(BYTES)
+STR_BUILTIN = BuiltinTypeSymbol(STR)
+LIST_BUILTIN = BuiltinTypeSymbol(LIST)
+TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE)
+DICT_BUILTIN = BuiltinTypeSymbol(DICT)
+ENUM_BUILTIN = BuiltinTypeSymbol(ENUM)
+FUNC_BUILTIN = BuiltinTypeSymbol(FUNC)
+NULLTYPE_BUILTIN = BuiltinTypeSymbol(NULLTYPE)
+
+
 class VarSymbol(Symbol):
 	def __init__(self, name, var_type):
 		super().__init__(name, var_type)
@@ -32,25 +49,39 @@ class VarSymbol(Symbol):
 	__repr__ = __str__
 
 
+class FuncSymbol(Symbol):
+	def __init__(self, name, return_type, parameters, body, symtable_builder):
+		super().__init__(name, return_type)
+		self.parameters = parameters
+		self.body = body
+		self.symtab_builder = symtable_builder
+		self.symtab_builder.visit(self.body)
+
+	def __str__(self):
+		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+
+	__repr__ = __str__
+
+
 class SymbolTable(object):
 	def __init__(self):
 		self._symbols = OrderedDict()
 		self._init_builtins()
 
 	def _init_builtins(self):
-		self.define(BuiltinTypeSymbol(ANY))
-		self.define(BuiltinTypeSymbol(INT))
-		self.define(BuiltinTypeSymbol(DEC))
-		self.define(BuiltinTypeSymbol(COMPLEX))
-		self.define(BuiltinTypeSymbol(BOOL))
-		self.define(BuiltinTypeSymbol(BYTES))
-		self.define(BuiltinTypeSymbol(STR))
-		self.define(BuiltinTypeSymbol(LIST))
-		self.define(BuiltinTypeSymbol(TUPLE))
-		self.define(BuiltinTypeSymbol(DICT))
-		self.define(BuiltinTypeSymbol(ENUM))
-		self.define(BuiltinTypeSymbol(FUNC))
-		self.define(BuiltinTypeSymbol(NULLTYPE))
+		self.define(ANY_BUILTIN)
+		self.define(INT_BUILTIN)
+		self.define(DEC_BUILTIN)
+		self.define(COMPLEX_BUILTIN)
+		self.define(BOOL_BUILTIN)
+		self.define(BYTES_BUILTIN)
+		self.define(STR_BUILTIN)
+		self.define(LIST_BUILTIN)
+		self.define(TUPLE_BUILTIN)
+		self.define(DICT_BUILTIN)
+		self.define(ENUM_BUILTIN)
+		self.define(FUNC_BUILTIN)
+		self.define(NULLTYPE_BUILTIN)
 
 	def __str__(self):
 		s = 'Symbols: {symbols}'.format(
@@ -111,7 +142,7 @@ class NodeVisitor(object):
 
 	@staticmethod
 	def generic_visit(node):
-		raise Exception('No visit_{} method'.format(type(node).__name__))
+		raise Exception('No visit_{} method'.format(type(node).__name__.lower()))
 
 
 class SymbolTableBuilder(NodeVisitor):
@@ -155,8 +186,12 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_assign(self, node):
 		var_name = node.left.value
 		value = self.visit(node.right)
-		if not self.symtab.lookup(var_name):
+		lookup_var = self.symtab.lookup(var_name)
+		if not lookup_var:
 			self.symtab.define(VarSymbol(var_name, value))
+		else:
+			if (value.type and lookup_var.type is not value.type) or lookup_var.type is not value:
+				raise TypeError
 
 	def visit_opassign(self, node):
 		left = self.visit(node.left)
@@ -182,6 +217,32 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_compound(self, node):
 		for child in node.children:
 			self.visit(child)
+
+	def visit_funcdecl(self, node):
+		func_name = node.name.value
+		return_type = node.return_type.value
+		func_type = self.symtab.lookup(return_type)
+		stb = SymbolTableBuilder()
+		for k, v in node.parameters.items():
+			stb.symtab.define(VarSymbol(k, stb.symtab.lookup(v.value)))
+		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, stb)
+		for child in func_symbol.body.children:
+			if isinstance(child, Return):
+				return_var_type = func_symbol.symtab_builder.symtab.lookup(child.var.value).type
+				if return_var_type is not func_symbol.type:
+					raise TypeError('The actual return type does not match the declared return type')
+		self.symtab.define(func_symbol)
+
+	def visit_funccall(self, node):
+		var_name = node.name.value
+		val = self.symtab.lookup(var_name)
+		if val is None:
+			raise NameError(repr(var_name))
+		else:
+			return val
+
+	def visit_return(self, node):
+		pass
 
 	def visit_noop(self, node):
 		pass
@@ -237,6 +298,8 @@ class Interpreter(NodeVisitor):
 				self.visit_comparison(node)
 			elif node.op.value == IF:
 				self.visit(node.block)
+		elif node.alt_block:
+			self.visit(node.alt_block)
 
 	def visit_binop(self, node):
 		op = node.op.value
@@ -315,6 +378,31 @@ class Interpreter(NodeVisitor):
 			raise NameError(repr(var_name))
 		else:
 			return val
+
+	def visit_funcdecl(self, node):
+		self.GLOBAL_SCOPE[node.name.value] = node
+
+	def visit_funccall(self, node):
+		func = self.GLOBAL_SCOPE[node.name.value]
+		func.args = node.arguments
+		for x, key in enumerate(func.parameters.keys()):
+			self.GLOBAL_SCOPE[key] = self.GLOBAL_SCOPE[node.arguments[x].value]
+		self.visit(func.body)
+		for key in func.parameters.keys():
+			del self.GLOBAL_SCOPE[key]
+		return_var = None
+		for child in reversed(func.body.children):
+			if isinstance(child, Return):
+				return_var = self.GLOBAL_SCOPE.pop(child.var.value)
+			elif isinstance(child, Assign):
+				if child.left.value in self.GLOBAL_SCOPE:
+					del self.GLOBAL_SCOPE[child.left.value]
+		if not return_var and func.return_type.value != VOID:
+			raise TypeError
+		return return_var
+
+	def visit_return(self, node):
+		return self.GLOBAL_SCOPE[node.var.value]
 
 	@staticmethod
 	def visit_num(node):
