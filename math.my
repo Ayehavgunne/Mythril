@@ -6,6 +6,7 @@ full_name = first_name + ' ' + last_name
 a = 2.5
 d = 0
 c = a::int ** b
+nums[int] = [1, 2, 3]
 
 int foo(int first, int second)
 	third = first + second

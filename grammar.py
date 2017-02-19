@@ -20,6 +20,8 @@ RCURLYBRACKET = '}' #TODO
 COMMA = ',' #TODO
 COLON = ':' #TODO
 DOT = '.' #TODO
+ELIPSIS = '...' #TODO
+ARROW = '->' #TODO
 CAST = '::'
 ASSIGN = '='
 PLUS_ASSIGN = '+='
@@ -53,12 +55,16 @@ NULLTYPE = 'nulltype'
 TRUE = 'true'
 FALSE = 'false'
 NULL = 'null'
+NAN = 'nan'
+INF = 'inf'
+NEGATIVE_INF = '-inf'
 IF = 'if'
 ELSE = 'else'
 FOR = 'for' #TODO
 WHILE = 'while'
 SWITCH = 'switch' #TODO
 CASE = 'case' #TODO
+DEFAULT = 'default' #TODO
 CLASS = 'class' #TODO
 SUPER = 'super' #TODO
 THIS = 'this' #TODO
@@ -116,7 +122,7 @@ KEYWORDS = (
 	UNION, STRUCT, REQUIRE, ENSURE, OVERRIDE, DOC, ABSTRACT, PROP, GET, SET, ASSERT
 )
 TYPES = (ANY, INT, DEC, COMPLEX, STR, BOOL, BYTES, LIST, TUPLE, DICT, ENUM, FUNC, NULLTYPE)
-CONSTANTS = (TRUE, FALSE, NULL)
+CONSTANTS = (TRUE, FALSE, NULL, NAN, INF, NEGATIVE_INF)
 
 NUMBER = 'NUMBER'
 STRING = 'STRING'

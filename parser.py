@@ -112,6 +112,8 @@ class Parser(object):
 		elif self.current_token.type == NAME:
 			if preview1 and preview1.value and preview1.value[0] == LPAREN:
 				node = self.function_call()
+			elif preview1 and preview1.value and preview1.value[0] == LSQUAREBRACKET:
+				node = None #TODO
 			else:
 				node = self.assignment_statement()
 		elif self.current_token.type == TYPE:
