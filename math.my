@@ -1,5 +1,11 @@
 dec a
 b = 3
+
+int bar()
+	return 2
+
+f = bar()
+
 first_name = 'Anthony'
 last_name = 'Post'
 full_name = first_name + ' ' + last_name

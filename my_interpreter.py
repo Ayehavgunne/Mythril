@@ -1,11 +1,11 @@
 from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum
-from ast import Type
-from ast import Null
-from ast import Assign
-from ast import Return
-from grammar import *
+from my_ast import Type
+from my_ast import Null
+from my_ast import Assign
+from my_ast import Return
+from my_grammar import *
 
 
 class Symbol(object):
@@ -416,8 +416,8 @@ class Interpreter(NodeVisitor):
 		return self.visit(tree)
 
 if __name__ == '__main__':
-	from lexer import Lexer
-	from parser import Parser
+	from my_lexer import Lexer
+	from my_parser import Parser
 	code = open('math.my').read()
 	lexer = Lexer(code)
 	parser = Parser(lexer)

@@ -1,6 +1,6 @@
 from collections import OrderedDict
-from ast import *
-from grammar import *
+from my_ast import *
+from my_grammar import *
 
 class Parser(object):
 	def __init__(self, lexer):
@@ -58,9 +58,7 @@ class Parser(object):
 		stmts = self.compound_statement(self.indent_level)
 		return FuncDecl(name, return_type, params, stmts)
 
-	def function_call(self):
-		token = self.current_token
-		self.next_token()
+	def function_call(self, token):
 		self.eat_value(LPAREN)
 		args = []
 		while self.current_token.value != RPAREN:
@@ -102,22 +100,15 @@ class Parser(object):
 		return results
 
 	def statement(self):
-		preview1 = self.preview()
-		preview2 = self.preview(2)
 		if self.current_token.value in (IF, WHILE):
 			self.indent_level += 1
 			node = self.comparison_statement(self.indent_level)
 		elif self.current_token.value == RETURN:
 			node = self.return_statement()
 		elif self.current_token.type == NAME:
-			if preview1 and preview1.value and preview1.value[0] == LPAREN:
-				node = self.function_call()
-			elif preview1 and preview1.value and preview1.value[0] == LSQUAREBRACKET:
-				node = None #TODO
-			else:
-				node = self.assignment_statement()
+			node = self.name_statement()
 		elif self.current_token.type == TYPE:
-			if preview2 and preview2.value and preview2.value[0] == LPAREN:
+			if self.preview(2).value[0] == LPAREN:
 				node = self.function_declaration()
 			else:
 				node = self.variable_declaration()
@@ -125,9 +116,44 @@ class Parser(object):
 			node = self.empty()
 		return node
 
+	def square_bracket_expression(self, token):
+		if self.preview().type == TYPE:
+			preview_token = self.preview(2)
+			if preview_token.value == COMMA:
+				return self.dictionary_assignment()
+			elif preview_token.value == RSQUAREBRACKET:
+				return self.list_assignment()
+		elif self.current_token.type == NAME:
+			raise NotImplementedError
+
+	def list_assignment(self):
+		list_name = self.current_token
+		self.next_token()
+		list_type = self.current_token
+		self.eat_type(TYPE)
+		self.eat_value(RSQUAREBRACKET)
+
+	def name_statement(self):
+		token = self.current_token
+		self.next_token()
+		if self.current_token.value == LPAREN:
+			node = self.function_call(token)
+		elif self.current_token.value == LSQUAREBRACKET:
+			node = self.square_bracket_expression(token)
+		elif self.current_token.value == ASSIGN:
+			node = self.assignment_statement(token)
+		else:
+			raise NotImplementedError
+		return node
+
+	def dictionary_assignment(self):
+		raise NotImplementedError
+
 	def return_statement(self):
 		self.next_token()
-		return Return(self.variable())
+		ret = Return(self.variable(self.current_token))
+		self.next_token()
+		return ret
 
 	def comparison_statement(self, indent_level):
 		token = self.current_token
@@ -138,8 +164,8 @@ class Parser(object):
 			comp.alt_block = self.compound_statement(indent_level)
 		return comp
 
-	def assignment_statement(self):
-		left = self.variable()
+	def assignment_statement(self, token):
+		left = self.variable(token)
 		token = self.current_token
 		if token.value == ASSIGN:
 			self.next_token()
@@ -153,10 +179,9 @@ class Parser(object):
 			raise SyntaxError('Unknown assignment operator: {}'.format(token.value))
 		return node
 
-	def variable(self):
-		node = Var(self.current_token)
-		self.eat_type(NAME)
-		return node
+	@staticmethod
+	def variable(token):
+		return Var(token)
 
 	@staticmethod
 	def empty():
@@ -220,7 +245,8 @@ class Parser(object):
 		return node
 
 if __name__ == '__main__':
-	from lexer import Lexer
+	from my_lexer import Lexer
+	print('Imported Lexer')
 	l = Lexer(open('math.my').read())
 	parser = Parser(l)
 	tree = parser.parse()

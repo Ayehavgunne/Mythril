@@ -1,4 +1,4 @@
-from grammar import *
+from my_grammar import *
 from decimal import Decimal
 
 class Token(object):
@@ -83,6 +83,7 @@ class Lexer(object):
 			raise SyntaxError('Only tab characters can indent')
 		while self.current_char is not None and self.current_char.isspace():
 			self.next()
+			self.reset_word()
 
 	def skip_comment(self):
 		while self.current_char != '\n':
@@ -117,7 +118,7 @@ class Lexer(object):
 
 	def get_next_token(self):
 		if self.current_char is None:
-			return Token('END', '', self.line_num)
+			return Token('END', 'END', self.line_num)
 
 		if self.current_char == '\n':
 			return self.eat_newline()
@@ -182,6 +183,8 @@ class Lexer(object):
 			while self.char_type == OPERATIC:
 				self.word += self.current_char
 				self.next()
+				if self.current_char in SINGLE_OPERATORS:
+					break
 			return Token('OP', self.reset_word(), self.line_num)
 
 		if self.char_type == ESCAPE:
@@ -204,7 +207,7 @@ class Lexer(object):
 
 
 if __name__ == '__main__':
-	lexer = Lexer(open('example.my').read())
+	lexer = Lexer(open('math.my').read())
 	for t in lexer.analyze():
 		if t.type == 'NEWLINE' or t.type == 'BEGIN':
 			print(t)
