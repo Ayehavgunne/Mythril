@@ -5,18 +5,19 @@ from my_grammar import *
 class Parser(object):
 	def __init__(self, lexer):
 		self.lexer = lexer
-		self.current_token = self.lexer.get_next_token()
+		self.current_token = None
 		self.indent_level = 0
+		self.next_token()
 
 	def eat_type(self, *token_type):
 		if self.current_token.type in token_type:
-			self.current_token = self.lexer.get_next_token()
+			self.next_token()
 		else:
 			raise SyntaxError
 
 	def eat_value(self, *token_value):
 		if self.current_token.value in token_value:
-			self.current_token = self.lexer.get_next_token()
+			self.next_token()
 		else:
 			raise SyntaxError
 
@@ -37,18 +38,25 @@ class Parser(object):
 		type_node = self.type_spec()
 		var_node = Var(self.current_token)
 		self.eat_type(NAME)
-		return VarDecl(var_node, type_node)
+		ret = VarDecl(var_node, type_node)
+		if self.current_token.value == ASSIGN:
+			ret = self.variable_declaration_assignment(ret)
+		return ret
+
+	def variable_declaration_assignment(self, declaration):
+		token = self.current_token
+		self.next_token()
+		return Assign(declaration, token, self.expr())
 
 	def function_declaration(self):
-		return_type = self.current_token
-		self.next_token()
+		return_type = self.type_spec()
 		name = self.current_token
 		self.next_token()
 		self.eat_value(LPAREN)
 		params = OrderedDict()
 		while self.current_token.value != RPAREN:
 			param_type = self.current_token
-			self.eat_type(TYPE)
+			self.eat_type(TOKEN_TYPE)
 			params[self.current_token.value] = param_type
 			self.eat_type(NAME)
 			if self.current_token.value != RPAREN:
@@ -62,8 +70,12 @@ class Parser(object):
 		self.eat_value(LPAREN)
 		args = []
 		while self.current_token.value != RPAREN:
+			while self.current_token.type == NEWLINE:
+				self.eat_type(NEWLINE)
 			args.append(self.current_token)
-			self.eat_type(NAME, NUMBER, STRING, TYPE, CONSTANT)
+			self.eat_type(NAME, NUMBER, STRING, TOKEN_TYPE, CONSTANT)
+			while self.current_token.type == NEWLINE:
+				self.eat_type(NEWLINE)
 			if self.current_token.value != RPAREN:
 				self.eat_value(COMMA)
 		func = FuncCall(token, args)
@@ -72,10 +84,8 @@ class Parser(object):
 
 	def type_spec(self):
 		token = self.current_token
-		if self.current_token.type == TYPE:
-			self.next_token()
-		node = Type(token)
-		return node
+		self.eat_type(TOKEN_TYPE)
+		return Type(token)
 
 	def compound_statement(self, indent_level):
 		nodes = self.statement_list(indent_level)
@@ -107,7 +117,7 @@ class Parser(object):
 			node = self.return_statement()
 		elif self.current_token.type == NAME:
 			node = self.name_statement()
-		elif self.current_token.type == TYPE:
+		elif self.current_token.type == TOKEN_TYPE:
 			if self.preview(2).value[0] == LPAREN:
 				node = self.function_declaration()
 			else:
@@ -117,21 +127,28 @@ class Parser(object):
 		return node
 
 	def square_bracket_expression(self, token):
-		if self.preview().type == TYPE:
-			preview_token = self.preview(2)
-			if preview_token.value == COMMA:
-				return self.dictionary_assignment()
-			elif preview_token.value == RSQUAREBRACKET:
-				return self.list_assignment()
+		if self.current_token.type == TOKEN_TYPE:
+			type_token = self.current_token
+			self.next_token()
+			if self.current_token.value == COMMA:
+				return self.dictionary_assignment(token)
+			elif self.current_token.value == RSQUAREBRACKET:
+				self.next_token()
+				return self.collection_expression(token, type_token)
 		elif self.current_token.type == NAME:
 			raise NotImplementedError
 
-	def list_assignment(self):
-		list_name = self.current_token
-		self.next_token()
-		list_type = self.current_token
-		self.eat_type(TYPE)
-		self.eat_value(RSQUAREBRACKET)
+	def collection_expression(self, token, type_token):
+		if self.current_token.value == ASSIGN:
+			return self.array_of_type_assignment(token, type_token)
+		else:
+			return self.collection_call()
+
+	def collection_call(self):
+		raise NotImplementedError
+
+	def array_of_type_assignment(self, token, type_token):
+		raise NotImplementedError
 
 	def name_statement(self):
 		token = self.current_token
@@ -139,19 +156,27 @@ class Parser(object):
 		if self.current_token.value == LPAREN:
 			node = self.function_call(token)
 		elif self.current_token.value == LSQUAREBRACKET:
+			self.next_token()
 			node = self.square_bracket_expression(token)
-		elif self.current_token.value == ASSIGN:
+		elif self.current_token.value in (ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN, MOD_ASSIGN, POWER_ASSIGN):
 			node = self.assignment_statement(token)
 		else:
-			raise NotImplementedError
+			raise SyntaxError
 		return node
 
-	def dictionary_assignment(self):
+	def dictionary_assignment(self, token):
 		raise NotImplementedError
 
 	def return_statement(self):
 		self.next_token()
-		ret = Return(self.variable(self.current_token))
+		if self.current_token.type == NAME:
+			ret = Return(self.variable(self.current_token))
+		elif self.current_token.type == NUMBER:
+			ret = Return(Num(self.current_token))
+		elif self.current_token.type == STRING:
+			ret = Return(Str(self.current_token))
+		else:
+			raise SyntaxError
 		self.next_token()
 		return ret
 
@@ -184,6 +209,10 @@ class Parser(object):
 		return Var(token)
 
 	@staticmethod
+	def constant(token):
+		return Constant(token)
+
+	@staticmethod
 	def empty():
 		return NoOp()
 
@@ -204,20 +233,26 @@ class Parser(object):
 		elif token.type == STRING:
 			self.next_token()
 			return Str(token)
-		elif token.type == TYPE:
-			self.next_token()
-			return Type(token)
+		elif token.type == TOKEN_TYPE:
+			return self.type_spec()
 		elif token.value == LPAREN:
 			self.next_token()
 			node = self.expr()
 			self.eat_value(RPAREN)
 			return node
 		elif preview and preview.value and preview.value[0] == LPAREN:
-			node = self.function_call()
+			self.next_token()
+			node = self.function_call(token)
 			return node
+		elif token.type == NAME:
+			self.next_token()
+			node = self.variable(token)
+			return node
+		elif token.type == CONSTANT:
+			self.next_token()
+			return self.constant(token)
 		else:
-			node = self.variable()
-			return node
+			raise SyntaxError
 
 	def term(self):
 		node = self.factor()
@@ -246,7 +281,6 @@ class Parser(object):
 
 if __name__ == '__main__':
 	from my_lexer import Lexer
-	print('Imported Lexer')
 	l = Lexer(open('math.my').read())
 	parser = Parser(l)
 	tree = parser.parse()

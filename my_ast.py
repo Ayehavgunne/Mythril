@@ -46,8 +46,8 @@ class FuncCall(AST):
 
 
 class Return(AST):
-	def __init__(self, var, parent=None):
-		self.var = var
+	def __init__(self, value, parent=None):
+		self.value = value
 		self.parent = parent
 
 
@@ -100,6 +100,12 @@ class Null(AST):
 
 
 class Var(AST):
+	def __init__(self, token):
+		self.token = token
+		self.value = token.value
+
+
+class Constant(AST):
 	def __init__(self, token):
 		self.token = token
 		self.value = token.value

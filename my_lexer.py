@@ -9,14 +9,11 @@ class Token(object):
 		self.line_num = line_num
 
 	def cast(self):
-		if self.type == 'NUMBER':
-			try:
+		if self.type == NUMBER:
+			if self.value.isdecimal():
 				self.value = int(self.value)
-			except ValueError:
-				try:
-					self.value = Decimal(self.value)
-				except ValueError:
-					pass
+			else:
+				self.value = Decimal(self.value)
 
 	def __str__(self):
 		return 'Token(type={type}, value={value}, line_num={line_num})'.format(
@@ -36,9 +33,11 @@ class Lexer(object):
 		self.char_type = None
 		self.word = ''
 		self.word_type = None
-		self.line_num = 1
+		self._line_num = 1
+		self.current_token = None
+		self.tokens = []
 
-	def next(self):
+	def next_char(self):
 		self.pos += 1
 		if self.pos > len(self.text) - 1:
 			self.current_char = None
@@ -69,6 +68,7 @@ class Lexer(object):
 		current_char_type = self.char_type
 		current_word = self.word
 		current_word_type = self.word_type
+		current_line_num = self.line_num
 		for _ in range(num):
 			next_token = self.get_next_token()
 		self.pos = current_pos
@@ -76,29 +76,43 @@ class Lexer(object):
 		self.char_type = current_char_type
 		self.word = current_word
 		self.word_type = current_word_type
+		self._line_num = current_line_num
 		return next_token
 
 	def skip_whitespace(self):
 		if self.peek(-1) == '\n':
 			raise SyntaxError('Only tab characters can indent')
 		while self.current_char is not None and self.current_char.isspace():
-			self.next()
+			self.next_char()
 			self.reset_word()
 
 	def skip_comment(self):
 		while self.current_char != '\n':
-			self.next()
+			self.next_char()
+			if self.current_char is None:
+				return self.eof()
+
+	def increment_line_num(self):
+		self._line_num += 1
+
+	@property
+	def line_num(self):
+		return self._line_num
 
 	def eat_newline(self):
 		self.reset_word()
-		self.line_num += 1
-		self.next()
-		return Token('NEWLINE', '\\n', self.line_num - 1)
+		token = Token(NEWLINE, '\n', self.line_num)
+		self.increment_line_num()
+		self.next_char()
+		return token
 
 	def eat_indent(self):
 		self.reset_word()
-		self.next()
-		return Token('INDENT', '\\t', self.line_num)
+		self.next_char()
+		return Token(INDENT, '\t', self.line_num)
+
+	def eof(self):
+		return Token(EOF, EOF, self.line_num)
 
 	@staticmethod
 	def get_type(char):
@@ -110,15 +124,20 @@ class Lexer(object):
 			return ESCAPE
 		if char in OPERATORS:
 			return OPERATIC
-		try:
-			int(char)
+		if char.isdigit():
 			return NUMERIC
-		except ValueError:
+		else:
 			return ALPHANUMERIC
+
+	def next_token(self):
+		if self.current_token:
+			self.tokens.append(self.current_token)
+		self.current_token = self.get_next_token()
+		return self.current_token
 
 	def get_next_token(self):
 		if self.current_char is None:
-			return Token('END', 'END', self.line_num)
+			return self.eof()
 
 		if self.current_char == '\n':
 			return self.eat_newline()
@@ -134,24 +153,24 @@ class Lexer(object):
 			return self.eat_newline()
 
 		if self.current_char == '"':
-			self.next()
+			self.next_char()
 			while self.current_char != '"':
 				if self.current_char == '\\' and self.peek(1) == '"':
-					self.next()
+					self.next_char()
 				self.word += self.current_char
-				self.next()
-			self.next()
-			return Token('STRING', self.reset_word(), self.line_num)
+				self.next_char()
+			self.next_char()
+			return Token(STRING, self.reset_word(), self.line_num)
 
 		if self.current_char == "'":
-			self.next()
+			self.next_char()
 			while self.current_char != "'":
 				if self.current_char == '\\' and self.peek(1) == "'":
-					self.next()
+					self.next_char()
 				self.word += self.current_char
-				self.next()
-			self.next()
-			return Token('STRING', self.reset_word(), self.line_num)
+				self.next_char()
+			self.next_char()
+			return Token(STRING, self.reset_word(), self.line_num)
 
 		if not self.char_type:
 			self.char_type = self.get_type(self.current_char)
@@ -161,46 +180,46 @@ class Lexer(object):
 		if self.word_type == ALPHANUMERIC:
 			while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
 				self.word += self.current_char
-				self.next()
+				self.next_char()
 			if self.word in KEYWORDS:
-				return Token('KEYWORD', self.reset_word(), self.line_num)
+				return Token(KEYWORD, self.reset_word(), self.line_num)
 			elif self.word in TYPES:
-				return Token('TYPE', self.reset_word(), self.line_num)
+				return Token(TOKEN_TYPE, self.reset_word(), self.line_num)
 			elif self.word in CONSTANTS:
-				return Token('CONSTANT', self.reset_word(), self.line_num)
+				return Token(CONSTANT, self.reset_word(), self.line_num)
 			else:
-				return Token('NAME', self.reset_word(), self.line_num)
+				return Token(NAME, self.reset_word(), self.line_num)
 
 		if self.word_type == NUMERIC:
 			while self.char_type == NUMERIC or self.current_char == '.':
 				self.word += self.current_char
-				self.next()
+				self.next_char()
 				if self.char_type == ALPHANUMERIC:
 					raise SyntaxError('Variables cannot start with numbers')
-			return Token('NUMBER', self.reset_word(), self.line_num)
+			return Token(NUMBER, self.reset_word(), self.line_num)
 
 		if self.word_type == OPERATIC:
 			while self.char_type == OPERATIC:
 				self.word += self.current_char
-				self.next()
+				self.next_char()
 				if self.current_char in SINGLE_OPERATORS:
 					break
-			return Token('OP', self.reset_word(), self.line_num)
+			return Token(OP, self.reset_word(), self.line_num)
 
 		if self.char_type == ESCAPE:
 			self.reset_word()
-			self.next()
+			self.next_char()
 			line_num = self.line_num
 			if self.current_char == '\n':
-				self.line_num += 1
-			self.next()
+				self.increment_line_num()
+			self.next_char()
 			return Token(ESCAPE, '\\', line_num)
 
 		raise SyntaxError('Unknown character')
 
 	def analyze(self):
 		token = self.get_next_token()
-		while token.type != 'END':
+		while token.type != EOF:
 			yield token
 			token = self.get_next_token()
 		yield token
@@ -209,7 +228,7 @@ class Lexer(object):
 if __name__ == '__main__':
 	lexer = Lexer(open('math.my').read())
 	for t in lexer.analyze():
-		if t.type == 'NEWLINE' or t.type == 'BEGIN':
+		if t.type == NEWLINE:
 			print(t)
 		else:
 			print(t, end=' ')

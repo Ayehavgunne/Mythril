@@ -1,10 +1,10 @@
-int greets
+Int greets
 hello = 23
 hi2=hello+1.2
 hmm = "what is\" going' on"
-str where
-things[int] = [1, 2, 3]
-stuff[str, str] = {'first_name': 'samus', 'last_name': 'aran'}
+Str where
+things[Int] = [1, 2, 3]
+stuff[Str, Str] = {'first_name': 'samus', 'last_name': 'aran'}
 
 if where is not hello \
 	and true
@@ -25,12 +25,12 @@ if 2 in things
 if 2 not in things
 	print('no')
 
-void scoots(func sploots)
+void scoots(Func sploots)
 	whats = 'loves'
 	print('snoots')
 	sploots(whats)
 
-int fib(int num)
+Int fib(Int num)
 	if num = 0
 		return 0
 	else if num = 1
@@ -38,50 +38,64 @@ int fib(int num)
 	else
 		return fib(n - 1) + fib(n - 2)
 
+myfunc = Func(Int x, Int y)
+	if x > y
+		return x + y
+	else
+		return x * y
+
 scoots(
-	void func(str verb)
+	void Func(Str verb)
 		print('Snape')
 		print(verb)
 		print('Dumbledore')
 	)
 
-enum genders(
+Enum Genders(
 	MALE,
 	FEMALE,
 	OTHER
 )
 
+vulgar_words[Str] = ['Trump', 'Pence']
+
+
 abstract class Person
-	str species = 'Human'
+	species = 'Human'
 
-	void Person(str name, int age, enum gender, str haircolor)
+	new(Str name, Int age, Genders gender, Str haircolor)
 		this.age = age
-		this.gender # Automtically assigns gender from parameter if they have the same name
-		this.haircolor = haircolor
-		str this.fav_color
+		this.gender # Automtically assigns gender from argument if they have the same name
+		this._haircolor = haircolor
+		Str this._fav_color
 
-vulgar_words[str] = ['Trump', 'Pence']
 
 class Boy(Person)
-	void Boy(str, name, int age, haircolor='blond')
+	new(Str, name, Int age, haircolor='blond')
 		require age < 18
-		super.Person(name=name, age=age, gender=gender.MALE, haircolor=haircolor)
+		super.Person(name=name, age=age, gender=Genders.MALE, haircolor=haircolor)
 
-	void talk(str words)
+	void talk(Str words)
 		assert word not in vulgar_words for word in words.split(' ')
 		print(words)
 
 	void say_age()
 		print('I am {} years old'.format(this.age))
 
-	get int time_till_adult
-		return 18 - this.age
+	void birthday()
+		this.age += 1
 
-	set dye_hair(str color)
-		this.haircolor = color
+	getter Int time_till_adult
+		if this.age <= 18
+			return 18 - this.age
+		else
+			return 0
 
-	prop str favorite_color
-		get
-			return this.fav_color
-		set(str color)
-			this.fav_color = color
+	setter dye_hair(Str color)
+		this._haircolor = color
+
+	getter Str fav_color
+		return this._fav_color
+
+	setter fav_color(Str color)
+		this._fav_color = color

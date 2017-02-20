@@ -1,23 +1,29 @@
-dec a
+Dec a
 b = 3
 
-int bar()
+Int bar()
 	return 2
 
+Bool larry
 f = bar()
-
+Float g = 7.5
+garry = true
+if garry
+	g = 2.6
+if larry
+	g += 7
 first_name = 'Anthony'
 last_name = 'Post'
 full_name = first_name + ' ' + last_name
 a = 2.5
 d = 0
-c = a::int ** b
-nums[int] = [1, 2, 3]
+c = a::Int ** b
 
-int foo(int first, int second)
-	third = first + second
-	fourth = first * second
-	return third
+Int foo(Int first, Int second)
+	if first < second
+		return first + second
+	else
+		return first * second
 
 e = foo(c, b)
 
