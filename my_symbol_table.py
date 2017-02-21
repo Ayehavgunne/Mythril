@@ -41,6 +41,7 @@ class VarSymbol(Symbol):
 	def __init__(self, name, var_type):
 		super().__init__(name, var_type)
 		self.accessed = False
+		self.val_assigned = False
 
 	def __str__(self):
 		return '<{name}:{type}>'.format(name=self.name, type=self.type)

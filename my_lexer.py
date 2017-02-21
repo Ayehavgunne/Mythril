@@ -91,6 +91,9 @@ class Lexer(object):
 			self.next_char()
 			if self.current_char is None:
 				return self.eof()
+		self.eat_newline()
+		if self.current_char == '#':
+			self.skip_comment()
 
 	def increment_line_num(self):
 		self._line_num += 1
@@ -150,7 +153,7 @@ class Lexer(object):
 
 		if self.current_char == '#':
 			self.skip_comment()
-			return self.eat_newline()
+			return self.get_next_token()
 
 		if self.current_char == '"':
 			self.next_char()

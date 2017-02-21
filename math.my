@@ -4,11 +4,11 @@ b = 3
 Int bar()
 	return 2
 
-Bool larry
+Bool larry = true
 f = bar()
 Float g = 7.5
 garry = true
-if garry
+if garry == true
 	g = 2.6
 if larry
 	g += 7
@@ -20,10 +20,12 @@ d = 0
 c = a::Int ** b
 
 Int foo(Int first, Int second)
+	Int baz()
+		return 54
 	if first < second
 		return first + second
 	else
-		return first * second
+		return Str
 
 e = foo(c, b)
 

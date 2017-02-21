@@ -3,7 +3,7 @@ from my_visitor import NodeVisitor
 from my_symbol_table import VarSymbol
 from my_symbol_table import FuncSymbol
 from my_symbol_table import SymbolTable
-from my_ast import VarDecl
+from my_ast import VarDecl, ControlStructure
 from my_ast import Return
 from my_grammar import *
 
@@ -44,7 +44,7 @@ class SymbolTableBuilder(NodeVisitor):
 			else:
 				raise TypeError
 
-	def visit_comparison(self, node):
+	def visit_controlstructure(self, node):
 		self.visit(node.comp)
 
 	def visit_constant(self, node):
@@ -74,7 +74,9 @@ class SymbolTableBuilder(NodeVisitor):
 			value = self.visit(node.right)
 		lookup_var = self.symtab.lookup(var_name)
 		if not lookup_var:
-			self.symtab.define(VarSymbol(var_name, value))
+			var_sym = VarSymbol(var_name, value)
+			var_sym.val_assigned = True
+			self.symtab.define(var_sym)
 		else:
 			if (value.type and lookup_var.type is not value.type) or lookup_var.type is not value:
 				raise TypeError
@@ -96,6 +98,8 @@ class SymbolTableBuilder(NodeVisitor):
 		if val is None:
 			raise NameError(repr(var_name))
 		else:
+			if not val.val_assigned:
+				raise SyntaxError('{} is being accessed while not yet defined'.format(var_name))
 			val.accessed = True
 			return val
 
@@ -112,7 +116,9 @@ class SymbolTableBuilder(NodeVisitor):
 		func_type = self.symtab.lookup(return_type)
 		stb = SymbolTableBuilder()
 		for k, v in node.parameters.items():
-			stb.symtab.define(VarSymbol(k, stb.symtab.lookup(v.value)))
+			var_sym = VarSymbol(k, stb.symtab.lookup(v.value))
+			var_sym.val_assigned = True
+			stb.symtab.define(var_sym)
 		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, stb)
 		for child in func_symbol.body.children:
 			if isinstance(child, Return):
@@ -122,6 +128,9 @@ class SymbolTableBuilder(NodeVisitor):
 					return_var_type = func_symbol.symtab_builder.symtab.lookup(child.value.value).type
 				if return_var_type is not func_symbol.type:
 					raise TypeError('The actual return type does not match the declared return type')
+			elif isinstance(child, ControlStructure):
+				res = stb.visit(child)
+				print(res) #TODO: this is not inspecting code recursivly, ignores inner blocks. NOT GOOD!
 		self.symtab.define(func_symbol)
 
 	def visit_funccall(self, node):

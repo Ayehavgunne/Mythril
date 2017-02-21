@@ -1,10 +1,16 @@
 from decimal import Decimal
 from enum import Enum
 from my_visitor import NodeVisitor
+from my_ast import Num
+from my_ast import Str
+from my_ast import BinOp
+from my_ast import Type
+from my_ast import UnaryOp
+from my_ast import FuncCall
 from my_ast import Null
-from my_ast import Return
 from my_ast import VarDecl
 from my_ast import Var
+from my_types import get_type_cls
 from my_grammar import *
 
 
@@ -14,11 +20,16 @@ class Interpreter(NodeVisitor):
 
 	@property
 	def top_scope(self):
-		return self._scope[-1]
+		return self._scope[-1] if len(self._scope) >= 1 else None
 
 	@property
 	def second_scope(self):
-		return self._scope[-2]
+		return self._scope[-2] if len(self._scope) >= 2 else None
+
+	def search_scopes(self, name):
+		for scope in reversed(self._scope):
+			if name in scope:
+				return scope[name]
 
 	def new_scope(self):
 		self._scope.append({})
@@ -30,22 +41,30 @@ class Interpreter(NodeVisitor):
 		self.visit(node.block)
 
 	def visit_compound(self, node):
+		res = None
 		for child in node.children:
-			self.visit(child)
+			temp = self.visit(child)
+			if temp:
+				res = temp
+		return res
 
 	def visit_vardecl(self, node):
 		self.top_scope[node.var_node.value] = Null()
 
 	def visit_type(self, node):
-		pass
+		return self.search_scopes(node.value)
 
 	def visit_noop(self, node):
 		pass
 
-	def visit_comparison(self, node):
+	def visit_controlstructure(self, node):
 		comp = node.comp
 		if isinstance(comp, Var):
-			result = self.top_scope[comp.value]
+			boolean = self.search_scopes(comp.value)
+			if isinstance(boolean, bool):
+				result = boolean
+			else:
+				raise NotImplementedError('Have not implimented truthy/falsy and not sure if will')
 		elif comp.op.value == EQUALS:
 			result = self.visit(comp.left) == self.visit(comp.right)
 		elif comp.op.value == NOT_EQUALS:
@@ -63,52 +82,54 @@ class Interpreter(NodeVisitor):
 		if result is True:
 			if node.op.value == WHILE:
 				self.visit(node.block)
-				self.visit_comparison(node)
+				self.visit_controlstructure(node)
 			elif node.op.value == IF:
-				self.visit(node.block)
+				return self.visit(node.block)
 		elif node.alt_block:
-			self.visit(node.alt_block)
+			return self.visit(node.alt_block)
 
 	def visit_binop(self, node):
 		op = node.op.value
+		left = self.visit(node.left)
+		right = self.visit(node.right)
 		if op == PLUS:
-			return self.visit(node.left) + self.visit(node.right)
+			return left + right
 		elif op == MINUS:
-			return self.visit(node.left) - self.visit(node.right)
+			return left - right
 		elif op == MUL:
-			return self.visit(node.left) * self.visit(node.right)
+			return left * right
 		elif op == FLOORDIV:
-			return self.visit(node.left) // self.visit(node.right)
+			return left // right
 		elif op == DIV:
-			return self.visit(node.left) / self.visit(node.right)
+			return left / right
 		elif op == MOD:
-			return self.visit(node.left) % self.visit(node.right)
+			return left % right
 		elif op == POWER:
-			return self.visit(node.left) ** self.visit(node.right)
+			return left ** right
 		elif op == CAST:
 			cast_type = node.right.value
 			if cast_type == INT:
-				return int(self.visit(node.left))
+				return int(left)
 			elif cast_type == DEC:
-				return Decimal(self.visit(node.left))
+				return Decimal(left)
 			elif cast_type == FLOAT:
-				return float(self.visit(node.left))
+				return float(left)
 			elif cast_type == COMPLEX:
-				return complex(self.visit(node.left))
+				return complex(left)
 			elif cast_type == STR:
-				return str(self.visit(node.left))
+				return str(left)
 			elif cast_type == BOOL:
-				return bool(self.visit(node.left))
+				return bool(left)
 			elif cast_type == BYTES:
-				return bytes(self.visit(node.left))
+				return bytes(left)
 			elif cast_type == LIST:
-				return list(self.visit(node.left))
+				return list(left)
 			elif cast_type == TUPLE:
-				return tuple(self.visit(node.left))
+				return tuple(left)
 			elif cast_type == DICT:
-				return dict(self.visit(node.left))
+				return dict(left)
 			elif cast_type == ENUM:
-				return Enum(node.left.value, self.visit(node.left))
+				return Enum(left.value, left)
 			elif cast_type in (ANY, FUNC, NULL):
 				raise TypeError('Cannot cast to type {}'.format(cast_type))
 
@@ -134,54 +155,49 @@ class Interpreter(NodeVisitor):
 	def visit_opassign(self, node):
 		var_name = node.left.value
 		op = node.op.value
+		right = self.visit(node.right)
 		if op == PLUS_ASSIGN:
-			self.top_scope[var_name] += self.visit(node.right)
+			self.top_scope[var_name] += right
 		elif op == MINUS_ASSIGN:
-			self.top_scope[var_name] -= self.visit(node.right)
+			self.top_scope[var_name] -= right
 		elif op == MUL_ASSIGN:
-			self.top_scope[var_name] *= self.visit(node.right)
+			self.top_scope[var_name] *= right
 		elif op == FLOORDIV_ASSIGN:
-			self.top_scope[var_name] //= self.visit(node.right)
+			self.top_scope[var_name] //= right
 		elif op == DIV_ASSIGN:
-			self.top_scope[var_name] /= self.visit(node.right)
+			self.top_scope[var_name] /= right
 		elif op == MOD_ASSIGN:
-			self.top_scope[var_name] %= self.visit(node.right)
+			self.top_scope[var_name] %= right
 		elif op == POWER_ASSIGN:
-			self.top_scope[var_name] **= self.visit(node.right)
+			self.top_scope[var_name] **= right
 
 	def visit_var(self, node):
-		var_name = node.value
-		return self.top_scope[var_name]
+		return self.search_scopes(node.value)
 
 	def visit_funcdecl(self, node):
 		self.top_scope[node.name.value] = node
 
 	def visit_funccall(self, node):
-		func = self.top_scope[node.name.value]
+		func = self.search_scopes(node.name.value)
 		func.args = node.arguments
 		self.new_scope()
 		for x, key in enumerate(func.parameters.keys()):
 			self.top_scope[key] = self.second_scope[node.arguments[x].value]
-		self.visit(func.body)
-		for key in func.parameters.keys():
-			del self.top_scope[key]
-		return_var = None
-		for child in reversed(func.body.children):
-			if isinstance(child, Return):
-				if child.value.token.type == NAME:
-					return_var = self.top_scope.pop(child.value.value)
-				else:
-					return_var = child.value.value
-				break
+		return_var = self.visit(func.body)
 		if not return_var and func.return_type.value != VOID:
 			raise TypeError
 		self.drop_top_scope()
 		return return_var
 
-	def visit_return(self, node): # TODO: What if function is returning a type???
-		if node.value.token.type != NAME:
+	def visit_return(self, node):
+		if isinstance(node.value, (Num, Str)):
 			return node.value.value
-		return self.top_scope[node.value.value]
+		elif isinstance(node.value, (BinOp, UnaryOp, FuncCall)):
+			return self.visit(node.value)
+		elif isinstance(node.value, Type):
+			return get_type_cls(node.value.value)
+		else:
+			return self.search_scopes(node.value.value)
 
 	@staticmethod
 	def visit_constant(node):
@@ -196,7 +212,7 @@ class Interpreter(NodeVisitor):
 		elif node.value == NEGATIVE_INF:
 			return Decimal(NEGATIVE_INF)
 		else:
-			return NotImplementedError
+			raise NotImplementedError
 
 	@staticmethod
 	def visit_num(node):

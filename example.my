@@ -3,8 +3,9 @@ hello = 23
 hi2=hello+1.2
 hmm = "what is\" going' on"
 Str where
-things[Int] = [1, 2, 3]
-stuff[Str, Str] = {'first_name': 'samus', 'last_name': 'aran'}
+things = [1, 2, 3] # Array
+other_stuff = [1, 'Hello'] # List
+stuff = {first_name: 'samus', 'last_name': 'aran'} # Dict
 
 if where is not hello \
 	and true

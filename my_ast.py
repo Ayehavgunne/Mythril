@@ -65,7 +65,7 @@ class OpAssign(AST):
 		self.right = right
 
 
-class Comparison(AST):
+class ControlStructure(AST):
 	def __init__(self, op, comp, block, alt_block=None):
 		self.op = op
 		self.comp = comp
