@@ -50,12 +50,10 @@ class VarSymbol(Symbol):
 
 
 class FuncSymbol(Symbol):
-	def __init__(self, name, return_type, parameters, body, symtable_builder):
+	def __init__(self, name, return_type, parameters, body):
 		super().__init__(name, return_type)
 		self.parameters = parameters
 		self.body = body
-		self.symtab_builder = symtable_builder
-		self.symtab_builder.visit(self.body)
 		self.accessed = False
 
 	def __str__(self):
@@ -66,7 +64,7 @@ class FuncSymbol(Symbol):
 
 class SymbolTable(object):
 	def __init__(self):
-		self._symbols = OrderedDict()
+		self._scope = [OrderedDict()]
 		self._init_builtins()
 
 	def _init_builtins(self):
@@ -87,22 +85,52 @@ class SymbolTable(object):
 
 	def __str__(self):
 		s = 'Symbols: {symbols}'.format(
-			symbols=[value for value in self._symbols.values()]
+			symbols=self.symbols
 		)
 		return s
 
 	__repr__ = __str__
 
 	@property
+	def symbols(self):
+		return [value for scope in self._scope for value in scope.values()]
+
+	@property
+	def keys(self):
+		return [key for scope in self._scope for key in scope.keys()]
+
+	@property
+	def items(self):
+		return [(key, value) for scope in self._scope for key, value in scope.items()]
+
+	@property
+	def top_scope(self):
+		return self._scope[-1] if len(self._scope) >= 1 else None
+
+	@property
+	def second_scope(self):
+		return self._scope[-2] if len(self._scope) >= 2 else None
+
+	def search_scopes(self, name):
+		for scope in reversed(self._scope):
+			if name in scope:
+				return scope[name]
+
+	def new_scope(self):
+		self._scope.append({})
+
+	def drop_top_scope(self):
+		self._scope.pop()
+
+	@property
 	def unvisited_symbols(self):
-		return [sym_name for sym_name, sym_val in self._symbols.items() if not isinstance(sym_val, BuiltinTypeSymbol) and not sym_val.accessed]
+		return [sym_name for sym_name, sym_val in self.items if not isinstance(sym_val, BuiltinTypeSymbol) and not sym_val.accessed]
 
 	def define(self, symbol):
-		self._symbols[symbol.name] = symbol
+		self.top_scope[symbol.name] = symbol
 
 	def lookup(self, name):
-		symbol = self._symbols.get(name)
-		return symbol
+		return self.search_scopes(name)
 
 	def infer_type(self, value):
 		if isinstance(value, BuiltinTypeSymbol):

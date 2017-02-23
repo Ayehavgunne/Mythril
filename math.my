@@ -2,30 +2,30 @@ Dec a
 b = 3
 
 Int bar()
-	return 2
+	return 2 + 2
 
 Bool larry = true
 f = bar()
 Float g = 7.5
 garry = true
-if garry == true
+if garry
 	g = 2.6
 if larry
 	g += 7
 first_name = 'Anthony'
 last_name = 'Post'
 full_name = first_name + ' ' + last_name
-a = 2.5
+a = 2 * g
 d = 0
 c = a::Int ** b
 
 Int foo(Int first, Int second)
-	Int baz()
-		return 54
+	Str baz()
+		return 'hello'
 	if first < second
 		return first + second
 	else
-		return Str
+		return first * second
 
 e = foo(c, b)
 

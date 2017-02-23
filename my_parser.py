@@ -63,8 +63,9 @@ class Parser(object):
 				self.eat_value(COMMA)
 		self.eat_value(RPAREN)
 		self.eat_type(NEWLINE)
-		self.eat_type(INDENT)
 		self.indent_level += 1
+		for _ in range(self.indent_level):
+			self.eat_type(INDENT)
 		stmts = self.compound_statement(self.indent_level)
 		return FuncDecl(name, return_type, params, stmts)
 
@@ -98,6 +99,8 @@ class Parser(object):
 
 	def statement_list(self, indent_level):
 		node = self.statement()
+		if isinstance(node, Return):
+			return [node]
 		results = [node]
 		while self.current_token.type == NEWLINE:
 			indents = 0
@@ -106,14 +109,12 @@ class Parser(object):
 				self.next_token()
 				indents += 1
 			if indents < indent_level:
-				self.indent_level -= 1
 				return results
 			results.append(self.statement())
 		return results
 
 	def statement(self):
 		if self.current_token.value in (IF, WHILE):
-			self.indent_level += 1
 			node = self.comparison_statement(self.indent_level)
 		elif self.current_token.value == RETURN:
 			node = self.return_statement()
@@ -182,15 +183,18 @@ class Parser(object):
 			ret = Return(Str(token))
 		else:
 			raise SyntaxError
+		self.indent_level -= 1
 		return ret
 
 	def comparison_statement(self, indent_level):
+		self.indent_level += 1
 		token = self.current_token
 		self.next_token()
 		comp = ControlStructure(token, self.expr(), self.compound_statement(indent_level))
 		if self.current_token.value == ELSE:
 			self.next_token()
 			comp.alt_block = self.compound_statement(indent_level)
+		self.indent_level -= 1
 		return comp
 
 	def assignment_statement(self, token):

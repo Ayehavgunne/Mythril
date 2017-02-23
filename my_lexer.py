@@ -35,7 +35,6 @@ class Lexer(object):
 		self.word_type = None
 		self._line_num = 1
 		self.current_token = None
-		self.tokens = []
 
 	def next_char(self):
 		self.pos += 1
@@ -132,12 +131,6 @@ class Lexer(object):
 		else:
 			return ALPHANUMERIC
 
-	def next_token(self):
-		if self.current_token:
-			self.tokens.append(self.current_token)
-		self.current_token = self.get_next_token()
-		return self.current_token
-
 	def get_next_token(self):
 		if self.current_char is None:
 			return self.eof()
@@ -180,10 +173,26 @@ class Lexer(object):
 		if not self.word_type:
 			self.word_type = self.char_type
 
+		if self.word_type == OPERATIC:
+			while self.char_type == OPERATIC:
+				self.word += self.current_char
+				self.next_char()
+				if self.current_char in SINGLE_OPERATORS:
+					break
+			return Token(OP, self.reset_word(), self.line_num)
+
 		if self.word_type == ALPHANUMERIC:
 			while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
 				self.word += self.current_char
 				self.next_char()
+			if self.word in OPERATORS:
+				if self.word in MULTI_WORD_OPERATORS and self.preview_token(1).value in MULTI_WORD_OPERATORS:
+					self.next_char()
+					self.word += ' '
+					while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
+						self.word += self.current_char
+						self.next_char()
+					return Token(OP, self.reset_word(), self.line_num)
 			if self.word in KEYWORDS:
 				return Token(KEYWORD, self.reset_word(), self.line_num)
 			elif self.word in TYPES:
@@ -200,14 +209,6 @@ class Lexer(object):
 				if self.char_type == ALPHANUMERIC:
 					raise SyntaxError('Variables cannot start with numbers')
 			return Token(NUMBER, self.reset_word(), self.line_num)
-
-		if self.word_type == OPERATIC:
-			while self.char_type == OPERATIC:
-				self.word += self.current_char
-				self.next_char()
-				if self.current_char in SINGLE_OPERATORS:
-					break
-			return Token(OP, self.reset_word(), self.line_num)
 
 		if self.char_type == ESCAPE:
 			self.reset_word()
