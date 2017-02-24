@@ -66,11 +66,10 @@ class OpAssign(AST):
 
 
 class ControlStructure(AST):
-	def __init__(self, op, comp, block, alt_block=None):
+	def __init__(self, op, comps, blocks):
 		self.op = op
-		self.comp = comp
-		self.block = block
-		self.alt_block = alt_block
+		self.comps = comps
+		self.blocks = blocks
 
 
 class BinOp(AST):
@@ -121,6 +120,12 @@ class Str(AST):
 	def __init__(self, token):
 		self.token = token
 		self.value = token.value
+
+
+class Collection(AST):
+	def __init__(self, token, *items):
+		self.token = token
+		self.items = items
 
 
 class NoOp(AST):

@@ -9,7 +9,7 @@ from my_ast import UnaryOp
 from my_ast import FuncCall
 from my_ast import Null
 from my_ast import VarDecl
-from my_ast import Var
+from my_ast import NoOp
 from my_types import get_type_cls
 from my_grammar import *
 
@@ -58,35 +58,15 @@ class Interpreter(NodeVisitor):
 		pass
 
 	def visit_controlstructure(self, node):
-		comp = node.comp
-		if isinstance(comp, Var):
-			boolean = self.search_scopes(comp.value)
-			if isinstance(boolean, bool):
-				result = boolean
-			else:
-				raise NotImplementedError('Have not implimented truthy/falsy and not sure if will')
-		elif comp.op.value == EQUALS:
-			result = self.visit(comp.left) == self.visit(comp.right)
-		elif comp.op.value == NOT_EQUALS:
-			result = self.visit(comp.left) != self.visit(comp.right)
-		elif comp.op.value == LESS_THAN:
-			result = self.visit(comp.left) < self.visit(comp.right)
-		elif comp.op.value == LESS_THAN_OR_EQUAL_TO:
-			result = self.visit(comp.left) <= self.visit(comp.right)
-		elif comp.op.value == GREATER_THAN:
-			result = self.visit(comp.left) > self.visit(comp.right)
-		elif comp.op.value == GREATER_THAN_OR_EQUAL_TO:
-			result = self.visit(comp.left) >= self.visit(comp.right)
-		else:
-			raise SyntaxError('Unknown comparison operator: {}'.format(comp.op.value))
-		if result is True:
-			if node.op.value == WHILE:
-				self.visit(node.block)
-				self.visit_controlstructure(node)
-			elif node.op.value == IF:
-				return self.visit(node.block)
-		elif node.alt_block:
-			return self.visit(node.alt_block)
+		for x, comp in enumerate(node.comps):
+			if self.visit(comp) is True:
+				if node.op.value == WHILE:
+					self.visit(node.blocks[x])
+					self.visit_controlstructure(node)
+				elif node.op.value == IF:
+					return self.visit(node.blocks[x])
+			elif isinstance(comp, NoOp):
+				return self.visit(node.blocks[x])
 
 	def visit_binop(self, node):
 		op = node.op.value
@@ -106,6 +86,22 @@ class Interpreter(NodeVisitor):
 			return left % right
 		elif op == POWER:
 			return left ** right
+		elif op == AND:
+			return left and right
+		elif op == OR:
+			return left or right
+		elif op == EQUALS:
+			return left == right
+		elif op == NOT_EQUALS:
+			return left != right
+		elif op == LESS_THAN:
+			return left < right
+		elif op == LESS_THAN_OR_EQUAL_TO:
+			return left <= right
+		elif op == GREATER_THAN:
+			return left > right
+		elif op == GREATER_THAN_OR_EQUAL_TO:
+			return left >= right
 		elif op == CAST:
 			cast_type = node.right.value
 			if cast_type == INT:
@@ -139,6 +135,8 @@ class Interpreter(NodeVisitor):
 			return +self.visit(node.expr)
 		elif op == MINUS:
 			return -self.visit(node.expr)
+		elif op == NOT:
+			return not self.visit(node.expr)
 
 	def visit_assign(self, node):
 		if isinstance(node.left, VarDecl):
@@ -221,6 +219,12 @@ class Interpreter(NodeVisitor):
 	@staticmethod
 	def visit_str(node):
 		return node.value
+
+	def visit_collection(self, node):
+		items = []
+		for item in node.items:
+			items.append(self.visit(item))
+		return items
 
 	def interpret(self, tree):
 		return self.visit(tree)

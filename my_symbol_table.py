@@ -29,6 +29,7 @@ COMPLEX_BUILTIN = BuiltinTypeSymbol(COMPLEX)
 BOOL_BUILTIN = BuiltinTypeSymbol(BOOL)
 BYTES_BUILTIN = BuiltinTypeSymbol(BYTES)
 STR_BUILTIN = BuiltinTypeSymbol(STR)
+ARRAY_BUILTIN = BuiltinTypeSymbol(ARRAY)
 LIST_BUILTIN = BuiltinTypeSymbol(LIST)
 TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE)
 DICT_BUILTIN = BuiltinTypeSymbol(DICT)
@@ -47,6 +48,14 @@ class VarSymbol(Symbol):
 		return '<{name}:{type}>'.format(name=self.name, type=self.type)
 
 	__repr__ = __str__
+
+
+class CollectionSymbol(Symbol):
+	def __init__(self, name, var_type, item_types):
+		super().__init__(name, var_type)
+		self.item_types = item_types
+		self.accessed = False
+		self.val_assigned = False
 
 
 class FuncSymbol(Symbol):
@@ -76,6 +85,7 @@ class SymbolTable(object):
 		self.define(BOOL_BUILTIN)
 		self.define(BYTES_BUILTIN)
 		self.define(STR_BUILTIN)
+		self.define(ARRAY_BUILTIN)
 		self.define(LIST_BUILTIN)
 		self.define(TUPLE_BUILTIN)
 		self.define(DICT_BUILTIN)
@@ -117,7 +127,7 @@ class SymbolTable(object):
 				return scope[name]
 
 	def new_scope(self):
-		self._scope.append({})
+		self._scope.append(OrderedDict())
 
 	def drop_top_scope(self):
 		self._scope.pop()

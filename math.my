@@ -1,3 +1,4 @@
+things = [1, 2, 3, 'Hello']
 Dec a
 b = 3
 
@@ -7,25 +8,32 @@ Int bar()
 Bool larry = true
 f = bar()
 Float g = 7.5
-garry = true
+h = 5
+garry = false
 if garry
 	g = 2.6
+	if larry and garry
+		h += h
+else if larry
+	g = 3.6
+else
+	g = 7.6
 if larry
 	g += 7
 first_name = 'Anthony'
-last_name = 'Post'
+last_name = 'Post\'s'
 full_name = first_name + ' ' + last_name
 a = 2 * g
 d = 0
 c = a::Int ** b
 
 Int foo(Int first, Int second)
-	Str baz()
-		return 'hello'
+	Int baz()
+		return 54
 	if first < second
 		return first + second
 	else
-		return first * second
+		return baz()
 
 e = foo(c, b)
 

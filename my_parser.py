@@ -23,6 +23,7 @@ class Parser(object):
 
 	def next_token(self):
 		self.current_token = self.lexer.get_next_token()
+		# print(self.current_token)
 
 	def preview(self, num=1):
 		return self.lexer.preview_token(num)
@@ -30,7 +31,7 @@ class Parser(object):
 	def program(self):
 		root = Compound()
 		while self.current_token.type != EOF:
-			comp = self.compound_statement(0)
+			comp = self.compound_statement()
 			root.children.extend(comp.children)
 		return Program(root)
 
@@ -64,9 +65,8 @@ class Parser(object):
 		self.eat_value(RPAREN)
 		self.eat_type(NEWLINE)
 		self.indent_level += 1
-		for _ in range(self.indent_level):
-			self.eat_type(INDENT)
-		stmts = self.compound_statement(self.indent_level)
+		stmts = self.compound_statement()
+		self.indent_level -= 1
 		return FuncDecl(name, return_type, params, stmts)
 
 	def function_call(self, token):
@@ -90,32 +90,28 @@ class Parser(object):
 		self.eat_type(TOKEN_TYPE)
 		return Type(token)
 
-	def compound_statement(self, indent_level):
-		nodes = self.statement_list(indent_level)
+	def compound_statement(self):
+		nodes = self.statement_list()
 		root = Compound()
 		for node in nodes:
 			root.children.append(node)
 		return root
 
-	def statement_list(self, indent_level):
+	def statement_list(self):
 		node = self.statement()
 		if isinstance(node, Return):
 			return [node]
 		results = [node]
 		while self.current_token.type == NEWLINE:
-			indents = 0
 			self.next_token()
-			while self.current_token.type == INDENT:
-				self.next_token()
-				indents += 1
-			if indents < indent_level:
+			if self.current_token.indent_level < self.indent_level:
 				return results
 			results.append(self.statement())
 		return results
 
 	def statement(self):
 		if self.current_token.value in (IF, WHILE):
-			node = self.comparison_statement(self.indent_level)
+			node = self.comparison_statement()
 		elif self.current_token.value == RETURN:
 			node = self.return_statement()
 		elif self.current_token.type == NAME:
@@ -130,7 +126,17 @@ class Parser(object):
 		return node
 
 	def square_bracket_expression(self, token):
-		if self.current_token.type == TOKEN_TYPE:
+		if token.value == LSQUAREBRACKET:
+			items = []
+			while self.current_token.value != RSQUAREBRACKET:
+				items.append(self.expr())
+				if self.current_token.value == COMMA:
+					self.next_token()
+				else:
+					break
+			self.eat_value(RSQUAREBRACKET)
+			return Collection(token, *items)
+		elif self.current_token.type == TOKEN_TYPE:
 			type_token = self.current_token
 			self.next_token()
 			if self.current_token.value == COMMA:
@@ -140,14 +146,30 @@ class Parser(object):
 				return self.collection_expression(token, type_token)
 		elif self.current_token.type == NAME:
 			raise NotImplementedError
+		else:
+			raise SyntaxError
+
+	def curly_bracket_expression(self, token):
+		if token.value == LCURLYBRACKET:
+			items = {}
+			while self.current_token.value != RCURLYBRACKET:
+				key = self.expr()
+				self.eat_value(COLON)
+				items[key] = self.expr()
+				if self.current_token.value == COMMA:
+					self.next_token()
+				else:
+					break
+			self.eat_value(RSQUAREBRACKET)
+			return Collection(token, items)
 
 	def collection_expression(self, token, type_token):
 		if self.current_token.value == ASSIGN:
 			return self.array_of_type_assignment(token, type_token)
 		else:
-			return self.collection_call()
+			return self.access_collection()
 
-	def collection_call(self):
+	def access_collection(self):
 		raise NotImplementedError
 
 	def array_of_type_assignment(self, token, type_token):
@@ -172,28 +194,24 @@ class Parser(object):
 
 	def return_statement(self):
 		self.next_token()
-		token = self.expr()
-		if isinstance(token, AST):
-			ret = Return(token)
-		elif token.type == NAME:
-			ret = Return(self.variable(token))
-		elif token.type == NUMBER:
-			ret = Return(Num(token))
-		elif token.type == STRING:
-			ret = Return(Str(token))
-		else:
-			raise SyntaxError
-		self.indent_level -= 1
-		return ret
+		return Return(self.expr())
 
-	def comparison_statement(self, indent_level):
+	def comparison_statement(self):
 		self.indent_level += 1
 		token = self.current_token
 		self.next_token()
-		comp = ControlStructure(token, self.expr(), self.compound_statement(indent_level))
+		comp = ControlStructure(token, [self.expr()], [self.compound_statement()])
+		if self.current_token.indent_level < comp.op.indent_level:
+			self.indent_level -= 1
+			return comp
+		while self.current_token.value == ELSE_IF:
+			self.next_token()
+			comp.comps.append(self.expr())
+			comp.blocks.append(self.compound_statement())
 		if self.current_token.value == ELSE:
 			self.next_token()
-			comp.alt_block = self.compound_statement(indent_level)
+			comp.comps.append(self.empty())
+			comp.blocks.append(self.compound_statement())
 		self.indent_level -= 1
 		return comp
 
@@ -229,12 +247,13 @@ class Parser(object):
 		preview = self.preview()
 		if token.value == PLUS:
 			self.next_token()
-			node = UnaryOp(token, self.factor())
-			return node
+			return UnaryOp(token, self.factor())
 		elif token.value == MINUS:
 			self.next_token()
-			node = UnaryOp(token, self.factor())
-			return node
+			return UnaryOp(token, self.factor())
+		elif token.value == NOT:
+			self.next_token()
+			return UnaryOp(token, self.factor())
 		elif token.type == NUMBER:
 			self.next_token()
 			return Num(token)
@@ -248,14 +267,18 @@ class Parser(object):
 			node = self.expr()
 			self.eat_value(RPAREN)
 			return node
-		elif preview and preview.value and preview.value[0] == LPAREN:
+		elif preview.value == LPAREN:
 			self.next_token()
-			node = self.function_call(token)
-			return node
+			return self.function_call(token)
+		elif token.value == LSQUAREBRACKET:
+			self.next_token()
+			return self.square_bracket_expression(token)
+		elif token.value == LCURLYBRACKET:
+			self.next_token()
+			return self.curly_bracket_expression(token)
 		elif token.type == NAME:
 			self.next_token()
-			node = self.variable(token)
-			return node
+			return self.variable(token)
 		elif token.type == CONSTANT:
 			self.next_token()
 			return self.constant(token)
@@ -264,10 +287,11 @@ class Parser(object):
 
 	def term(self):
 		node = self.factor()
-		while self.current_token.value in (MUL, DIV, FLOORDIV, MOD, POWER, CAST) or self.current_token.value in COMPARISON_OP:
+		ops = (MUL, DIV, FLOORDIV, MOD, POWER, CAST) + COMPARISON_OP + LOGICAL_OP
+		while self.current_token.value in ops:
 			token = self.current_token
 			self.next_token()
-			if token.value in COMPARISON_OP:
+			if token.value in COMPARISON_OP or token.value in LOGICAL_OP:
 				node = BinOp(left=node, op=token, right=self.expr())
 			else:
 				node = BinOp(left=node, op=token, right=self.factor())

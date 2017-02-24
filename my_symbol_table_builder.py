@@ -1,9 +1,11 @@
 import warnings
 from my_visitor import NodeVisitor
 from my_symbol_table import VarSymbol
+from my_symbol_table import CollectionSymbol
 from my_symbol_table import FuncSymbol
 from my_symbol_table import SymbolTable
 from my_ast import VarDecl
+from my_ast import Collection
 from my_grammar import *
 
 def flatten(container):
@@ -41,29 +43,12 @@ class SymbolTableBuilder(NodeVisitor):
 		declaraions.append(self.visit(node.compound_statement))
 		return declaraions
 
-	def visit_binop(self, node):
-		if node.op.value == CAST:
-			self.symtab.lookup(node.left.value).accessed = True
-			return self.symtab.infer_type(node.right)
-		else:
-			left = self.visit(node.left)
-			right = self.visit(node.right)
-			left_type = self.symtab.infer_type(left)
-			right_type = self.symtab.infer_type(right)
-			any_type = self.symtab.lookup(ANY)
-			if left_type in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
-				if right_type in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
-					return left_type
-			if right_type is left_type or left_type is any_type or right_type is any_type:
-				return left_type
-			else:
-				raise TypeError
-
 	def visit_controlstructure(self, node):
-		results = [self.visit(node.comp), self.visit(node.block)]
-		if node.alt_block:
-			results.append(self.visit(node.alt_block))
-		return results
+		blocks = []
+		for x, block in enumerate(node.blocks):
+			self.visit(node.comps[x])
+			blocks.append(self.visit(block))
+		return blocks
 
 	def visit_constant(self, node):
 		if node.value == TRUE or node.value == FALSE:
@@ -84,17 +69,26 @@ class SymbolTableBuilder(NodeVisitor):
 		return node.value
 
 	def visit_assign(self, node):
+		collection_type = None
 		if isinstance(node.left, VarDecl):
 			var_name = node.left.var_node.value
 			value = self.symtab.infer_type(node.left.type_node)
+		elif isinstance(node.right, Collection):
+			var_name = node.left.value
+			value, collection_type = self.visit(node.right)
 		else:
 			var_name = node.left.value
 			value = self.visit(node.right)
 		lookup_var = self.symtab.lookup(var_name)
 		if not lookup_var:
-			var_sym = VarSymbol(var_name, value)
-			var_sym.val_assigned = True
-			self.symtab.define(var_sym)
+			if collection_type:
+				col_sym = CollectionSymbol(var_name, value, collection_type)
+				col_sym.val_assigned = True
+				self.symtab.define(col_sym)
+			else:
+				var_sym = VarSymbol(var_name, value)
+				var_sym.val_assigned = True
+				self.symtab.define(var_sym)
 		else:
 			if lookup_var.type in (self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
 				if value in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
@@ -126,6 +120,24 @@ class SymbolTableBuilder(NodeVisitor):
 				raise SyntaxError('{} is being accessed while not yet defined'.format(var_name))
 			val.accessed = True
 			return val
+
+	def visit_binop(self, node):
+		if node.op.value == CAST:
+			self.symtab.lookup(node.left.value).accessed = True
+			return self.symtab.infer_type(node.right)
+		else:
+			left = self.visit(node.left)
+			right = self.visit(node.right)
+			left_type = self.symtab.infer_type(left)
+			right_type = self.symtab.infer_type(right)
+			any_type = self.symtab.lookup(ANY)
+			if left_type in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
+				if right_type in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
+					return left_type
+			if right_type is left_type or left_type is any_type or right_type is any_type:
+				return left_type
+			else:
+				raise TypeError
 
 	def visit_unaryop(self, node):
 		return self.visit(node.expr)
@@ -176,3 +188,23 @@ class SymbolTableBuilder(NodeVisitor):
 		var_name = node.var_node.value
 		var_symbol = VarSymbol(var_name, type_symbol)
 		self.symtab.define(var_symbol)
+
+	def visit_collection(self, node):
+		types = []
+		for item in node.items:
+			types.append(self.visit(item))
+		if types[1:] == types[:-1]:
+			return self.symtab.lookup(ARRAY), types[0]
+		else:
+			return self.symtab.lookup(LIST), self.symtab.lookup(ANY)
+
+if __name__ == '__main__':
+	from my_lexer import Lexer
+	from my_parser import Parser
+	code = open('math.my').read()
+	lexer = Lexer(code)
+	parser = Parser(lexer)
+	t = parser.parse()
+	symtab_builder = SymbolTableBuilder()
+	symtab = symtab_builder.build(t)
+	print(symtab)

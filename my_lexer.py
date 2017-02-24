@@ -2,11 +2,12 @@ from my_grammar import *
 from decimal import Decimal
 
 class Token(object):
-	def __init__(self, token_type, value, line_num):
+	def __init__(self, token_type, value, line_num, indent_level):
 		self.type = token_type
 		self.value = value
 		self.cast()
 		self.line_num = line_num
+		self.indent_level = indent_level
 
 	def cast(self):
 		if self.type == NUMBER:
@@ -16,10 +17,11 @@ class Token(object):
 				self.value = Decimal(self.value)
 
 	def __str__(self):
-		return 'Token(type={type}, value={value}, line_num={line_num})'.format(
+		return 'Token(type={type}, value={value}, line_num={line_num}, indent_level={indent_level})'.format(
 			type=self.type,
 			value=repr(self.value),
-			line_num=self.line_num
+			line_num=self.line_num,
+			indent_level=self.indent_level
 		)
 
 	__repr__ = __str__
@@ -34,6 +36,7 @@ class Lexer(object):
 		self.word = ''
 		self.word_type = None
 		self._line_num = 1
+		self._indent_level = 0
 		self.current_token = None
 
 	def next_char(self):
@@ -68,6 +71,7 @@ class Lexer(object):
 		current_word = self.word
 		current_word_type = self.word_type
 		current_line_num = self.line_num
+		current_indent_level = self.indent_level
 		for _ in range(num):
 			next_token = self.get_next_token()
 		self.pos = current_pos
@@ -76,6 +80,7 @@ class Lexer(object):
 		self.word = current_word
 		self.word_type = current_word_type
 		self._line_num = current_line_num
+		self._indent_level = current_indent_level
 		return next_token
 
 	def skip_whitespace(self):
@@ -101,20 +106,38 @@ class Lexer(object):
 	def line_num(self):
 		return self._line_num
 
+	@property
+	def indent_level(self):
+		return self._indent_level
+
+	def reset_indent_level(self):
+		self._indent_level = 0
+		return self._indent_level
+
+	def decriment_indent_level(self):
+		self._indent_level -= 1
+		return self._indent_level
+
+	def increment_indent_level(self):
+		self._indent_level += 1
+		return self._indent_level
+
 	def eat_newline(self):
 		self.reset_word()
-		token = Token(NEWLINE, '\n', self.line_num)
+		token = Token(NEWLINE, '\n', self.line_num, self.indent_level)
+		self.reset_indent_level()
 		self.increment_line_num()
 		self.next_char()
 		return token
 
-	def eat_indent(self):
-		self.reset_word()
-		self.next_char()
-		return Token(INDENT, '\t', self.line_num)
+	def skip_indent(self):
+		while self.current_char is not None and self.current_char == '\t':
+			self.reset_word()
+			self.increment_indent_level()
+			self.next_char()
 
 	def eof(self):
-		return Token(EOF, EOF, self.line_num)
+		return Token(EOF, EOF, self.line_num, self.indent_level)
 
 	@staticmethod
 	def get_type(char):
@@ -139,7 +162,7 @@ class Lexer(object):
 			return self.eat_newline()
 
 		elif self.current_char == '\t':
-			return self.eat_indent()
+			self.skip_indent()
 
 		if self.current_char.isspace():
 			self.skip_whitespace()
@@ -156,7 +179,7 @@ class Lexer(object):
 				self.word += self.current_char
 				self.next_char()
 			self.next_char()
-			return Token(STRING, self.reset_word(), self.line_num)
+			return Token(STRING, self.reset_word(), self.line_num, self.indent_level)
 
 		if self.current_char == "'":
 			self.next_char()
@@ -166,7 +189,7 @@ class Lexer(object):
 				self.word += self.current_char
 				self.next_char()
 			self.next_char()
-			return Token(STRING, self.reset_word(), self.line_num)
+			return Token(STRING, self.reset_word(), self.line_num, self.indent_level)
 
 		if not self.char_type:
 			self.char_type = self.get_type(self.current_char)
@@ -179,7 +202,7 @@ class Lexer(object):
 				self.next_char()
 				if self.current_char in SINGLE_OPERATORS:
 					break
-			return Token(OP, self.reset_word(), self.line_num)
+			return Token(OP, self.reset_word(), self.line_num, self.indent_level)
 
 		if self.word_type == ALPHANUMERIC:
 			while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
@@ -192,15 +215,25 @@ class Lexer(object):
 					while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
 						self.word += self.current_char
 						self.next_char()
-					return Token(OP, self.reset_word(), self.line_num)
+					return Token(OP, self.reset_word(), self.line_num, self.indent_level)
+				else:
+					return Token(OP, self.reset_word(), self.line_num, self.indent_level)
 			if self.word in KEYWORDS:
-				return Token(KEYWORD, self.reset_word(), self.line_num)
+				if self.word in MULTI_WORD_KEYWORDS and self.preview_token(1).value in MULTI_WORD_KEYWORDS:
+					self.next_char()
+					self.word += ' '
+					while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
+						self.word += self.current_char
+						self.next_char()
+					return Token(KEYWORD, self.reset_word(), self.line_num, self.indent_level)
+				else:
+					return Token(KEYWORD, self.reset_word(), self.line_num, self.indent_level)
 			elif self.word in TYPES:
-				return Token(TOKEN_TYPE, self.reset_word(), self.line_num)
+				return Token(TOKEN_TYPE, self.reset_word(), self.line_num, self.indent_level)
 			elif self.word in CONSTANTS:
-				return Token(CONSTANT, self.reset_word(), self.line_num)
+				return Token(CONSTANT, self.reset_word(), self.line_num, self.indent_level)
 			else:
-				return Token(NAME, self.reset_word(), self.line_num)
+				return Token(NAME, self.reset_word(), self.line_num, self.indent_level)
 
 		if self.word_type == NUMERIC:
 			while self.char_type == NUMERIC or self.current_char == '.':
@@ -208,7 +241,7 @@ class Lexer(object):
 				self.next_char()
 				if self.char_type == ALPHANUMERIC:
 					raise SyntaxError('Variables cannot start with numbers')
-			return Token(NUMBER, self.reset_word(), self.line_num)
+			return Token(NUMBER, self.reset_word(), self.line_num, self.indent_level)
 
 		if self.char_type == ESCAPE:
 			self.reset_word()
@@ -217,7 +250,7 @@ class Lexer(object):
 			if self.current_char == '\n':
 				self.increment_line_num()
 			self.next_char()
-			return Token(ESCAPE, '\\', line_num)
+			return Token(ESCAPE, '\\', line_num, self.indent_level)
 
 		raise SyntaxError('Unknown character')
 
