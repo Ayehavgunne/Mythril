@@ -123,7 +123,14 @@ class Str(AST):
 
 
 class Collection(AST):
-	def __init__(self, token, *items):
+	def __init__(self, token, read_only, *items):
+		self.token = token
+		self.read_only = read_only
+		self.items = items
+
+
+class HashMap(AST):
+	def __init__(self, token, items):
 		self.token = token
 		self.items = items
 

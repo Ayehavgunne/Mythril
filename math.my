@@ -1,46 +1,59 @@
-things = [1, 2, 3, 'Hello']
-Dec a
-b = 3
-
-Int bar()
-	return 2 + 2
-
-Bool larry = true
-f = bar()
-Float g = 7.5
-h = 5
-garry = false
-if garry
-	g = 2.6
-	if larry and garry
-		h += h
-else if larry
-	g = 3.6
-else
-	g = 7.6
-if larry
-	g += 7
-first_name = 'Anthony'
-last_name = 'Post\'s'
-full_name = first_name + ' ' + last_name
-a = 2 * g
-d = 0
-c = a::Int ** b
-
-Int foo(Int first, Int second)
-	Int baz()
-		return 54
-	if first < second
-		return first + second
+Int fib(Int num)
+	if num == 0
+		return 0
+	else if num == 1
+		return 1
 	else
-		return baz()
+		return fib(num - 1) + fib(num - 2)
 
-e = foo(c, b)
-
-while b < 30
-	b += c + 1
-	if b >= 20
-		b += 2
-	else
-		b += 1
-d += c + b
+print(fib(23))
+#things = [1, 2, 3]
+#stuff = {first_name: 'samus', last_name: 'aran'}
+#Dec a
+#b = 3
+#
+#Int bar()
+#	return 2 + 2
+#
+#Bool larry = true
+#f = bar()
+#Float g = 7.5
+#h = 5
+#garry = false
+#if garry
+#	g = 2.6
+#	if larry and garry
+#		h += h
+#else if larry
+#	g = 3.6
+#else
+#	g = 7.6
+#if larry
+#	g += 7
+#first_name = 'Anthony'
+#last_name = 'Post\'s'
+#full_name = first_name + ' ' + last_name
+#a = 2 * g
+#d = 0
+#c = a::Int ** b
+#
+#Int foo(Int first, Int second)
+#	Int baz()
+#		return 54
+#	if first < second
+#		return first + second
+#	else
+#		return baz()
+#
+#e = foo(c, b)
+#
+#while b < 30
+#	b += c + 1
+#	if b >= 20
+#		b += 2
+#	else
+#		b += 1
+#d += c + b
+#
+#print((1,2,3))
+#print({a: a, b: b, bar: bar, c: c, d: d, e: e, f: f, first_name: first_name, foo: foo, full_name: full_name, g: g, garry: garry, h: h, larry: larry, last_name: last_name, stuff: stuff, things: things})

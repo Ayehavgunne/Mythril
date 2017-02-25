@@ -4,7 +4,7 @@ from my_symbol_table import VarSymbol
 from my_symbol_table import CollectionSymbol
 from my_symbol_table import FuncSymbol
 from my_symbol_table import SymbolTable
-from my_ast import VarDecl
+from my_ast import VarDecl, HashMap
 from my_ast import Collection
 from my_grammar import *
 
@@ -30,7 +30,8 @@ class SymbolTableBuilder(NodeVisitor):
 
 	def build(self, node):
 		res = self.visit(node)
-		warnings.warn('Unused variables ({})'.format(','.join(sym_name for sym_name in self.symtab.unvisited_symbols)))
+		if self.symtab.unvisited_symbols:
+			warnings.warn('Unused variables ({})'.format(','.join(sym_name for sym_name in self.symtab.unvisited_symbols)))
 		return res
 
 	def visit_program(self, node):
@@ -68,7 +69,7 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_type(node):
 		return node.value
 
-	def visit_assign(self, node):
+	def visit_assign(self, node): #TODO clean up this mess of a function
 		collection_type = None
 		if isinstance(node.left, VarDecl):
 			var_name = node.left.var_node.value
@@ -90,6 +91,7 @@ class SymbolTableBuilder(NodeVisitor):
 				var_sym.val_assigned = True
 				self.symtab.define(var_sym)
 		else:
+			self.symtab.search_scopes(var_name).val_assigned = True
 			if lookup_var.type in (self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
 				if value in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
 					return
@@ -102,7 +104,7 @@ class SymbolTableBuilder(NodeVisitor):
 		left_type = self.symtab.infer_type(left)
 		right_type = self.symtab.infer_type(right)
 		any_type = self.symtab.lookup(ANY)
-		if left_type in (self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
+		if left_type in (self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)): #TODO: implicit type conversion needs an expanded official solution
 			if right_type in (self.symtab.lookup(INT), self.symtab.lookup(DEC), self.symtab.lookup(FLOAT)):
 				return left_type
 		if right_type is left_type or left_type is any_type or right_type is any_type:
@@ -158,17 +160,19 @@ class SymbolTableBuilder(NodeVisitor):
 			var_sym.val_assigned = True
 			self.symtab.define(var_sym)
 		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body)
+		self.symtab.define(func_symbol, 1)
 		return_var_type = self.visit(func_symbol.body)
 		return_var_type = list(flatten(return_var_type))
 		for ret_type in return_var_type:
 			if ret_type is not func_type:
 				raise TypeError('The actual return type does not match the declared return type')
 		self.symtab.drop_top_scope()
-		self.symtab.define(func_symbol)
 
 	def visit_funccall(self, node):
 		func_name = node.name.value
 		func = self.symtab.search_scopes(func_name)
+		for arg in node.arguments:
+			self.visit(arg)
 		if func is None:
 			raise NameError(repr(func_name))
 		else:
@@ -197,6 +201,13 @@ class SymbolTableBuilder(NodeVisitor):
 			return self.symtab.lookup(ARRAY), types[0]
 		else:
 			return self.symtab.lookup(LIST), self.symtab.lookup(ANY)
+
+	def visit_hashmap(self, node):
+		for key in node.items.keys():
+			value = self.symtab.search_scopes(key)
+			if value:
+				value.accessed = True
+		return self.symtab.lookup(DICT)
 
 if __name__ == '__main__':
 	from my_lexer import Lexer

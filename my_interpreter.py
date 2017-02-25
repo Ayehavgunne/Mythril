@@ -1,22 +1,16 @@
 from decimal import Decimal
 from enum import Enum
 from my_visitor import NodeVisitor
-from my_ast import Num
-from my_ast import Str
-from my_ast import BinOp
-from my_ast import Type
-from my_ast import UnaryOp
-from my_ast import FuncCall
 from my_ast import Null
 from my_ast import VarDecl
 from my_ast import NoOp
-from my_types import get_type_cls
 from my_grammar import *
 
 
 class Interpreter(NodeVisitor):
 	def __init__(self):
 		self._scope = [{}]
+		self.create_builtin_funcs()
 
 	@property
 	def top_scope(self):
@@ -31,6 +25,10 @@ class Interpreter(NodeVisitor):
 			if name in scope:
 				return scope[name]
 
+	def define(self, key, value, level=0):
+		level = (len(self._scope) - level) - 1
+		self._scope[level][key] = value
+
 	def new_scope(self):
 		self._scope.append({})
 
@@ -44,7 +42,7 @@ class Interpreter(NodeVisitor):
 		res = None
 		for child in node.children:
 			temp = self.visit(child)
-			if temp:
+			if temp is not None:
 				res = temp
 		return res
 
@@ -176,26 +174,25 @@ class Interpreter(NodeVisitor):
 		self.top_scope[node.name.value] = node
 
 	def visit_funccall(self, node):
-		func = self.search_scopes(node.name.value)
-		func.args = node.arguments
-		self.new_scope()
-		for x, key in enumerate(func.parameters.keys()):
-			self.top_scope[key] = self.second_scope[node.arguments[x].value]
-		return_var = self.visit(func.body)
-		if not return_var and func.return_type.value != VOID:
-			raise TypeError
-		self.drop_top_scope()
-		return return_var
+		if node.name.value in BUILTIN_FUNCTIONS:
+			args = []
+			for arg in node.arguments:
+				args.append(self.visit(arg))
+			self.search_scopes(node.name.value)(*args)
+		else:
+			func = self.search_scopes(node.name.value)
+			func.args = node.arguments
+			self.new_scope()
+			for x, key in enumerate(func.parameters.keys()):
+				self.top_scope[key] = self.visit(node.arguments[x])
+			return_var = self.visit(func.body)
+			if return_var is None and func.return_type.value != VOID:
+				raise TypeError
+			self.drop_top_scope()
+			return return_var
 
 	def visit_return(self, node):
-		if isinstance(node.value, (Num, Str)):
-			return node.value.value
-		elif isinstance(node.value, (BinOp, UnaryOp, FuncCall)):
-			return self.visit(node.value)
-		elif isinstance(node.value, Type):
-			return get_type_cls(node.value.value)
-		else:
-			return self.search_scopes(node.value.value)
+		return self.visit(node.value)
 
 	@staticmethod
 	def visit_constant(node):
@@ -224,11 +221,23 @@ class Interpreter(NodeVisitor):
 		items = []
 		for item in node.items:
 			items.append(self.visit(item))
+		if node.read_only:
+			return tuple(items)
 		return items
+
+	def visit_hashmap(self, node):
+		types = {}
+		for key, val in node.items.items():
+			types[key] = self.visit(val)
+		return types
 
 	def interpret(self, tree):
 		return self.visit(tree)
 
+	def create_builtin_funcs(self):
+		for func in BUILTIN_FUNCTIONS:
+			if func == 'print':
+				self.top_scope[func] = print
 
 if __name__ == '__main__':
 	from my_lexer import Lexer
@@ -243,6 +252,6 @@ if __name__ == '__main__':
 	interpreter = Interpreter()
 	interpreter.interpret(t)
 	string = ''
-	for variable_name in sorted(interpreter.top_scope.keys()):
-		string += '{}: {}, '.format(repr(variable_name), repr(interpreter.top_scope[variable_name]))
-	print('{' + string[:-2] + '}')
+	# for variable_name in sorted(interpreter.top_scope.keys()):
+	# 	string += '{}: {}, '.format(repr(variable_name), repr(interpreter.top_scope[variable_name]))
+	# print('{' + string[:-2] + '}')

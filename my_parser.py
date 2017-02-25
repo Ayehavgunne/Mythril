@@ -69,14 +69,27 @@ class Parser(object):
 		self.indent_level -= 1
 		return FuncDecl(name, return_type, params, stmts)
 
+	def bracket_literal(self):
+		token = self.current_token
+		self.next_token()
+		if token.value == LCURLYBRACKET:
+			return self.curly_bracket_expression(token)
+		elif token.value == LPAREN:
+			return self.tuple_expression(token)
+		else:
+			return self.square_bracket_expression(token)
+
 	def function_call(self, token):
 		self.eat_value(LPAREN)
 		args = []
 		while self.current_token.value != RPAREN:
 			while self.current_token.type == NEWLINE:
 				self.eat_type(NEWLINE)
-			args.append(self.current_token)
-			self.eat_type(NAME, NUMBER, STRING, TOKEN_TYPE, CONSTANT)
+			if self.current_token.value in (LPAREN, LSQUAREBRACKET, LCURLYBRACKET):
+				args.append(self.bracket_literal())
+			else:
+				args.append(self.expr())
+				# self.eat_type(NAME, NUMBER, STRING, TOKEN_TYPE, CONSTANT)
 			while self.current_token.type == NEWLINE:
 				self.eat_type(NEWLINE)
 			if self.current_token.value != RPAREN:
@@ -135,7 +148,7 @@ class Parser(object):
 				else:
 					break
 			self.eat_value(RSQUAREBRACKET)
-			return Collection(token, *items)
+			return Collection(token, False, *items)
 		elif self.current_token.type == TOKEN_TYPE:
 			type_token = self.current_token
 			self.next_token()
@@ -151,17 +164,29 @@ class Parser(object):
 
 	def curly_bracket_expression(self, token):
 		if token.value == LCURLYBRACKET:
-			items = {}
+			pairs = {}
 			while self.current_token.value != RCURLYBRACKET:
 				key = self.expr()
 				self.eat_value(COLON)
-				items[key] = self.expr()
+				pairs[key.value] = self.expr()
 				if self.current_token.value == COMMA:
 					self.next_token()
 				else:
 					break
-			self.eat_value(RSQUAREBRACKET)
-			return Collection(token, items)
+			self.eat_value(RCURLYBRACKET)
+			return HashMap(token, pairs)
+
+	def tuple_expression(self, token):
+		if token.value == LPAREN:
+			items = []
+			while self.current_token.value != RPAREN:
+				items.append(self.expr())
+				if self.current_token.value == COMMA:
+					self.next_token()
+				else:
+					break
+			self.eat_value(RPAREN)
+			return Collection(token, True, *items)
 
 	def collection_expression(self, token, type_token):
 		if self.current_token.value == ASSIGN:
