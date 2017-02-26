@@ -4,7 +4,7 @@ from my_symbol_table import VarSymbol
 from my_symbol_table import CollectionSymbol
 from my_symbol_table import FuncSymbol
 from my_symbol_table import SymbolTable
-from my_ast import VarDecl, HashMap
+from my_ast import VarDecl
 from my_ast import Collection
 from my_grammar import *
 

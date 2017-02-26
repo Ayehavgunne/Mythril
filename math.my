@@ -6,7 +6,7 @@ Int fib(Int num)
 	else
 		return fib(num - 1) + fib(num - 2)
 
-print(fib(23))
+print(fib(13))
 #things = [1, 2, 3]
 #stuff = {first_name: 'samus', last_name: 'aran'}
 #Dec a
