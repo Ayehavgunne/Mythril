@@ -2,8 +2,6 @@ from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum
 from my_ast import Type
-# from my_ast import Compound
-# from my_ast import Str
 from my_grammar import *
 
 
@@ -41,10 +39,11 @@ NULLTYPE_BUILTIN = BuiltinTypeSymbol(NULLTYPE)
 
 
 class VarSymbol(Symbol):
-	def __init__(self, name, var_type):
+	def __init__(self, name, var_type, read_only=False):
 		super().__init__(name, var_type)
 		self.accessed = False
 		self.val_assigned = False
+		self.read_only = read_only
 
 	def __str__(self):
 		return '<{name}:{type}>'.format(name=self.name, type=self.type)
@@ -90,7 +89,7 @@ class BuiltinFuncSymbol(Symbol):
 
 print_parameters = OrderedDict()
 print_parameters['objects'] = []
-PRINT_BUILTIN = BuiltinFuncSymbol('print', STR_BUILTIN, print_parameters, print)
+PRINT_BUILTIN = BuiltinFuncSymbol('print', NULLTYPE_BUILTIN, print_parameters, print)
 
 
 class SymbolTable(object):
@@ -169,6 +168,8 @@ class SymbolTable(object):
 	def infer_type(self, value):
 		if isinstance(value, BuiltinTypeSymbol):
 			return value
+		if isinstance(value, FuncSymbol):
+			return self.lookup(FUNC)
 		elif isinstance(value, VarSymbol):
 			return value.type
 		elif isinstance(value, Type):

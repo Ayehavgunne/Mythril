@@ -2,12 +2,17 @@ from collections import OrderedDict
 from my_ast import *
 from my_grammar import *
 
+
 class Parser(object):
 	def __init__(self, lexer):
 		self.lexer = lexer
 		self.current_token = None
 		self.indent_level = 0
 		self.next_token()
+
+	def next_token(self):
+		self.current_token = self.lexer.get_next_token()
+		# print(self.current_token)
 
 	def eat_type(self, *token_type):
 		if self.current_token.type in token_type:
@@ -20,10 +25,6 @@ class Parser(object):
 			self.next_token()
 		else:
 			raise SyntaxError
-
-	def next_token(self):
-		self.current_token = self.lexer.get_next_token()
-		# print(self.current_token)
 
 	def preview(self, num=1):
 		return self.lexer.preview_token(num)
@@ -50,14 +51,20 @@ class Parser(object):
 		return Assign(declaration, token, self.expr())
 
 	def function_declaration(self):
-		return_type = self.type_spec()
-		name = self.current_token
-		self.next_token()
+		if self.current_token.value == VOID:
+			return_type = Void()
+			self.next_token()
+		else:
+			return_type = self.type_spec()
+		if self.current_token.value == LPAREN:
+			name = ANON
+		else:
+			name = self.current_token
+			self.next_token()
 		self.eat_value(LPAREN)
 		params = OrderedDict()
 		while self.current_token.value != RPAREN:
-			param_type = self.current_token
-			self.eat_type(TOKEN_TYPE)
+			param_type = self.type_spec()
 			params[self.current_token.value] = param_type
 			self.eat_type(NAME)
 			if self.current_token.value != RPAREN:
@@ -67,7 +74,10 @@ class Parser(object):
 		self.indent_level += 1
 		stmts = self.compound_statement()
 		self.indent_level -= 1
-		return FuncDecl(name, return_type, params, stmts)
+		if name == ANON:
+			return AnonymousFunc(return_type, params, stmts)
+		else:
+			return FuncDecl(name, return_type, params, stmts)
 
 	def bracket_literal(self):
 		token = self.current_token
@@ -89,7 +99,6 @@ class Parser(object):
 				args.append(self.bracket_literal())
 			else:
 				args.append(self.expr())
-				# self.eat_type(NAME, NUMBER, STRING, TOKEN_TYPE, CONSTANT)
 			while self.current_token.type == NEWLINE:
 				self.eat_type(NEWLINE)
 			if self.current_token.value != RPAREN:
@@ -101,7 +110,13 @@ class Parser(object):
 	def type_spec(self):
 		token = self.current_token
 		self.eat_type(TOKEN_TYPE)
-		return Type(token)
+		type_spec = Type(token)
+		if self.current_token.value == LPAREN and token.value == FUNC:
+			self.next_token()
+			func_ret_type = self.type_spec()
+			type_spec.func_ret_type = func_ret_type
+			self.eat_value(RPAREN)
+		return type_spec
 
 	def compound_statement(self):
 		nodes = self.statement_list()
@@ -112,24 +127,45 @@ class Parser(object):
 
 	def statement_list(self):
 		node = self.statement()
+		if self.current_token.type == NEWLINE:
+			self.next_token()
 		if isinstance(node, Return):
 			return [node]
 		results = [node]
-		while self.current_token.type == NEWLINE:
-			self.next_token()
-			if self.current_token.indent_level < self.indent_level:
-				return results
+		while self.current_token.indent_level == self.indent_level:
 			results.append(self.statement())
+			if self.current_token.type == NEWLINE:
+				self.next_token()
+			elif self.current_token.type == EOF:
+				break
 		return results
 
 	def statement(self):
-		if self.current_token.value in (IF, WHILE):
-			node = self.comparison_statement()
+		if self.current_token.value == IF:
+			node = self.if_statement()
+		elif self.current_token.value == WHILE:
+			node = self.while_statement()
+		elif self.current_token.value == FOR:
+			node = self.for_statement()
+		elif self.current_token.value == BREAK:
+			self.next_token()
+			node = Break()
+		elif self.current_token.value == CONTINUE:
+			self.next_token()
+			node = Continue()
+		elif self.current_token.value == PASS:
+			self.next_token()
+			node = Pass()
+		elif self.current_token.value == CONST:
+			node = self.assignment_statement(self.current_token)
+		elif self.current_token.value == SWITCH:
+			self.next_token()
+			node = self.switch_statement()
 		elif self.current_token.value == RETURN:
 			node = self.return_statement()
 		elif self.current_token.type == NAME:
 			node = self.name_statement()
-		elif self.current_token.type == TOKEN_TYPE:
+		elif self.current_token.type == TOKEN_TYPE or self.current_token.value == VOID:
 			if self.preview(2).value[0] == LPAREN:
 				node = self.function_declaration()
 			else:
@@ -157,10 +193,20 @@ class Parser(object):
 			elif self.current_token.value == RSQUAREBRACKET:
 				self.next_token()
 				return self.collection_expression(token, type_token)
-		elif self.current_token.type == NAME:
-			raise NotImplementedError
+		elif token.type == NAME:
+			self.eat_value(LSQUAREBRACKET)
+			tok = self.expr()
+			# self.next_token()
+			if self.current_token.value == COMMA:
+				return self.slice_expression(tok)
+			else:
+				self.eat_value(RSQUAREBRACKET)
+				return self.access_collection(token, tok)
 		else:
 			raise SyntaxError
+
+	def slice_expression(self, token):
+		pass
 
 	def curly_bracket_expression(self, token):
 		if token.value == LCURLYBRACKET:
@@ -192,10 +238,11 @@ class Parser(object):
 		if self.current_token.value == ASSIGN:
 			return self.array_of_type_assignment(token, type_token)
 		else:
-			return self.access_collection()
+			raise NotImplementedError
 
-	def access_collection(self):
-		raise NotImplementedError
+	@staticmethod
+	def access_collection(collection, key):
+		return CollectionAccess(collection, key)
 
 	def array_of_type_assignment(self, token, type_token):
 		raise NotImplementedError
@@ -221,11 +268,11 @@ class Parser(object):
 		self.next_token()
 		return Return(self.expr())
 
-	def comparison_statement(self):
+	def if_statement(self):
 		self.indent_level += 1
 		token = self.current_token
 		self.next_token()
-		comp = ControlStructure(token, [self.expr()], [self.compound_statement()])
+		comp = If(token, [self.expr()], [self.compound_statement()])
 		if self.current_token.indent_level < comp.op.indent_level:
 			self.indent_level -= 1
 			return comp
@@ -235,13 +282,80 @@ class Parser(object):
 			comp.blocks.append(self.compound_statement())
 		if self.current_token.value == ELSE:
 			self.next_token()
-			comp.comps.append(self.empty())
+			comp.comps.append(Else())
 			comp.blocks.append(self.compound_statement())
 		self.indent_level -= 1
 		return comp
 
+	def while_statement(self):
+		self.indent_level += 1
+		token = self.current_token
+		self.next_token()
+		comp = While(token, self.expr(), self.loop_block())
+		self.indent_level -= 1
+		return comp
+
+	def for_statement(self):
+		self.indent_level += 1
+		self.next_token()
+		elements = []
+		while self.current_token.value != IN:
+			elements.append(self.expr())
+			if self.current_token.value == COMMA:
+				self.eat_value(COMMA)
+		self.eat_value(IN)
+		iterator = self.expr()
+		self.eat_type(NEWLINE)
+		block = self.loop_block()
+		loop = For(iterator, block, elements)
+		self.indent_level -= 1
+		return loop
+
+	def switch_statement(self):
+		self.indent_level += 1
+		value = self.expr()
+		switch = Switch(value, [])
+		if self.current_token.type == NEWLINE:
+			self.next_token()
+		while self.current_token.indent_level == self.indent_level:
+			switch.cases.append(self.case_statement())
+			if self.current_token.type == NEWLINE:
+				self.next_token()
+			elif self.current_token.type == EOF:
+				return
+		self.indent_level -= 1
+		return switch
+
+	def case_statement(self):
+		self.indent_level += 1
+		if self.current_token.value == CASE:
+			self.next_token()
+			value = self.expr()
+		elif self.current_token.value == DEFAULT:
+			self.next_token()
+			value = DEFAULT
+		else:
+			raise SyntaxError
+		block = self.compound_statement()
+		self.indent_level -= 1
+		return Case(value, block)
+
+	def loop_block(self):
+		nodes = self.statement_list()
+		root = LoopBlock()
+		for node in nodes:
+			root.children.append(node)
+		return root
+
 	def assignment_statement(self, token):
-		left = self.variable(token)
+		if token.value == CONST:
+			read_only = True
+			self.next_token()
+			token = self.current_token
+			self.next_token()
+		else:
+			read_only = False
+		left = self.variable(token, read_only)
 		token = self.current_token
 		if token.value == ASSIGN:
 			self.next_token()
@@ -256,8 +370,8 @@ class Parser(object):
 		return node
 
 	@staticmethod
-	def variable(token):
-		return Var(token)
+	def variable(token, read_only=False):
+		return Var(token, read_only)
 
 	@staticmethod
 	def constant(token):
@@ -270,7 +384,7 @@ class Parser(object):
 	def factor(self):
 		token = self.current_token
 		preview = self.preview()
-		if token.value == PLUS:
+		if token.value == PLUS:  # TODO: PLUS, MINUS and NOT can be combined
 			self.next_token()
 			return UnaryOp(token, self.factor())
 		elif token.value == MINUS:
@@ -278,7 +392,7 @@ class Parser(object):
 			return UnaryOp(token, self.factor())
 		elif token.value == NOT:
 			self.next_token()
-			return UnaryOp(token, self.factor())
+			return UnaryOp(token, self.expr())
 		elif token.type == NUMBER:
 			self.next_token()
 			return Num(token)
@@ -286,6 +400,8 @@ class Parser(object):
 			self.next_token()
 			return Str(token)
 		elif token.type == TOKEN_TYPE:
+			if preview.value == LPAREN:
+				return self.function_declaration()
 			return self.type_spec()
 		elif token.value == LPAREN:
 			self.next_token()
@@ -295,6 +411,9 @@ class Parser(object):
 		elif preview.value == LPAREN:
 			self.next_token()
 			return self.function_call(token)
+		elif preview.value == LSQUAREBRACKET:
+			self.next_token()
+			return self.square_bracket_expression(token)
 		elif token.value == LSQUAREBRACKET:
 			self.next_token()
 			return self.square_bracket_expression(token)
@@ -312,12 +431,14 @@ class Parser(object):
 
 	def term(self):
 		node = self.factor()
-		ops = (MUL, DIV, FLOORDIV, MOD, POWER, CAST) + COMPARISON_OP + LOGICAL_OP
+		ops = (MUL, DIV, FLOORDIV, MOD, POWER, CAST, RANGE) + COMPARISON_OP + LOGICAL_OP
 		while self.current_token.value in ops:
 			token = self.current_token
 			self.next_token()
 			if token.value in COMPARISON_OP or token.value in LOGICAL_OP:
 				node = BinOp(left=node, op=token, right=self.expr())
+			elif token.value == RANGE:
+				node = Range(left=node, op=token, right=self.expr())
 			else:
 				node = BinOp(left=node, op=token, right=self.factor())
 		return node

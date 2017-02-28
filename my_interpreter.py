@@ -1,9 +1,13 @@
+from copy import deepcopy
 from decimal import Decimal
+from collections import OrderedDict
+from collections import Iterable
 from enum import Enum
 from my_visitor import NodeVisitor
 from my_ast import Null
+from my_ast import FuncDecl
 from my_ast import VarDecl
-from my_ast import NoOp
+from my_ast import Else
 from my_grammar import *
 
 
@@ -39,12 +43,10 @@ class Interpreter(NodeVisitor):
 		self.visit(node.block)
 
 	def visit_compound(self, node):
-		res = None
 		for child in node.children:
 			temp = self.visit(child)
 			if temp is not None:
-				res = temp
-		return res
+				return temp
 
 	def visit_vardecl(self, node):
 		self.top_scope[node.var_node.value] = Null()
@@ -55,16 +57,71 @@ class Interpreter(NodeVisitor):
 	def visit_noop(self, node):
 		pass
 
-	def visit_controlstructure(self, node):
+	def visit_if(self, node):
 		for x, comp in enumerate(node.comps):
-			if self.visit(comp) is True:
-				if node.op.value == WHILE:
-					self.visit(node.blocks[x])
-					self.visit_controlstructure(node)
-				elif node.op.value == IF:
-					return self.visit(node.blocks[x])
-			elif isinstance(comp, NoOp):
+			c = self.visit(comp)
+			if c == TRUE:
 				return self.visit(node.blocks[x])
+			elif isinstance(comp, Else):
+				return self.visit(node.blocks[x])
+
+	def visit_else(self, node):
+		pass
+
+	def visit_while(self, node):
+		while self.visit(node.comp) == TRUE:
+			if self.visit(node.block) == BREAK:
+				break
+
+	def visit_for(self, node):
+		iterator = self.visit(node.iterator)
+		for x in iterator:
+			if isinstance(x, Iterable) and not isinstance(x, str):
+				if len(x) != len(node.elements):
+					raise SyntaxError('Unpacking to wrong number of elements. elements: {}, container length: {}'.format(len(node.elements), len(x)))
+				for y, element in enumerate(node.elements):
+					self.top_scope[element.value] = x[y]
+			else:
+				self.top_scope[node.elements[0].value] = x
+			self.visit(node.block)
+
+	def visit_loopblock(self, node):
+		for child in node.children:
+			temp = self.visit(child)
+			if temp == CONTINUE or temp == BREAK:
+				return temp
+
+	def visit_switch(self, node):
+		switch_var = self.visit(node.value)
+		cases = OrderedDict()  # TODO: see if a list will work instead
+		for case in node.cases:
+			if case.value == DEFAULT:
+				cases[DEFAULT] = case.block
+			else:
+				cases[self.visit(case.value)] = case.block
+		if switch_var not in cases:
+			switch_var = DEFAULT
+		index = list(cases.keys()).index(switch_var)
+		c = list(cases.values())
+		result = None
+		while result != BREAK and index < len(c):
+			result = self.visit(c[index])
+			index += 1
+
+	def visit_case(self, node):
+		pass
+
+	@staticmethod
+	def visit_break(node):
+		return BREAK
+
+	@staticmethod
+	def visit_continue(node):
+		return CONTINUE
+
+	@staticmethod
+	def visit_pass(node):
+		return
 
 	def visit_binop(self, node):
 		op = node.op.value
@@ -89,17 +146,17 @@ class Interpreter(NodeVisitor):
 		elif op == OR:
 			return left or right
 		elif op == EQUALS:
-			return left == right
+			return TRUE if left == right else FALSE
 		elif op == NOT_EQUALS:
-			return left != right
+			return TRUE if left != right else FALSE
 		elif op == LESS_THAN:
-			return left < right
+			return TRUE if left < right else FALSE
 		elif op == LESS_THAN_OR_EQUAL_TO:
-			return left <= right
+			return TRUE if left <= right else FALSE
 		elif op == GREATER_THAN:
-			return left > right
+			return TRUE if left > right else FALSE
 		elif op == GREATER_THAN_OR_EQUAL_TO:
-			return left >= right
+			return TRUE if left >= right else FALSE
 		elif op == CAST:
 			cast_type = node.right.value
 			if cast_type == INT:
@@ -134,7 +191,12 @@ class Interpreter(NodeVisitor):
 		elif op == MINUS:
 			return -self.visit(node.expr)
 		elif op == NOT:
-			return not self.visit(node.expr)
+			return FALSE if self.visit(node.expr) == TRUE else TRUE
+
+	def visit_range(self, node):
+		left = self.visit(node.left)
+		right = self.visit(node.right)
+		return range(left, right)
 
 	def visit_assign(self, node):
 		if isinstance(node.left, VarDecl):
@@ -173,6 +235,10 @@ class Interpreter(NodeVisitor):
 	def visit_funcdecl(self, node):
 		self.top_scope[node.name.value] = node
 
+	@staticmethod
+	def visit_anonymousfunc(node):
+		return node
+
 	def visit_funccall(self, node):
 		if node.name.value in BUILTIN_FUNCTIONS:
 			args = []
@@ -180,12 +246,19 @@ class Interpreter(NodeVisitor):
 				args.append(self.visit(arg))
 			self.search_scopes(node.name.value)(*args)
 		else:
-			func = self.search_scopes(node.name.value)
+			func = deepcopy(self.search_scopes(node.name.value))
 			func.args = node.arguments
 			self.new_scope()
+			if hasattr(func, '_scope'):
+				self.top_scope.update(func._scope)
 			for x, key in enumerate(func.parameters.keys()):
 				self.top_scope[key] = self.visit(node.arguments[x])
 			return_var = self.visit(func.body)
+			if isinstance(return_var, FuncDecl):
+				scope = self.top_scope
+				if return_var.name.value in scope:
+					del scope[return_var.name.value]
+				return_var._scope = scope
 			if return_var is None and func.return_type.value != VOID:
 				raise TypeError
 			self.drop_top_scope()
@@ -197,9 +270,9 @@ class Interpreter(NodeVisitor):
 	@staticmethod
 	def visit_constant(node):
 		if node.value == TRUE:
-			return True
+			return TRUE
 		elif node.value == FALSE:
-			return False
+			return FALSE
 		elif node.value == NAN:
 			return Decimal(NAN)
 		elif node.value == INF:
@@ -231,6 +304,13 @@ class Interpreter(NodeVisitor):
 			types[key] = self.visit(val)
 		return types
 
+	def visit_collectionaccess(self, node):
+		collection = self.search_scopes(node.collection.value)
+		key = self.visit(node.key)
+		if not key:
+			key = node.key.value
+		return collection[key]
+
 	def interpret(self, tree):
 		return self.visit(tree)
 
@@ -251,7 +331,4 @@ if __name__ == '__main__':
 	symtab_builder.build(t)
 	interpreter = Interpreter()
 	interpreter.interpret(t)
-	string = ''
-	# for variable_name in sorted(interpreter.top_scope.keys()):
-	# 	string += '{}: {}, '.format(repr(variable_name), repr(interpreter.top_scope[variable_name]))
-	# print('{' + string[:-2] + '}')
+	print()

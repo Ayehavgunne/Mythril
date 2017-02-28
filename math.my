@@ -1,14 +1,109 @@
-Int fib(Int num)
-	if num == 0
-		return 0
-	else if num == 1
-		return 1
-	else
-		return fib(num - 1) + fib(num - 2)
+HELLO = 'hi'
+hello = 'greetings'
 
-print(fib(13))
-#things = [1, 2, 3]
+print(HELLO)
+print(hello)
+
+#num = 10
+#
+#if num > 5
+#	pass
+#	print('Passing')
+#else
+#	print('hi')
+#
+#garry = true
+#larry = false
+#num = 8
+#
+#if not num == 7
+#	num += 2
+#else if garry
+#	num -= 1
+#else
+#	num *= 4
+#
+#print(num)
+#print(garry)
+#print(larry)
+#
+#Bool is_less_than_5(Int x)
+#	if x >= 5
+#		return false
+#	else
+#		return true
+#
+#print(is_less_than_5(3))
+#print(is_less_than_5(5))
+#print(is_less_than_5(7))
+#
+#void do_stuff(Int y)
+#	print(y)
+#
+#Int square(Int x)
+#	do_stuff(x)
+#	return x ** 2
+#
+#print(square(5))
+#
+#Int do_stuff(Int x, Func(Int) callback)
+#	x **= 2
+#	x = callback(x)
+#	return x
+#
+#num = do_stuff(3, Int(Int y)
+#	y += 7
+#	return y
+#)
+#
+#print(
+#	num
+#)
+#
+#Func start_at(Int x)
+#	Int increment_by(Int y)
+#		return x + y
+#	return increment_by
+#
+#start_at_5 = start_at(5)
+#start_at_1 = start_at(27)
+#
+#print(start_at_5(4))
+#print(start_at_1(15))
+#
+#x = 0
+#while x < 10
+#	if x == 1
+#		break
+#	x += 1
+#
+#switch x
+#	case 2
+#		print('x is Two')
+#		break
+#
+#	case 1
+#		print('x is One')
+#		break
+#
+#	default
+#		print("Sorry, wasn't paying attention")
+#
+#Int fib(Int num)
+#	if num == 0
+#		return 0
+#	if num == 1
+#		return 1
+#	return fib(num - 1) + fib(num - 2)
+#
+#y = 15
+#for x in 0..y + 1
+#	print(x::Str + ' ' + fib(x)::Str)
+#
+#things = [3, 2, 1]
 #stuff = {first_name: 'samus', last_name: 'aran'}
+#
+#print(things[1 + 1])
 #Dec a
 #b = 3
 #
@@ -20,6 +115,7 @@ print(fib(13))
 #Float g = 7.5
 #h = 5
 #garry = false
+#
 #if garry
 #	g = 2.6
 #	if larry and garry
@@ -28,6 +124,7 @@ print(fib(13))
 #	g = 3.6
 #else
 #	g = 7.6
+#
 #if larry
 #	g += 7
 #first_name = 'Anthony'
@@ -53,6 +150,7 @@ print(fib(13))
 #		b += 2
 #	else
 #		b += 1
+#
 #d += c + b
 #
 #print((1,2,3))

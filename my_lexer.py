@@ -1,6 +1,7 @@
 from my_grammar import *
 from decimal import Decimal
 
+
 class Token(object):
 	def __init__(self, token_type, value, line_num, indent_level):
 		self.type = token_type
@@ -200,7 +201,7 @@ class Lexer(object):
 			while self.char_type == OPERATIC:
 				self.word += self.current_char
 				self.next_char()
-				if self.current_char in SINGLE_OPERATORS:
+				if self.current_char in SINGLE_OPERATORS or self.word in SINGLE_OPERATORS:
 					break
 			return Token(OP, self.reset_word(), self.line_num, self.indent_level)
 
@@ -236,7 +237,7 @@ class Lexer(object):
 				return Token(NAME, self.reset_word(), self.line_num, self.indent_level)
 
 		if self.word_type == NUMERIC:
-			while self.char_type == NUMERIC or self.current_char == '.':
+			while self.char_type == NUMERIC or self.current_char == DOT and self.peek(1) != DOT:
 				self.word += self.current_char
 				self.next_char()
 				if self.char_type == ALPHANUMERIC:

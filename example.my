@@ -39,7 +39,7 @@ Int fib(Int num)
 	else
 		return fib(num - 1) + fib(num - 2)
 
-myfunc = Func(Int x, Int y)
+myfunc = Int(Int x, Int y)
 	if x > y
 		return x + y
 	else
