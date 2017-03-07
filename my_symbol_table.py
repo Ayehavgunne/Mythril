@@ -2,7 +2,7 @@ from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum
 from my_ast import Type
-from my_grammar import *
+from my_types import *
 
 
 class Symbol(object):
@@ -69,6 +69,17 @@ class FuncSymbol(Symbol):
 
 	def __str__(self):
 		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+
+	__repr__ = __str__
+
+
+class TypeSymbol(Symbol):
+	def __init__(self, name, types):
+		super().__init__(name, types)
+		self.accessed = False
+
+	def __str__(self):
+		return '<{name}:{type}>'.format(name=self.name, type=self.type)
 
 	__repr__ = __str__
 

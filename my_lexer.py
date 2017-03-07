@@ -6,6 +6,7 @@ class Token(object):
 	def __init__(self, token_type, value, line_num, indent_level):
 		self.type = token_type
 		self.value = value
+		self.value_type = None
 		self.cast()
 		self.line_num = line_num
 		self.indent_level = indent_level
@@ -14,8 +15,10 @@ class Token(object):
 		if self.type == NUMBER:
 			if self.value.isdecimal():
 				self.value = int(self.value)
+				self.value_type = INT
 			else:
 				self.value = Decimal(self.value)
+				self.value_type = DEC
 
 	def __str__(self):
 		return 'Token(type={type}, value={value}, line_num={line_num}, indent_level={indent_level})'.format(
@@ -29,8 +32,9 @@ class Token(object):
 
 
 class Lexer(object):
-	def __init__(self, text):
+	def __init__(self, text, file_name=None):
 		self.text = text
+		self.file_name = file_name
 		self.pos = 0
 		self.current_char = self.text[self.pos]
 		self.char_type = None
@@ -264,7 +268,8 @@ class Lexer(object):
 
 
 if __name__ == '__main__':
-	lexer = Lexer(open('math.my').read())
+	file = 'math.my'
+	lexer = Lexer(open(file).read(), file)
 	for t in lexer.analyze():
 		if t.type == NEWLINE:
 			print(t)

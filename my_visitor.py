@@ -1,4 +1,150 @@
+from collections import OrderedDict
+from decimal import Decimal
+from enum import Enum
+from my_ast import Type
+from my_types import *
+
+
+class Symbol(object):
+	def __init__(self, name, symbol_type=None):
+		self.name = name
+		self.type = symbol_type
+
+
+class BuiltinTypeSymbol(Symbol):
+	def __init__(self, name, llvm_type=None):
+		super().__init__(name)
+		self.llvm_type = llvm_type
+
+	def type(self):
+		return self.llvm_type.type()
+
+	def __str__(self):
+		return self.name
+
+	__repr__ = __str__
+
+
+ANY_BUILTIN = BuiltinTypeSymbol(ANY)
+INT_BUILTIN = BuiltinTypeSymbol(INT, Int)
+DEC_BUILTIN = BuiltinTypeSymbol(DEC, Dec)
+FLOAT_BUILTIN = BuiltinTypeSymbol(FLOAT, Float)
+COMPLEX_BUILTIN = BuiltinTypeSymbol(COMPLEX, Complex)
+BOOL_BUILTIN = BuiltinTypeSymbol(BOOL, Bool)
+BYTES_BUILTIN = BuiltinTypeSymbol(BYTES, Bytes)
+STR_BUILTIN = BuiltinTypeSymbol(STR, Str)
+ARRAY_BUILTIN = BuiltinTypeSymbol(ARRAY, Array)
+LIST_BUILTIN = BuiltinTypeSymbol(LIST, List)
+TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE, Tuple)
+DICT_BUILTIN = BuiltinTypeSymbol(DICT, Dict)
+ENUM_BUILTIN = BuiltinTypeSymbol(ENUM, Enum)
+FUNC_BUILTIN = BuiltinTypeSymbol(FUNC, Func)
+NULLTYPE_BUILTIN = BuiltinTypeSymbol(NULLTYPE, NullType)
+
+
+class VarSymbol(Symbol):
+	def __init__(self, name, var_type, read_only=False):
+		super().__init__(name, var_type)
+		self.accessed = False
+		self.val_assigned = False
+		self.read_only = read_only
+
+	def __str__(self):
+		return '<{name}:{type}>'.format(name=self.name, type=self.type)
+
+	__repr__ = __str__
+
+
+class CollectionSymbol(Symbol):
+	def __init__(self, name, var_type, item_types):
+		super().__init__(name, var_type)
+		self.item_types = item_types
+		self.accessed = False
+		self.val_assigned = False
+
+
+class FuncSymbol(Symbol):
+	def __init__(self, name, return_type, parameters, body):
+		super().__init__(name, return_type)
+		self.parameters = parameters
+		self.body = body
+		self.accessed = False
+		self.val_assigned = True
+
+	def __str__(self):
+		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+
+	__repr__ = __str__
+
+
+class TypeSymbol(Symbol):
+	def __init__(self, name, types):
+		super().__init__(name, types)
+		self.accessed = False
+
+	def __str__(self):
+		return '<{name}:{type}>'.format(name=self.name, type=self.type)
+
+	__repr__ = __str__
+
+
+class BuiltinFuncSymbol(Symbol):
+	def __init__(self, name, return_type, parameters, body):
+		super().__init__(name, return_type)
+		self.parameters = parameters
+		self.body = body
+		self.accessed = False
+		self.val_assigned = True
+
+	def __str__(self):
+		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+
+	__repr__ = __str__
+
+
+# print_parameters = OrderedDict()
+# print_parameters['objects'] = []
+# PRINT_BUILTIN = BuiltinFuncSymbol('print', NULLTYPE_BUILTIN, print_parameters, print)
+
+putchar_parameters = OrderedDict()
+putchar_parameters['objects'] = []
+PUTCHAR_BUILTIN = BuiltinFuncSymbol('putchar', NULLTYPE_BUILTIN, putchar_parameters, print)
+
+printd_parameters = OrderedDict()
+printd_parameters['objects'] = []
+PRINTD_BUILTIN = BuiltinFuncSymbol('printd', NULLTYPE_BUILTIN, printd_parameters, print)
+
+prints_parameters = OrderedDict()
+prints_parameters['objects'] = []
+PRINTS_BUILTIN = BuiltinFuncSymbol('prints', NULLTYPE_BUILTIN, prints_parameters, print)
+
+
 class NodeVisitor(object):
+	def __init__(self):
+		self._scope = [{}]
+		self._init_builtins()
+
+	def _init_builtins(self):
+		self.define(ANY, ANY_BUILTIN)
+		self.define(INT, INT_BUILTIN)
+		self.define(DEC, DEC_BUILTIN)
+		self.define(FLOAT, FLOAT_BUILTIN)
+		self.define(COMPLEX, COMPLEX_BUILTIN)
+		self.define(BOOL, BOOL_BUILTIN)
+		self.define(BYTES, BYTES_BUILTIN)
+		self.define(STR, STR_BUILTIN)
+		self.define(ARRAY, ARRAY_BUILTIN)
+		self.define(LIST, LIST_BUILTIN)
+		self.define(TUPLE, TUPLE_BUILTIN)
+		self.define(DICT, DICT_BUILTIN)
+		self.define(ENUM, ENUM_BUILTIN)
+		self.define(FUNC, FUNC_BUILTIN)
+		self.define(NULL, NULLTYPE_BUILTIN)
+		# self.define(PRINT, PRINT_BUILTIN)
+		self.define('putchar', PUTCHAR_BUILTIN)
+		self.define('printd', PRINTD_BUILTIN)
+		self.define('prints', PRINTS_BUILTIN)
+
 	def visit(self, node):
 		method_name = 'visit_' + type(node).__name__.lower()
 		visitor = getattr(self, method_name, self.generic_visit)
@@ -7,3 +153,86 @@ class NodeVisitor(object):
 	@staticmethod
 	def generic_visit(node):
 		raise Exception('No visit_{} method'.format(type(node).__name__.lower()))
+
+	@property
+	def top_scope(self):
+		return self._scope[-1] if len(self._scope) >= 1 else None
+
+	@property
+	def second_scope(self):
+		return self._scope[-2] if len(self._scope) >= 2 else None
+
+	def search_scopes(self, name, level=None):
+		if level:
+			if name in self._scope[level]:
+				return self._scope[level][name]
+		else:
+			for scope in reversed(self._scope):
+				if name in scope:
+					return scope[name]
+
+	def define(self, key, value, level=0):
+		level = (len(self._scope) - level) - 1
+		self._scope[level][key] = value
+
+	def new_scope(self):
+		self._scope.append({})
+
+	def drop_top_scope(self):
+		self._scope.pop()
+
+	@property
+	def symbols(self):
+		return [value for scope in self._scope for value in scope.values()]
+
+	@property
+	def keys(self):
+		return [key for scope in self._scope for key in scope.keys()]
+
+	@property
+	def items(self):
+		return [(key, value) for scope in self._scope for key, value in scope.items()]
+
+	@property
+	def unvisited_symbols(self):
+		return [sym_name for sym_name, sym_val in self.items if
+			not isinstance(sym_val, (BuiltinTypeSymbol, BuiltinFuncSymbol)) and not sym_val.accessed]
+
+	def infer_type(self, value):
+		if isinstance(value, BuiltinTypeSymbol):
+			return value
+		if isinstance(value, FuncSymbol):
+			return self.search_scopes(FUNC)
+		elif isinstance(value, VarSymbol):
+			return value.type
+		elif isinstance(value, Type):
+			return self.search_scopes(value.value)
+		else:
+			if isinstance(value, int):
+				return self.search_scopes(INT)
+			elif isinstance(value, Decimal):
+				return self.search_scopes(DEC)
+			elif isinstance(value, float):
+				return self.search_scopes(FLOAT)
+			elif isinstance(value, complex):
+				return self.search_scopes(COMPLEX)
+			elif isinstance(value, str):
+				return self.search_scopes(STR)
+			elif isinstance(value, bool):
+				return self.search_scopes(BOOL)
+			elif isinstance(value, bytes):
+				return self.search_scopes(BYTES)
+			elif isinstance(value, list):
+				return self.search_scopes(LIST)
+			elif isinstance(value, tuple):
+				return self.search_scopes(TUPLE)
+			elif isinstance(value, dict):
+				return self.search_scopes(DICT)
+			elif isinstance(value, Enum):
+				return self.search_scopes(ENUM)
+			elif callable(value):
+				return self.search_scopes(FUNC)
+			elif value is None:
+				return self.search_scopes(NULLTYPE)
+			else:
+				raise TypeError('Type not recognized: {}'.format(value))

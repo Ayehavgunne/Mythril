@@ -1,3 +1,4 @@
+from llvmlite import ir
 from my_grammar import *
 
 
@@ -22,11 +23,19 @@ class Int(AnyVal):
 		super().__init__()
 		self.name = INT
 
+	@staticmethod
+	def type():
+		return lambda: ir.IntType(64)
+
 
 class Dec(AnyVal):
 	def __init__(self):
 		super().__init__()
 		self.name = DEC
+
+	@staticmethod
+	def type():
+		return ir.DoubleType  # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
 
 
 class Float(AnyVal):
@@ -34,11 +43,19 @@ class Float(AnyVal):
 		super().__init__()
 		self.name = FLOAT
 
+	@staticmethod
+	def type():
+		return lambda: ir.FloatType
+
 
 class Complex(AnyVal):
 	def __init__(self):
 		super().__init__()
 		self.name = COMPLEX
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
 
 
 class Str(AnyVal):
@@ -46,17 +63,29 @@ class Str(AnyVal):
 		super().__init__()
 		self.name = STR
 
+	@staticmethod
+	def type():
+		raise NotImplementedError
+
 
 class Bool(AnyVal):
 	def __init__(self):
 		super().__init__()
 		self.name = BOOL
 
+	@staticmethod
+	def type():
+		return lambda: ir.IntType(1)
+
 
 class Bytes(AnyVal):
 	def __init__(self):
 		super().__init__()
 		self.name = BYTES
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
 
 
 class Collection(Any):
@@ -70,11 +99,19 @@ class Array(Collection):
 		super().__init__()
 		self.name = ARRAY
 
+	@staticmethod
+	def type(element_type, count):
+		return ir.ArrayType(element_type, count)
+
 
 class List(Collection):
 	def __init__(self):
 		super().__init__()
 		self.name = LIST
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
 
 
 class Tuple(Collection):
@@ -82,11 +119,19 @@ class Tuple(Collection):
 		super().__init__()
 		self.name = TUPLE
 
+	@staticmethod
+	def type():
+		raise NotImplementedError
+
 
 class Set(Collection):
 	def __init__(self):
 		super().__init__()
 		self.name = SET
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
 
 
 class Dict(Collection):
@@ -94,11 +139,29 @@ class Dict(Collection):
 		super().__init__()
 		self.name = DICT
 
+	@staticmethod
+	def type():
+		raise NotImplementedError
+
 
 class Enum(Collection):
 	def __init__(self):
 		super().__init__()
 		self.name = ENUM
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
+
+
+class Struct(Collection):
+	def __init__(self):
+		super().__init__()
+		self.name = STRUCT
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
 
 
 class AnyRef(Any):
@@ -112,11 +175,19 @@ class Func(AnyRef):
 		super().__init__()
 		self.name = FUNC
 
+	@staticmethod
+	def type():
+		return ir.FunctionType
+
 
 class NullType(Any):
 	def __init__(self):
 		super().__init__()
 		self.name = NULLTYPE
+
+	@staticmethod
+	def type():
+		return ir.VoidType
 
 
 def get_type_cls(cls):

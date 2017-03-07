@@ -6,6 +6,7 @@ from my_grammar import *
 class Parser(object):
 	def __init__(self, lexer):
 		self.lexer = lexer
+		self.file_name = lexer.file_name
 		self.current_token = None
 		self.indent_level = 0
 		self.next_token()
@@ -38,9 +39,9 @@ class Parser(object):
 
 	def variable_declaration(self):
 		type_node = self.type_spec()
-		var_node = Var(self.current_token)
+		var_node = Var(self.current_token, self.current_token.line_num)
 		self.eat_type(NAME)
-		ret = VarDecl(var_node, type_node)
+		ret = VarDecl(var_node, type_node, self.current_token.line_num)
 		if self.current_token.value == ASSIGN:
 			ret = self.variable_declaration_assignment(ret)
 		return ret
@@ -48,14 +49,17 @@ class Parser(object):
 	def variable_declaration_assignment(self, declaration):
 		token = self.current_token
 		self.next_token()
-		return Assign(declaration, token, self.expr())
+		return Assign(declaration, token, self.expr(), self.current_token.line_num)
+
+	def type_declaration(self):
+		self.eat_value(TYPE)
+		name = self.current_token
+		self.next_token()
+		self.eat_value(ASSIGN)
+		return TypeDeclaration(name, (self.type_spec(),), self.current_token.line_num)
 
 	def function_declaration(self):
-		if self.current_token.value == VOID:
-			return_type = Void()
-			self.next_token()
-		else:
-			return_type = self.type_spec()
+		self.eat_value(DEF)
 		if self.current_token.value == LPAREN:
 			name = ANON
 		else:
@@ -64,20 +68,30 @@ class Parser(object):
 		self.eat_value(LPAREN)
 		params = OrderedDict()
 		while self.current_token.value != RPAREN:
-			param_type = self.type_spec()
+			if self.current_token.type == NAME:
+				param_type = self.variable(self.current_token)
+				self.eat_type(NAME)
+			else:
+				param_type = self.type_spec()
 			params[self.current_token.value] = param_type
 			self.eat_type(NAME)
 			if self.current_token.value != RPAREN:
 				self.eat_value(COMMA)
 		self.eat_value(RPAREN)
+		self.eat_value(ARROW)
+		if self.current_token.value == VOID:
+			return_type = Void()
+			self.next_token()
+		else:
+			return_type = self.type_spec()
 		self.eat_type(NEWLINE)
 		self.indent_level += 1
 		stmts = self.compound_statement()
 		self.indent_level -= 1
 		if name == ANON:
-			return AnonymousFunc(return_type, params, stmts)
+			return AnonymousFunc(return_type, params, stmts, self.current_token.line_num)
 		else:
-			return FuncDecl(name, return_type, params, stmts)
+			return FuncDecl(name, return_type, params, stmts, self.current_token.line_num)
 
 	def bracket_literal(self):
 		token = self.current_token
@@ -103,19 +117,21 @@ class Parser(object):
 				self.eat_type(NEWLINE)
 			if self.current_token.value != RPAREN:
 				self.eat_value(COMMA)
-		func = FuncCall(token, args)
+		func = FuncCall(token, args, self.current_token.line_num)
 		self.next_token()
 		return func
 
 	def type_spec(self):
 		token = self.current_token
 		self.eat_type(TOKEN_TYPE)
-		type_spec = Type(token)
-		if self.current_token.value == LPAREN and token.value == FUNC:
+		type_spec = Type(token, self.current_token.line_num)
+		func_ret_type = None
+		if self.current_token.value == LSQUAREBRACKET and token.value == FUNC:
 			self.next_token()
 			func_ret_type = self.type_spec()
+			self.eat_value(RSQUAREBRACKET)
+		if func_ret_type:
 			type_spec.func_ret_type = func_ret_type
-			self.eat_value(RPAREN)
 		return type_spec
 
 	def compound_statement(self):
@@ -149,13 +165,13 @@ class Parser(object):
 			node = self.for_statement()
 		elif self.current_token.value == BREAK:
 			self.next_token()
-			node = Break()
+			node = Break(self.current_token.line_num)
 		elif self.current_token.value == CONTINUE:
 			self.next_token()
-			node = Continue()
+			node = Continue(self.current_token.line_num)
 		elif self.current_token.value == PASS:
 			self.next_token()
-			node = Pass()
+			node = Pass(self.current_token.line_num)
 		elif self.current_token.value == CONST:
 			node = self.assignment_statement(self.current_token)
 		elif self.current_token.value == SWITCH:
@@ -165,11 +181,12 @@ class Parser(object):
 			node = self.return_statement()
 		elif self.current_token.type == NAME:
 			node = self.name_statement()
-		elif self.current_token.type == TOKEN_TYPE or self.current_token.value == VOID:
-			if self.preview(2).value[0] == LPAREN:
-				node = self.function_declaration()
-			else:
-				node = self.variable_declaration()
+		elif self.current_token.value == DEF:
+			node = self.function_declaration()
+		elif self.current_token.value == TYPE:
+			node = self.type_declaration()
+		elif self.current_token.type == TOKEN_TYPE:
+			node = self.variable_declaration()
 		else:
 			node = self.empty()
 		return node
@@ -184,7 +201,7 @@ class Parser(object):
 				else:
 					break
 			self.eat_value(RSQUAREBRACKET)
-			return Collection(token, False, *items)
+			return Collection(token, self.current_token.line_num, False, *items)
 		elif self.current_token.type == TOKEN_TYPE:
 			type_token = self.current_token
 			self.next_token()
@@ -196,7 +213,6 @@ class Parser(object):
 		elif token.type == NAME:
 			self.eat_value(LSQUAREBRACKET)
 			tok = self.expr()
-			# self.next_token()
 			if self.current_token.value == COMMA:
 				return self.slice_expression(tok)
 			else:
@@ -220,7 +236,7 @@ class Parser(object):
 				else:
 					break
 			self.eat_value(RCURLYBRACKET)
-			return HashMap(token, pairs)
+			return HashMap(token, pairs, self.current_token.line_num)
 
 	def tuple_expression(self, token):
 		if token.value == LPAREN:
@@ -232,7 +248,7 @@ class Parser(object):
 				else:
 					break
 			self.eat_value(RPAREN)
-			return Collection(token, True, *items)
+			return Collection(token, self.current_token.line_num, True, *items)
 
 	def collection_expression(self, token, type_token):
 		if self.current_token.value == ASSIGN:
@@ -240,9 +256,8 @@ class Parser(object):
 		else:
 			raise NotImplementedError
 
-	@staticmethod
-	def access_collection(collection, key):
-		return CollectionAccess(collection, key)
+	def access_collection(self, collection, key):
+		return CollectionAccess(collection, key, self.current_token.line_num)
 
 	def array_of_type_assignment(self, token, type_token):
 		raise NotImplementedError
@@ -250,7 +265,9 @@ class Parser(object):
 	def name_statement(self):
 		token = self.current_token
 		self.next_token()
-		if self.current_token.value == LPAREN:
+		if token.value == PRINT:
+			node = Print(token, self.expr(), token.line_num)
+		elif self.current_token.value == LPAREN:
 			node = self.function_call(token)
 		elif self.current_token.value == LSQUAREBRACKET:
 			self.next_token()
@@ -266,13 +283,13 @@ class Parser(object):
 
 	def return_statement(self):
 		self.next_token()
-		return Return(self.expr())
+		return Return(self.expr(), self.current_token.line_num)
 
 	def if_statement(self):
 		self.indent_level += 1
 		token = self.current_token
 		self.next_token()
-		comp = If(token, [self.expr()], [self.compound_statement()])
+		comp = If(token, [self.expr()], [self.compound_statement()], self.current_token.line_num)
 		if self.current_token.indent_level < comp.op.indent_level:
 			self.indent_level -= 1
 			return comp
@@ -291,7 +308,7 @@ class Parser(object):
 		self.indent_level += 1
 		token = self.current_token
 		self.next_token()
-		comp = While(token, self.expr(), self.loop_block())
+		comp = While(token, self.expr(), self.loop_block(), self.current_token.line_num)
 		self.indent_level -= 1
 		return comp
 
@@ -307,14 +324,14 @@ class Parser(object):
 		iterator = self.expr()
 		self.eat_type(NEWLINE)
 		block = self.loop_block()
-		loop = For(iterator, block, elements)
+		loop = For(iterator, block, elements, self.current_token.line_num)
 		self.indent_level -= 1
 		return loop
 
 	def switch_statement(self):
 		self.indent_level += 1
 		value = self.expr()
-		switch = Switch(value, [])
+		switch = Switch(value, [], self.current_token.line_num)
 		if self.current_token.type == NEWLINE:
 			self.next_token()
 		while self.current_token.indent_level == self.indent_level:
@@ -338,7 +355,7 @@ class Parser(object):
 			raise SyntaxError
 		block = self.compound_statement()
 		self.indent_level -= 1
-		return Case(value, block)
+		return Case(value, block, self.current_token.line_num)
 
 	def loop_block(self):
 		nodes = self.statement_list()
@@ -360,11 +377,11 @@ class Parser(object):
 		if token.value == ASSIGN:
 			self.next_token()
 			right = self.expr()
-			node = Assign(left, token, right)
+			node = Assign(left, token, right, self.current_token.line_num)
 		elif token.value in (PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN, MOD_ASSIGN, POWER_ASSIGN):
 			self.next_token()
 			right = self.expr()
-			node = OpAssign(left, token, right)
+			node = OpAssign(left, token, right, self.current_token.line_num)
 		else:
 			raise SyntaxError('Unknown assignment operator: {}'.format(token.value))
 		return node
@@ -373,9 +390,8 @@ class Parser(object):
 	def variable(token, read_only=False):
 		return Var(token, read_only)
 
-	@staticmethod
-	def constant(token):
-		return Constant(token)
+	def constant(self, token):
+		return Constant(token, self.current_token.line_num)
 
 	@staticmethod
 	def empty():
@@ -384,24 +400,21 @@ class Parser(object):
 	def factor(self):
 		token = self.current_token
 		preview = self.preview()
-		if token.value == PLUS:  # TODO: PLUS, MINUS and NOT can be combined
+		if token.value in (PLUS, MINUS):
 			self.next_token()
-			return UnaryOp(token, self.factor())
-		elif token.value == MINUS:
-			self.next_token()
-			return UnaryOp(token, self.factor())
+			return UnaryOp(token, self.factor(), self.current_token.line_num)
 		elif token.value == NOT:
 			self.next_token()
-			return UnaryOp(token, self.expr())
+			return UnaryOp(token, self.expr(), self.current_token.line_num)
 		elif token.type == NUMBER:
 			self.next_token()
-			return Num(token)
+			return Num(token, self.current_token.line_num)
 		elif token.type == STRING:
 			self.next_token()
-			return Str(token)
+			return Str(token, self.current_token.line_num)
+		elif token.value == DEF:
+			return self.function_declaration()
 		elif token.type == TOKEN_TYPE:
-			if preview.value == LPAREN:
-				return self.function_declaration()
 			return self.type_spec()
 		elif token.value == LPAREN:
 			self.next_token()
@@ -436,11 +449,11 @@ class Parser(object):
 			token = self.current_token
 			self.next_token()
 			if token.value in COMPARISON_OP or token.value in LOGICAL_OP:
-				node = BinOp(left=node, op=token, right=self.expr())
+				node = BinOp(left=node, op=token, right=self.expr(), line_num=self.current_token.line_num)
 			elif token.value == RANGE:
-				node = Range(left=node, op=token, right=self.expr())
+				node = Range(left=node, op=token, right=self.expr(), line_num=self.current_token.line_num)
 			else:
-				node = BinOp(left=node, op=token, right=self.factor())
+				node = BinOp(left=node, op=token, right=self.factor(), line_num=self.current_token.line_num)
 		return node
 
 	def expr(self):
@@ -448,7 +461,7 @@ class Parser(object):
 		while self.current_token.value in (PLUS, MINUS):
 			token = self.current_token
 			self.next_token()
-			node = BinOp(left=node, op=token, right=self.term())
+			node = BinOp(left=node, op=token, right=self.term(), line_num=self.current_token.line_num)
 		return node
 
 	def parse(self):
@@ -459,7 +472,8 @@ class Parser(object):
 
 if __name__ == '__main__':
 	from my_lexer import Lexer
-	l = Lexer(open('math.my').read())
+	file = 'math.my'
+	l = Lexer(open(file).read(), file)
 	parser = Parser(l)
 	tree = parser.parse()
 	print(tree)

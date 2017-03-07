@@ -1,3 +1,4 @@
+# Operators
 PLUS = '+'
 MINUS = '-'
 MUL = '*'
@@ -32,7 +33,7 @@ COLON = ':'
 DOT = '.'  # TODO
 RANGE = '..'
 ELLIPSIS = '...'  # TODO
-ARROW = '->'  # TODO
+ARROW = '->'
 CAST = '::'
 ASSIGN = '='
 PLUS_ASSIGN = '+='
@@ -49,6 +50,8 @@ GREATER_THAN = '>'
 LESS_THAN_OR_EQUAL_TO = '<='
 GREATER_THAN_OR_EQUAL_TO = '>='
 DECORATOR = '@'  # TODO
+
+# Types
 ANY = 'Any'
 INT = 'Int'
 DEC = 'Dec'
@@ -64,14 +67,18 @@ SET = 'Set'  # TODO
 DICT = 'Dict'
 ENUM = 'Enum'  # TODO
 FUNC = 'Func'
-STRUCT = 'struct'  # TODO
+STRUCT = 'Struct'  # TODO
 NULLTYPE = 'NullType'
+
+# Contstants
 TRUE = 'true'
 FALSE = 'false'
 NULL = 'null'
 NAN = 'nan'
 INF = 'inf'
 NEGATIVE_INF = '-inf'
+
+# Keywords
 IF = 'if'
 ELSE_IF = 'else if'
 ELSE = 'else'
@@ -80,6 +87,7 @@ WHILE = 'while'
 SWITCH = 'switch'
 CASE = 'case'
 DEFAULT = 'default'
+DEF = 'def'
 CLASS = 'class'  # TODO
 ACTOR = 'actor'  # TODO
 CONST = 'const'
@@ -104,7 +112,7 @@ AS = 'as'  # TODO
 PASS = 'pass'
 VOID = 'void'
 RAISE = 'raise'  # TODO
-TYPE = 'type'  # TODO
+TYPE = 'type'
 REQUIRE = 'require'  # TODO
 ENSURE = 'ensure'  # TODO
 OVERRIDE = 'override'  # TODO
@@ -143,9 +151,9 @@ SINGLE_OPERATORS = (
 )
 
 KEYWORDS = (
-	IF, ELSE, WHILE, FOR, SWITCH, CASE, CLASS, SUPER, THIS, RETURN, TEST, TRY, CATCH, FINALLY,
-	THEN, YIELD, BREAK, CONTINUE, DEL, IMPORT, FROM, WITH, AS, PASS, VOID, RAISE, ACTOR, CONST,
-	REQUIRE, ENSURE, OVERRIDE, DOC, ABSTRACT, GETTER, SETTER, ASSERT, DEFAULT, NEW, TYPE
+	IF, ELSE, WHILE, FOR, SWITCH, CASE, DEF, CLASS, SUPER, THIS, RETURN, TEST, TRY, CATCH,
+	FINALLY, THEN, YIELD, BREAK, CONTINUE, DEL, IMPORT, FROM, WITH, AS, PASS, VOID, RAISE, ACTOR,
+	CONST, REQUIRE, ENSURE, OVERRIDE, DOC, ABSTRACT, GETTER, SETTER, ASSERT, DEFAULT, NEW, TYPE
 )
 
 MULTI_WORD_KEYWORDS = (IF, ELSE, ELSE_IF)
@@ -156,6 +164,7 @@ CONSTANTS = (TRUE, FALSE, NULL, NAN, INF, NEGATIVE_INF)
 
 BUILTIN_FUNCTIONS = ('print',)
 
+PRINT = 'print'
 TOKEN_TYPE = 'TYPE'
 NUMBER = 'NUMBER'
 STRING = 'STRING'
@@ -174,3 +183,31 @@ OPERATIC = 'operatic'
 WHITESPACE = 'whitespace'
 COMMENT = 'comment'
 ESCAPE = 'escape'
+
+# TODO Features to add
+# Keyword arguments
+# Variable number of arguments (varargs)
+# Classes
+# Multiple Inheritance
+# Actors
+# Tests built into the language
+# Contracts built into the language ('require' and 'ensure')
+# Exceptions
+# Yielding
+# Context Manager ('with' and 'as' keywords)
+# Modules
+# Object literals
+# Properties ('getter' and 'setter')
+# Structs
+# Enums (or just use structs)
+# Decorators
+# Delete variables ('del' keyword)
+# Type Aliasing
+# Bytes type
+# Binary operators
+# Complex number type
+# Slices
+# More Collection types (set, hashmap, tuple)
+# Pattern matching maybe
+# Throw away variable using '_' single underscore character
+# call C or Python functions from within Mythril http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/

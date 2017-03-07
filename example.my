@@ -31,7 +31,7 @@ void scoots(Func sploots)
 	print('snoots')
 	sploots(whats)
 
-Int fib(Int num)
+def fib(Int num) -> Int
 	if num == 0
 		return 0
 	else if num == 1

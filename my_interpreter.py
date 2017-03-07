@@ -12,32 +12,9 @@ from my_grammar import *
 
 
 class Interpreter(NodeVisitor):
-	def __init__(self):
-		self._scope = [{}]
-		self.create_builtin_funcs()
-
-	@property
-	def top_scope(self):
-		return self._scope[-1] if len(self._scope) >= 1 else None
-
-	@property
-	def second_scope(self):
-		return self._scope[-2] if len(self._scope) >= 2 else None
-
-	def search_scopes(self, name):
-		for scope in reversed(self._scope):
-			if name in scope:
-				return scope[name]
-
-	def define(self, key, value, level=0):
-		level = (len(self._scope) - level) - 1
-		self._scope[level][key] = value
-
-	def new_scope(self):
-		self._scope.append({})
-
-	def drop_top_scope(self):
-		self._scope.pop()
+	def __init__(self, file_name=None):
+		super().__init__()
+		self.file_name = file_name
 
 	def visit_program(self, node):
 		self.visit(node.block)
@@ -48,8 +25,11 @@ class Interpreter(NodeVisitor):
 			if temp is not None:
 				return temp
 
+	def visit_typedeclaration(self, node):
+		pass
+
 	def visit_vardecl(self, node):
-		self.top_scope[node.var_node.value] = Null()
+		self.define(node.var_node.value, Null())
 
 	def visit_type(self, node):
 		return self.search_scopes(node.value)
@@ -78,11 +58,11 @@ class Interpreter(NodeVisitor):
 		for x in iterator:
 			if isinstance(x, Iterable) and not isinstance(x, str):
 				if len(x) != len(node.elements):
-					raise SyntaxError('Unpacking to wrong number of elements. elements: {}, container length: {}'.format(len(node.elements), len(x)))
+					raise SyntaxError('file={} line={}: Unpacking to wrong number of elements. elements: {}, container length: {}'.format(self.file_name, node.line_num, len(node.elements), len(x)))
 				for y, element in enumerate(node.elements):
-					self.top_scope[element.value] = x[y]
+					self.define(element.value, x[y])
 			else:
-				self.top_scope[node.elements[0].value] = x
+				self.define(node.elements[0].value, x)
 			self.visit(node.block)
 
 	def visit_loopblock(self, node):
@@ -112,15 +92,15 @@ class Interpreter(NodeVisitor):
 		pass
 
 	@staticmethod
-	def visit_break(node):
+	def visit_break(_):
 		return BREAK
 
 	@staticmethod
-	def visit_continue(node):
+	def visit_continue(_):
 		return CONTINUE
 
 	@staticmethod
-	def visit_pass(node):
+	def visit_pass(_):
 		return
 
 	def visit_binop(self, node):
@@ -182,7 +162,7 @@ class Interpreter(NodeVisitor):
 			elif cast_type == ENUM:
 				return Enum(left.value, left)
 			elif cast_type in (ANY, FUNC, NULL):
-				raise TypeError('Cannot cast to type {}'.format(cast_type))
+				raise TypeError('file={} line={}: Cannot cast to type {}'.format(self.file_name, node.line_num, cast_type))
 
 	def visit_unaryop(self, node):
 		op = node.op.value
@@ -208,7 +188,7 @@ class Interpreter(NodeVisitor):
 			var_value = self.top_scope.get(var_name)
 			if var_value and isinstance(var_value, float):
 				node.right.value = float(node.right.value)
-		self.top_scope[var_name] = self.visit(node.right)
+		self.define(var_name, self.visit(node.right))
 
 	def visit_opassign(self, node):
 		var_name = node.left.value
@@ -233,7 +213,7 @@ class Interpreter(NodeVisitor):
 		return self.search_scopes(node.value)
 
 	def visit_funcdecl(self, node):
-		self.top_scope[node.name.value] = node
+		self.define(node.name.value, node)
 
 	@staticmethod
 	def visit_anonymousfunc(node):
@@ -252,7 +232,7 @@ class Interpreter(NodeVisitor):
 			if hasattr(func, '_scope'):
 				self.top_scope.update(func._scope)
 			for x, key in enumerate(func.parameters.keys()):
-				self.top_scope[key] = self.visit(node.arguments[x])
+				self.define(key, self.visit(node.arguments[x]))
 			return_var = self.visit(func.body)
 			if isinstance(return_var, FuncDecl):
 				scope = self.top_scope
@@ -260,15 +240,14 @@ class Interpreter(NodeVisitor):
 					del scope[return_var.name.value]
 				return_var._scope = scope
 			if return_var is None and func.return_type.value != VOID:
-				raise TypeError
+				raise TypeError('file={} line={}'.format(self.file_name, node.line_num))
 			self.drop_top_scope()
 			return return_var
 
 	def visit_return(self, node):
 		return self.visit(node.value)
 
-	@staticmethod
-	def visit_constant(node):
+	def visit_constant(self, node):
 		if node.value == TRUE:
 			return TRUE
 		elif node.value == FALSE:
@@ -280,7 +259,7 @@ class Interpreter(NodeVisitor):
 		elif node.value == NEGATIVE_INF:
 			return Decimal(NEGATIVE_INF)
 		else:
-			raise NotImplementedError
+			raise NotImplementedError('file={} line={}'.format(self.file_name, node.line_num))
 
 	@staticmethod
 	def visit_num(node):
@@ -314,21 +293,23 @@ class Interpreter(NodeVisitor):
 	def interpret(self, tree):
 		return self.visit(tree)
 
-	def create_builtin_funcs(self):
-		for func in BUILTIN_FUNCTIONS:
-			if func == 'print':
-				self.top_scope[func] = print
+	def visit_print(self, node):
+		print(self.visit(node.value))
 
 if __name__ == '__main__':
 	from my_lexer import Lexer
 	from my_parser import Parser
 	from my_symbol_table_builder import SymbolTableBuilder
-	code = open('math.my').read()
-	lexer = Lexer(code)
+	file = 'math.my'
+	code = open(file).read()
+	lexer = Lexer(code, file)
 	parser = Parser(lexer)
 	t = parser.parse()
-	symtab_builder = SymbolTableBuilder()
+	symtab_builder = SymbolTableBuilder(parser.file_name)
 	symtab_builder.build(t)
-	interpreter = Interpreter()
-	interpreter.interpret(t)
-	print()
+	if not symtab_builder.warnings:
+		interpreter = Interpreter(parser.file_name)
+		interpreter.interpret(t)
+		print()
+	else:
+		print('Did not run')
