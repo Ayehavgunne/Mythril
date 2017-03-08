@@ -1,12 +1,15 @@
-def fib(Int num) -> Int
-	if num == 0
-		return 0
-	if num == 1
-		return 1
-	return fib(num - 1) + fib(num - 2)
+Int num = 67567
 
-for x in 0..52
-	printd(x)
-	putchar(32)
-	printd(fib(x))
-	putchar(10)
+switch num
+	case 1
+		print('I am One')
+	case 2
+		print('I am 2')
+		break
+	default
+		printd(num)
+		putchar(10)
+		print('I know not what I am')
+	case 3
+		print('I am Three')
+

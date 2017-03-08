@@ -5,7 +5,7 @@ import llvmlite.binding as llvm
 from my_builtin_functions import define_printd
 # from my_builtin_functions import define_prints
 from my_visitor import NodeVisitor
-from my_ast import Num, Str
+from my_ast import Num, Str, VarDecl
 from my_grammar import *
 
 RET_VAR = 'ret_var'
@@ -21,10 +21,10 @@ class CodeGenerator(NodeVisitor):
 		self.module = ir.Module()
 		func_ty = ir.FunctionType(ir.VoidType(), [])
 		func = ir.Function(self.module, func_ty, '__main__')
-		bb_entry = func.append_basic_block('entry')
+		entry_block = func.append_basic_block('entry')
 		self.function = func
 		self.main_function = func
-		self.builder = ir.IRBuilder(bb_entry)
+		self.builder = ir.IRBuilder(entry_block)
 		self.main_builder = self.builder
 		self.exit_block = None
 		llvm.initialize()
@@ -138,16 +138,17 @@ class CodeGenerator(NodeVisitor):
 		pass
 
 	def visit_if(self, node):
-		cond_val = self.visit(node.comps.pop(0))
-		with self.builder.if_else(cond_val) as (then, otherwise):
-			with then:
-				self.visit(node.blocks.pop(0))
-			with otherwise:
-				if node.blocks:
-					self.visit(node.blocks.pop(0))
+		if_end = self.add_block('if_end')
+		for x, comp in enumerate(node.comps):
+			cond_val = self.visit(comp)
+			with self.builder.if_then(cond_val):
+				self.visit(node.blocks[x])
+				self.branch(if_end)
+		self.branch(if_end)
+		self.position_at_end(if_end)
 
 	def visit_else(self, node):
-		pass
+		return self.builder.icmp_unsigned(EQUALS, self.const(1), self.const(1), 'cmptmp')
 
 	def visit_while(self, node):
 		raise NotImplementedError
@@ -167,7 +168,7 @@ class CodeGenerator(NodeVisitor):
 		self.allocate(start, varname, type_map[INT]())
 		self.branch(test_block)
 		self.position_at_end(test_block)
-		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(varname), stop)
+		cond = self.builder.icmp_unsigned(LESS_THAN_OR_EQUAL_TO, self.load(varname), stop)
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
@@ -183,7 +184,34 @@ class CodeGenerator(NodeVisitor):
 				return temp
 
 	def visit_switch(self, node):
-		raise NotImplementedError
+		default_exists = False
+		switch_end_block = self.add_block('switch_end')
+		default_block = self.add_block('default')
+		switch = self.switch(self.visit(node.value), default_block)
+		cases = []
+		for case in node.cases:
+			if case.value == DEFAULT:
+				cases.append(default_block)
+				default_exists = True
+			else:
+				cases.append(self.add_block('case'))
+		if not default_exists:
+			self.position_at_start(default_block)
+			self.branch(switch_end_block)
+		for x, case in enumerate(node.cases):
+			self.position_at_start(cases[x])
+			break_ = self.visit(case.block)
+			if break_ == BREAK:
+				self.branch(switch_end_block)
+			else:
+				if x == len(node.cases) - 1:
+					self.branch(switch_end_block)
+				else:
+					self.branch(cases[x + 1])
+			if case.value != DEFAULT:
+				switch.add_case(self.visit(case.value), cases[x])
+		self.position_at_end(switch_end_block)
+		return switch
 
 	def visit_case(self, node):
 		raise NotImplementedError
@@ -209,7 +237,16 @@ class CodeGenerator(NodeVisitor):
 		return range(left.constant, right.constant)
 
 	def visit_assign(self, node):
-		self.allocate(self.visit(node.right), node.left.value, type_map[INT]())
+		if isinstance(node.left, VarDecl):
+			var_name = node.left.var_node.value
+			if node.left.type_node.value == FLOAT:
+				node.right.value = float(node.right.value)
+		else:
+			var_name = node.left.value
+			var_value = self.top_scope.get(var_name)
+			if var_value and isinstance(var_value, float):
+				node.right.value = float(node.right.value)
+		self.allocate(self.visit(node.right), var_name, type_map[INT]())
 
 	def visit_opassign(self, node):
 		raise NotImplementedError
@@ -283,6 +320,9 @@ class CodeGenerator(NodeVisitor):
 	def add_block(self, name):
 		return self.function.append_basic_block(name)
 
+	def position_at_start(self, block):
+		self.builder.position_at_start(block)
+
 	def position_at_end(self, block):
 		self.builder.position_at_end(block)
 
@@ -291,6 +331,9 @@ class CodeGenerator(NodeVisitor):
 
 	def branch(self, block):
 		self.builder.branch(block)
+
+	def switch(self, value, default):
+		return self.builder.switch(value, default)
 
 	def const(self, val):
 		if isinstance(val, int):
@@ -400,5 +443,6 @@ if __name__ == '__main__':
 		generator = CodeGenerator(parser.file_name)
 		generator.generate_code(t)
 		generator.evaluate(True, True)
+		# generator.evaluate(True, False)
 	else:
 		print('Did not run')

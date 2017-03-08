@@ -339,7 +339,7 @@ class Parser(object):
 			if self.current_token.type == NEWLINE:
 				self.next_token()
 			elif self.current_token.type == EOF:
-				return
+				return switch
 		self.indent_level -= 1
 		return switch
 

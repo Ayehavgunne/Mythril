@@ -36,50 +36,118 @@ def define_printd(ir, module):
 	greater_than_zero = builder.icmp_unsigned('>', div_ten, int_zero, 'greaterthanzero')
 	mod_ten = builder.urem(builder.load(n_addr), int_ten, 'modten')
 	builder.store(mod_ten, x_addr)
-	equals_zero = builder.icmp_unsigned('==', builder.load(x_addr), int_zero, 'equalszero')
-	equals_one = builder.icmp_unsigned('==', builder.load(x_addr), int_one, 'equalsone')
-	equals_two = builder.icmp_unsigned('==', builder.load(x_addr), int_two, 'equalstwo')
-	equals_three = builder.icmp_unsigned('==', builder.load(x_addr), int_three, 'equalsthree')
-	equals_four = builder.icmp_unsigned('==', builder.load(x_addr), int_four, 'equalsfour')
-	equals_five = builder.icmp_unsigned('==', builder.load(x_addr), int_five, 'equalsfive')
-	equals_six = builder.icmp_unsigned('==', builder.load(x_addr), int_six, 'equalssix')
-	equals_seven = builder.icmp_unsigned('==', builder.load(x_addr), int_seven, 'equalsseven')
-	equals_eight = builder.icmp_unsigned('==', builder.load(x_addr), int_eight, 'equalseight')
-	equals_nine = builder.icmp_unsigned('==', builder.load(x_addr), int_nine, 'equalsnine')
-
+	# equals_zero = builder.icmp_unsigned('==', builder.load(x_addr), int_zero, 'equalszero')
+	# equals_one = builder.icmp_unsigned('==', builder.load(x_addr), int_one, 'equalsone')
+	# equals_two = builder.icmp_unsigned('==', builder.load(x_addr), int_two, 'equalstwo')
+	# equals_three = builder.icmp_unsigned('==', builder.load(x_addr), int_three, 'equalsthree')
+	# equals_four = builder.icmp_unsigned('==', builder.load(x_addr), int_four, 'equalsfour')
+	# equals_five = builder.icmp_unsigned('==', builder.load(x_addr), int_five, 'equalsfive')
+	# equals_six = builder.icmp_unsigned('==', builder.load(x_addr), int_six, 'equalssix')
+	# equals_seven = builder.icmp_unsigned('==', builder.load(x_addr), int_seven, 'equalsseven')
+	# equals_eight = builder.icmp_unsigned('==', builder.load(x_addr), int_eight, 'equalseight')
+	# equals_nine = builder.icmp_unsigned('==', builder.load(x_addr), int_nine, 'equalsnine')
+	#
 	with builder.if_then(greater_than_zero):
 		builder.call(module.get_global('printd'), [div_ten])
+	#
+	# with builder.if_then(equals_zero):
+	# 	builder.call(module.get_global('putchar'), [int_fourtyeight])
+	#
+	# with builder.if_then(equals_one):
+	# 	builder.call(module.get_global('putchar'), [int_fourtynine])
+	#
+	# with builder.if_then(equals_two):
+	# 	builder.call(module.get_global('putchar'), [int_fifty])
+	#
+	# with builder.if_then(equals_three):
+	# 	builder.call(module.get_global('putchar'), [int_fiftyone])
+	#
+	# with builder.if_then(equals_four):
+	# 	builder.call(module.get_global('putchar'), [int_fiftytwo])
+	#
+	# with builder.if_then(equals_five):
+	# 	builder.call(module.get_global('putchar'), [int_fiftythree])
+	#
+	# with builder.if_then(equals_six):
+	# 	builder.call(module.get_global('putchar'), [int_fiftyfour])
+	#
+	# with builder.if_then(equals_seven):
+	# 	builder.call(module.get_global('putchar'), [int_fiftyfive])
+	#
+	# with builder.if_then(equals_eight):
+	# 	builder.call(module.get_global('putchar'), [int_fiftysix])
+	#
+	# with builder.if_then(equals_nine):
+	# 	builder.call(module.get_global('putchar'), [int_fiftyseven])
 
-	with builder.if_then(equals_zero):
-		builder.call(module.get_global('putchar'), [int_fourtyeight])
+	case_0 = function.append_basic_block('case')
+	case_1 = function.append_basic_block('case')
+	case_2 = function.append_basic_block('case')
+	case_3 = function.append_basic_block('case')
+	case_4 = function.append_basic_block('case')
+	case_5 = function.append_basic_block('case')
+	case_6 = function.append_basic_block('case')
+	case_7 = function.append_basic_block('case')
+	case_8 = function.append_basic_block('case')
+	case_9 = function.append_basic_block('case')
+	default = function.append_basic_block('default')
 
-	with builder.if_then(equals_one):
-		builder.call(module.get_global('putchar'), [int_fourtynine])
+	switch = builder.switch(builder.load(x_addr), default)
+	switch.add_case(int_zero, case_0)
+	switch.add_case(int_one, case_1)
+	switch.add_case(int_two, case_2)
+	switch.add_case(int_three, case_3)
+	switch.add_case(int_four, case_4)
+	switch.add_case(int_five, case_5)
+	switch.add_case(int_six, case_6)
+	switch.add_case(int_seven, case_7)
+	switch.add_case(int_eight, case_8)
+	switch.add_case(int_nine, case_9)
 
-	with builder.if_then(equals_two):
-		builder.call(module.get_global('putchar'), [int_fifty])
-
-	with builder.if_then(equals_three):
-		builder.call(module.get_global('putchar'), [int_fiftyone])
-
-	with builder.if_then(equals_four):
-		builder.call(module.get_global('putchar'), [int_fiftytwo])
-
-	with builder.if_then(equals_five):
-		builder.call(module.get_global('putchar'), [int_fiftythree])
-
-	with builder.if_then(equals_six):
-		builder.call(module.get_global('putchar'), [int_fiftyfour])
-
-	with builder.if_then(equals_seven):
-		builder.call(module.get_global('putchar'), [int_fiftyfive])
-
-	with builder.if_then(equals_eight):
-		builder.call(module.get_global('putchar'), [int_fiftysix])
-
-	with builder.if_then(equals_nine):
-		builder.call(module.get_global('putchar'), [int_fiftyseven])
+	builder.position_at_start(case_0)
+	builder.call(module.get_global('putchar'), [int_fourtyeight])
 	builder.branch(exit_block)
+
+	builder.position_at_start(case_1)
+	builder.call(module.get_global('putchar'), [int_fourtynine])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_2)
+	builder.call(module.get_global('putchar'), [int_fifty])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_3)
+	builder.call(module.get_global('putchar'), [int_fiftyone])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_4)
+	builder.call(module.get_global('putchar'), [int_fiftytwo])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_5)
+	builder.call(module.get_global('putchar'), [int_fiftythree])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_6)
+	builder.call(module.get_global('putchar'), [int_fiftyfour])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_7)
+	builder.call(module.get_global('putchar'), [int_fiftyfive])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_8)
+	builder.call(module.get_global('putchar'), [int_fiftysix])
+	builder.branch(exit_block)
+
+	builder.position_at_start(case_9)
+	builder.call(module.get_global('putchar'), [int_fiftyseven])
+	builder.branch(exit_block)
+
+	builder.position_at_start(default)
+	builder.branch(exit_block)
+
+	# builder.branch(exit_block)
 
 	# function close
 	builder.position_at_end(exit_block)

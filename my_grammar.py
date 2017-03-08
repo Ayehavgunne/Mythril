@@ -186,6 +186,7 @@ ESCAPE = 'escape'
 
 # TODO Features to add
 # Keyword arguments
+# Argument default values
 # Variable number of arguments (varargs)
 # Classes
 # Multiple Inheritance
