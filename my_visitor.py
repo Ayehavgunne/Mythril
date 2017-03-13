@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum
 from my_ast import Type
@@ -33,6 +32,7 @@ COMPLEX_BUILTIN = BuiltinTypeSymbol(COMPLEX, Complex)
 BOOL_BUILTIN = BuiltinTypeSymbol(BOOL, Bool)
 BYTES_BUILTIN = BuiltinTypeSymbol(BYTES, Bytes)
 STR_BUILTIN = BuiltinTypeSymbol(STR, Str)
+STRUCT_BUILTIN = BuiltinTypeSymbol(STRUCT, Str)
 ARRAY_BUILTIN = BuiltinTypeSymbol(ARRAY, Array)
 LIST_BUILTIN = BuiltinTypeSymbol(LIST, List)
 TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE, Tuple)
@@ -55,6 +55,14 @@ class VarSymbol(Symbol):
 	__repr__ = __str__
 
 
+class StructSymbol(Symbol):
+	def __init__(self, name, fields):
+		super().__init__(name)
+		self.fields = fields
+		self.accessed = False
+		self.val_assigned = False
+
+
 class CollectionSymbol(Symbol):
 	def __init__(self, name, var_type, item_types):
 		super().__init__(name, var_type)
@@ -64,9 +72,10 @@ class CollectionSymbol(Symbol):
 
 
 class FuncSymbol(Symbol):
-	def __init__(self, name, return_type, parameters, body):
+	def __init__(self, name, return_type, parameters, body, parameter_defaults=None):
 		super().__init__(name, return_type)
 		self.parameters = parameters
+		self.parameter_defaults = parameter_defaults or {}
 		self.body = body
 		self.accessed = False
 		self.val_assigned = True
@@ -77,7 +86,7 @@ class FuncSymbol(Symbol):
 	__repr__ = __str__
 
 
-class TypeSymbol(Symbol):
+class AliasSymbol(Symbol):
 	def __init__(self, name, types):
 		super().__init__(name, types)
 		self.accessed = False
@@ -102,23 +111,6 @@ class BuiltinFuncSymbol(Symbol):
 	__repr__ = __str__
 
 
-# print_parameters = OrderedDict()
-# print_parameters['objects'] = []
-# PRINT_BUILTIN = BuiltinFuncSymbol('print', NULLTYPE_BUILTIN, print_parameters, print)
-
-putchar_parameters = OrderedDict()
-putchar_parameters['objects'] = []
-PUTCHAR_BUILTIN = BuiltinFuncSymbol('putchar', NULLTYPE_BUILTIN, putchar_parameters, print)
-
-printd_parameters = OrderedDict()
-printd_parameters['objects'] = []
-PRINTD_BUILTIN = BuiltinFuncSymbol('printd', NULLTYPE_BUILTIN, printd_parameters, print)
-
-prints_parameters = OrderedDict()
-prints_parameters['objects'] = []
-PRINTS_BUILTIN = BuiltinFuncSymbol('prints', NULLTYPE_BUILTIN, prints_parameters, print)
-
-
 class NodeVisitor(object):
 	def __init__(self):
 		self._scope = [{}]
@@ -133,6 +125,7 @@ class NodeVisitor(object):
 		self.define(BOOL, BOOL_BUILTIN)
 		self.define(BYTES, BYTES_BUILTIN)
 		self.define(STR, STR_BUILTIN)
+		self.define(STRUCT, STRUCT_BUILTIN)
 		self.define(ARRAY, ARRAY_BUILTIN)
 		self.define(LIST, LIST_BUILTIN)
 		self.define(TUPLE, TUPLE_BUILTIN)
@@ -140,10 +133,6 @@ class NodeVisitor(object):
 		self.define(ENUM, ENUM_BUILTIN)
 		self.define(FUNC, FUNC_BUILTIN)
 		self.define(NULL, NULLTYPE_BUILTIN)
-		# self.define(PRINT, PRINT_BUILTIN)
-		self.define('putchar', PUTCHAR_BUILTIN)
-		self.define('printd', PRINTD_BUILTIN)
-		self.define('prints', PRINTS_BUILTIN)
 
 	def visit(self, node):
 		method_name = 'visit_' + type(node).__name__.lower()

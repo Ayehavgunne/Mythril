@@ -32,10 +32,12 @@ class Compound(AST):
 
 
 class FuncDecl(AST):
-	def __init__(self, name, return_type, parameters, body, line_num):
+	def __init__(self, name, return_type, parameters, body, line_num, parameter_defaults=None, varargs=None):
 		self.name = name
 		self.return_type = return_type
 		self.parameters = parameters
+		self.parameter_defaults = parameter_defaults or {}
+		self.varargs = varargs
 		self.body = body
 		self.line_num = line_num
 
@@ -46,9 +48,11 @@ class FuncDecl(AST):
 
 
 class AnonymousFunc(AST):
-	def __init__(self, return_type, parameters, body, line_num):
+	def __init__(self, return_type, parameters, body, line_num, parameter_defaults=None, varargs=None):
 		self.return_type = return_type
 		self.parameters = parameters
+		self.parameter_defaults = parameter_defaults or {}
+		self.varargs = varargs
 		self.body = body
 		self.line_num = line_num
 
@@ -59,15 +63,29 @@ class AnonymousFunc(AST):
 
 
 class FuncCall(AST):
-	def __init__(self, name, arguments, line_num):
+	def __init__(self, name, arguments, line_num, named_arguments=None):
 		self.name = name
 		self.arguments = arguments
+		self.named_arguments = named_arguments or {}
 		self.line_num = line_num
 
 
 class Return(AST):
 	def __init__(self, value, line_num):
 		self.value = value
+		self.line_num = line_num
+
+
+class StructDeclaration(AST):
+	def __init__(self, name, fields, line_num):
+		self.name = name
+		self.fields = fields
+		self.line_num = line_num
+
+
+class StructLiteral(AST):
+	def __init__(self, fields, line_num):
+		self.fields = fields
 		self.line_num = line_num
 
 
@@ -199,6 +217,13 @@ class CollectionAccess(AST):
 		self.line_num = line_num
 
 
+class DotAccess(AST):
+	def __init__(self, obj, field, line_num):
+		self.obj = obj
+		self.field = field
+		self.line_num = line_num
+
+
 class Type(AST):
 	def __init__(self, token, line_num, func_ret_type=None):
 		self.token = token
@@ -207,7 +232,7 @@ class Type(AST):
 		self.line_num = line_num
 
 
-class TypeDeclaration(AST):
+class AliasDeclaration(AST):
 	def __init__(self, name, collection, line_num):
 		self.name = name
 		self.collection = collection
@@ -263,8 +288,7 @@ class Collection(AST):
 
 
 class HashMap(AST):
-	def __init__(self, token, items, line_num):
-		self.token = token
+	def __init__(self, items, line_num):
 		self.items = items
 		self.line_num = line_num
 

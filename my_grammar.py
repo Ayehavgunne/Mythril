@@ -6,9 +6,9 @@ DIV = '/'
 FLOORDIV = '//'
 MOD = '%'
 POWER = '**'
-BINARY_AND = 'and'  # TODO
-BINARY_OR = 'or'  # TODO
-BINARY_XOR = 'xor'  # TODO
+ARITHMATIC_LEFT_SHIFT = '<<<'  # TODO
+ARITHMATIC_RIGHT_SHIFT = '>>>'  # TODO
+XOR = 'xor'
 BINARY_ONES_COMPLIMENT = '~'  # TODO
 BINARY_LEFT_SHIFT = '<<'  # TODO
 BINARY_RIGHT_SHIFT = '>>'  # TODO
@@ -103,6 +103,7 @@ THEN = 'then'  # TODO
 YIELD = 'yield'  # TODO
 BREAK = 'break'
 CONTINUE = 'continue'
+MATCH = 'match'
 DEL = 'del'  # TODO
 FROM = 'from'  # TODO
 IMPORT = 'import'  # TODO
@@ -112,7 +113,7 @@ AS = 'as'  # TODO
 PASS = 'pass'
 VOID = 'void'
 RAISE = 'raise'  # TODO
-TYPE = 'type'
+ALIAS = 'alias'
 REQUIRE = 'require'  # TODO
 ENSURE = 'ensure'  # TODO
 OVERRIDE = 'override'  # TODO
@@ -122,7 +123,7 @@ GETTER = 'getter'  # TODO
 SETTER = 'setter'  # TODO
 ASSERT = 'assert'  # TODO
 
-ARITHMETIC_OP = (PLUS, MINUS, MUL, DIV, MOD, FLOORDIV, POWER)
+ARITHMETIC_OP = (PLUS, MINUS, MUL, DIV, MOD, FLOORDIV, POWER, ARITHMATIC_LEFT_SHIFT, ARITHMATIC_RIGHT_SHIFT)
 
 ASSIGNMENT_OP = (ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN, MOD_ASSIGN, POWER_ASSIGN)
 
@@ -130,7 +131,7 @@ COMPARISON_OP = (EQUALS, NOT_EQUALS, LESS_THAN, GREATER_THAN, GREATER_THAN_OR_EQ
 
 LOGICAL_OP = (AND, OR, NOT)
 
-BINARY_OP = (BINARY_AND, BINARY_OR, BINARY_XOR, BINARY_ONES_COMPLIMENT, BINARY_LEFT_SHIFT, BINARY_RIGHT_SHIFT)
+BINARY_OP = (XOR, BINARY_ONES_COMPLIMENT, BINARY_LEFT_SHIFT, BINARY_RIGHT_SHIFT)
 
 MEMBERSHIP_OP = (IN, NOT_IN)
 
@@ -153,7 +154,7 @@ SINGLE_OPERATORS = (
 KEYWORDS = (
 	IF, ELSE, WHILE, FOR, SWITCH, CASE, DEF, CLASS, SUPER, THIS, RETURN, TEST, TRY, CATCH,
 	FINALLY, THEN, YIELD, BREAK, CONTINUE, DEL, IMPORT, FROM, WITH, AS, PASS, VOID, RAISE, ACTOR,
-	CONST, REQUIRE, ENSURE, OVERRIDE, DOC, ABSTRACT, GETTER, SETTER, ASSERT, DEFAULT, NEW, TYPE
+	CONST, REQUIRE, ENSURE, OVERRIDE, DOC, ABSTRACT, GETTER, SETTER, ASSERT, DEFAULT, NEW, ALIAS
 )
 
 MULTI_WORD_KEYWORDS = (IF, ELSE, ELSE_IF)
@@ -165,7 +166,7 @@ CONSTANTS = (TRUE, FALSE, NULL, NAN, INF, NEGATIVE_INF)
 BUILTIN_FUNCTIONS = ('print',)
 
 PRINT = 'print'
-TOKEN_TYPE = 'TYPE'
+TYPE = 'TYPE'
 NUMBER = 'NUMBER'
 STRING = 'STRING'
 OP = 'OP'
@@ -185,30 +186,40 @@ COMMENT = 'comment'
 ESCAPE = 'escape'
 
 # TODO Features to add
-# Keyword arguments
-# Argument default values
-# Variable number of arguments (varargs)
+# Keyword arguments {Done in Compiler}
+# Argument default values {Done in Compiler}
+# Variable number of arguments (varargs) {Partialy done in Compiler}
+# Variable number of keyword arguments (varargs)
+# Signed Integers {Not an issue in interpreter}
+# Structs
 # Classes
-# Multiple Inheritance
+# Multiple Inheritance (for both classes and structs!)
+# Enums
 # Actors
 # Tests built into the language
 # Contracts built into the language ('require' and 'ensure')
 # Exceptions
 # Yielding
 # Context Manager ('with' and 'as' keywords)
-# Modules
+# Modules (importing with 'from' and/or 'import')
 # Object literals
+# Closures {Done in Interpreter}
+# Anonymous (multi statement) functions {Done in Interpreter}
+# assigning functions to variables {Done in Interpreter}
 # Properties ('getter' and 'setter')
-# Structs
-# Enums (or just use structs)
 # Decorators
-# Delete variables ('del' keyword)
+# Delete things ('del' keyword)
 # Type Aliasing
 # Bytes type
 # Binary operators
 # Complex number type
 # Slices
 # More Collection types (set, hashmap, tuple)
-# Pattern matching maybe
+# Pattern matching
 # Throw away variable using '_' single underscore character
-# call C or Python functions from within Mythril http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/
+# Call C or Python functions from within Mythril http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/
+# Automatic integer(or number) casting on overflow
+# Support Unicode (UTF-8) by default
+# Multiple dispatch or only allow single function with given name and force heavy type aliasing?
+# Ignore underscores in numbers (as separators to increase readability)
+# Add hexidecimal, octal, and binary literal representations of numbers

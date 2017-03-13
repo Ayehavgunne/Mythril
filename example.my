@@ -84,6 +84,7 @@ abstract class Person
 		this.gender # Automtically assigns gender from argument if they have the same name
 		this._haircolor = haircolor
 		Str this._fav_color
+		this.opinionated = true
 
 
 class Boy(Person)

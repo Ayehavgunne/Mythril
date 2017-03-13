@@ -116,7 +116,7 @@ class Interpreter(NodeVisitor):
 		elif op == FLOORDIV:
 			return left // right
 		elif op == DIV:
-			return left / right
+			return Decimal(left / right)
 		elif op == MOD:
 			return left % right
 		elif op == POWER:
@@ -310,6 +310,5 @@ if __name__ == '__main__':
 	if not symtab_builder.warnings:
 		interpreter = Interpreter(parser.file_name)
 		interpreter.interpret(t)
-		print()
 	else:
 		print('Did not run')

@@ -1,10 +1,10 @@
 import warnings
-from my_visitor import NodeVisitor
+from my_visitor import NodeVisitor, StructSymbol
 from my_visitor import VarSymbol
 from my_visitor import NULLTYPE_BUILTIN
 from my_visitor import CollectionSymbol
 from my_visitor import FuncSymbol
-from my_visitor import TypeSymbol
+from my_visitor import AliasSymbol
 from my_ast import VarDecl
 from my_ast import Var
 from my_ast import Collection
@@ -118,6 +118,7 @@ class SymbolTableBuilder(NodeVisitor):
 		if isinstance(node.left, VarDecl):
 			var_name = node.left.var_node.value
 			value = self.infer_type(node.left.type_node)
+			value.accessed = True
 		elif isinstance(node.right, Collection):
 			var_name = node.left.value
 			value, collection_type = self.visit(node.right)
@@ -144,7 +145,7 @@ class SymbolTableBuilder(NodeVisitor):
 					return
 			if lookup_var.type is value:
 				return
-			if isinstance(value, TypeSymbol):
+			if isinstance(value, AliasSymbol):
 				value.accessed = True
 				if value.type is self.search_scopes(FUNC):
 					if value.type.return_type == lookup_var.type:
@@ -236,18 +237,24 @@ class SymbolTableBuilder(NodeVisitor):
 			typs = typs[0]
 		else:
 			typs = tuple(typs)
-		typ = TypeSymbol(node.name.value, typs)
+		typ = AliasSymbol(node.name.value, typs)
 		self.define(typ.name, typ)
 
 	def visit_funcdecl(self, node):
 		func_name = node.name.value
 		func_type = self.search_scopes(node.return_type.value)
 		self.new_scope()
+		if node.varargs:
+			varargs_type = self.search_scopes(ARRAY)
+			varargs_type.type = node.varargs[1].value
+			varargs = CollectionSymbol(node.varargs[0], varargs_type, self.search_scopes(node.varargs[1].value))
+			varargs.val_assigned = True
+			self.define(varargs.name, varargs)
 		for k, v in node.parameters.items():
 			var_type = self.search_scopes(v.value)
 			if var_type is self.search_scopes(FUNC):
 				sym = FuncSymbol(k, v.func_ret_type, None, None)
-			elif isinstance(var_type, TypeSymbol):
+			elif isinstance(var_type, AliasSymbol):
 				var_type.accessed = True
 				if var_type.type is self.search_scopes(FUNC):
 					sym = FuncSymbol(k, var_type.type.return_type, None, None)
@@ -257,7 +264,7 @@ class SymbolTableBuilder(NodeVisitor):
 				sym = VarSymbol(k, var_type)
 			sym.val_assigned = True
 			self.define(sym.name, sym)
-		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body)
+		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
 		self.define(func_name, func_symbol, 1)
 		return_types = self.visit(func_symbol.body)
 		return_types = list(flatten(return_types))
@@ -290,8 +297,19 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_funccall(self, node):
 		func_name = node.name.value
 		func = self.search_scopes(func_name)
-		for arg in node.arguments:
-			self.visit(arg)
+		for x, param in enumerate(func.parameters.values()):
+			if x < len(node.arguments):
+				var = self.visit(node.arguments[x])
+				if param.value != var.name and param.value != var.type.name:
+					raise TypeError
+			else:
+				func_param_keys = list(func.parameters.keys())
+				if func_param_keys[x] not in node.named_arguments.keys() and func_param_keys[x] not in func.parameter_defaults.keys():
+					raise TypeError('Missing arguments to function')
+				else:
+					if func_param_keys[x] in node.named_arguments.keys():
+						if param.value != self.visit(node.named_arguments[func_param_keys[x]]).name:
+							raise TypeError
 		if func is None:
 			warnings.warn('file={} line={}: Name Error: {}'.format(self.file_name, node.line_num, repr(func_name)))
 			self.warnings = True
@@ -324,6 +342,15 @@ class SymbolTableBuilder(NodeVisitor):
 			return self.search_scopes(ARRAY), types[0]
 		else:
 			return self.search_scopes(LIST), self.search_scopes(ANY)
+
+	def visit_structdeclaration(self, node):
+		sym = StructSymbol(node.name.value, node.fields)
+		self.define(sym.name, sym)
+
+	def visit_dotaccess(self, node):
+		obj = self.search_scopes(node.obj)
+		obj.accessed = True
+		return self.visit(obj.type.fields[node.field])
 
 	def visit_hashmap(self, node):
 		for key in node.items.keys():
