@@ -1,7 +1,8 @@
-Struct MyStruct
-	Int foo
-	Int bar
+class Person
+	new(Str name, Int age)
+		this.name
+		this.age
 
-MyStruct my_struct = {foo=2, bar=4}
+frank = Person('Frank', 30)
 
-print(my_struct.foo)
+print(frank.age)

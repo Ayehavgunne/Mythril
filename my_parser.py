@@ -11,10 +11,11 @@ class Parser(object):
 		self.indent_level = 0
 		self.next_token()
 		self.user_types = []
+		self.in_class = False
 
 	def next_token(self):
 		self.current_token = self.lexer.get_next_token()
-		# print(self.current_token)
+		print(self.current_token)
 
 	def eat_type(self, *token_type):
 		if self.current_token.type in token_type:
@@ -54,6 +55,27 @@ class Parser(object):
 			self.eat_type(NEWLINE)
 		self.indent_level -= 1
 		return StructDeclaration(name, fields, name.line_num)
+
+	def class_declaration(self):
+		base = None
+		constructor = None
+		methods = None
+		class_fields = None
+		instance_fields = None
+		self.in_class = True
+		self.next_token()
+		class_name = self.current_token
+		self.eat_type(NAME)
+		if self.current_token.value == LPAREN:
+			pass  # TODO impliment multiple inheritance
+		self.eat_type(NEWLINE)
+		self.indent_level += 1
+		while self.current_token.indent_level == self.indent_level:
+			if self.current_token.value == NEW:
+				constructor = self.constructor_declaration(class_name)
+		self.indent_level -= 1
+		self.in_class = False
+		return ClassDeclaration(class_name.value, base=base, constructor=constructor, methods=methods, class_fields=class_fields, instance_fields=instance_fields)
 
 	def variable_declaration(self):
 		type_node = self.type_spec()
@@ -126,6 +148,42 @@ class Parser(object):
 			return AnonymousFunc(return_type, params, stmts, self.current_token.line_num, param_defaults, vararg)
 		else:
 			return FuncDecl(name, return_type, params, stmts, self.current_token.line_num, param_defaults, vararg)
+
+	def constructor_declaration(self, class_name):
+		self.eat_value(NEW)
+		self.eat_value(LPAREN)
+		params = OrderedDict()
+		param_defaults = {}
+		vararg = None
+		while self.current_token.value != RPAREN:
+			if self.current_token.type == NAME:
+				param_type = self.variable(self.current_token)
+				self.eat_type(NAME)
+			else:
+				param_type = self.type_spec()
+			params[self.current_token.value] = param_type
+			param_name = self.current_token.value
+			self.eat_type(NAME)
+			if self.current_token.value != RPAREN:
+				if self.current_token.value == ASSIGN:
+					self.eat_value(ASSIGN)
+					param_defaults[param_name] = self.expr()
+				if self.current_token.value == ELLIPSIS:
+					key, value = params.popitem()
+					if not vararg:
+						vararg = []
+					vararg.append(key)
+					vararg.append(value)
+					self.eat_value(ELLIPSIS)
+					break
+				if self.current_token.value != RPAREN:
+						self.eat_value(COMMA)
+		self.eat_value(RPAREN)
+		self.eat_type(NEWLINE)
+		self.indent_level += 1
+		stmts = self.compound_statement()
+		self.indent_level -= 1
+		return FuncDecl('{}.constructor'.format(class_name), Void(), params, stmts, self.current_token.line_num, param_defaults, vararg)
 
 	def bracket_literal(self):
 		token = self.current_token
@@ -234,6 +292,8 @@ class Parser(object):
 				node = self.struct_declaration()
 			else:
 				node = self.variable_declaration()
+		elif self.current_token.value == CLASS:
+			node = self.class_declaration()
 		else:
 			node = self.empty()
 		return node
@@ -274,7 +334,7 @@ class Parser(object):
 	def curly_bracket_expression(self, token):
 		hash_or_struct = None
 		if token.value == LCURLYBRACKET:
-			pairs = {}
+			pairs = OrderedDict()
 			while self.current_token.value != RCURLYBRACKET:
 				key = self.expr()
 				if self.current_token.value == COLON:

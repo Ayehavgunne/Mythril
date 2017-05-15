@@ -5,7 +5,7 @@ import llvmlite.binding as llvm
 from my_builtin_functions import define_printd
 from my_builtin_functions import define_printb
 from my_visitor import NodeVisitor
-from my_ast import Num, Var
+from my_ast import StructLiteral, Num
 from my_ast import VarDecl
 from my_ast import FuncCall
 from my_grammar import *
@@ -184,6 +184,17 @@ class CodeGenerator(NodeVisitor):
 				ret = temp
 		return ret
 
+	def visit_structdeclaration(self, node):
+		fields = []
+		for field in node.fields.values():
+			if field.value == STR:
+				fields.append(str)
+			else:
+				fields.append(type_map[field.value]())
+		struct = ir.LiteralStructType(fields)
+		struct.fields = [field for field in node.fields.keys()]
+		self.define(node.name.value, struct)
+
 	def visit_typedeclaration(self, node):
 		raise NotImplementedError
 
@@ -309,21 +320,41 @@ class CodeGenerator(NodeVisitor):
 		return range(left.constant, right.constant)
 
 	def visit_assign(self, node):
-		var = self.visit(node.right)
-		if isinstance(node.left, VarDecl):
-			var_name = node.left.var_node.value
-			if node.left.type_node.value == FLOAT:
-				node.right.value = float(node.right.value)
-			self.allocate(var, var_name, var.type)
+		if isinstance(node.right, StructLiteral):
+			self.struct_assign(node)
 		else:
-			var_name = node.left.value
-			var_value = self.top_scope.get(var_name)
-			if var_value:
-				if isinstance(var_value, float):
+			var = self.visit(node.right)
+			if isinstance(node.left, VarDecl):
+				var_name = node.left.var_node.value
+				if node.left.type_node.value == FLOAT:
 					node.right.value = float(node.right.value)
-				self.store(var_name, var)
-			else:
 				self.allocate(var, var_name, var.type)
+			else:
+				var_name = node.left.value
+				var_value = self.top_scope.get(var_name)
+				if var_value:
+					if isinstance(var_value, float):
+						node.right.value = float(node.right.value)
+					self.store(var_name, var)
+				else:
+					self.allocate(var, var_name, var.type)
+
+	def struct_assign(self, node):
+		struct_type = self.search_scopes(node.left.type_node.value)
+		name = node.left.var_node.value
+		fields = []
+		for field in node.right.fields.values():
+			fields.append(self.visit(field))
+		struct = struct_type(fields)
+		struct_ptr = self.builder.alloca(struct_type, name=name)
+		self.builder.store(struct, struct_ptr)
+		struct_ptr.struct_name = node.left.type_node.value
+		self.define(name, struct_ptr)
+
+	def visit_dotaccess(self, node):
+		obj = self.search_scopes(node.obj)
+		obj_type = self.search_scopes(obj.struct_name)
+		return self.builder.extract_value(self.load(node.obj), obj_type.fields.index(node.field))
 
 	def visit_opassign(self, node):
 		var_name = node.left.value
@@ -405,46 +436,32 @@ class CodeGenerator(NodeVisitor):
 	def visit_collectionaccess(self, node):
 		raise NotImplementedError
 
-	def visit_print(self, node):  # TODO: Simplify this
-		if isinstance(node.value, FuncCall):
-			val = self.visit(node.value)
-			if isinstance(val.type, ir.IntType):
-				# noinspection PyUnresolvedReferences
-				if val.type.width == 1:
-					self.call('printb', [val])
-					self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
-				else:
-					self.call('printd', [val])
-					self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
-		elif isinstance(node.value, Num) or self.search_scopes(node.value.value).type.pointee == type_map[INT]():
-			self.call('printd', [self.visit(node.value)])
-			self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
-		elif isinstance(self.search_scopes(node.value.value).type.pointee, ir.ArrayType):
+	def visit_print(self, node):
+		val = self.visit(node.value)
+		if isinstance(val.type, ir.IntType):
+			# noinspection PyUnresolvedReferences
+			if val.type.width == 1:
+				self.call('printb', [val])
+			else:
+				self.call('printd', [val])
+		elif isinstance(val.type, ir.FloatType):
+			raise NotImplementedError
+		elif isinstance(val.type, ir.DoubleType):
+			percent_f = self.stringz('%f')
+			var_ptr = self.builder.alloca(ir.ArrayType(percent_f.type.element, percent_f.type.count), name='var_ptr')
+			self.builder.store(percent_f, var_ptr)
+			var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
+			var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(8).as_pointer())
+			self.call('printf', [var_ptr_gep, self.visit(node.value)])
+		elif isinstance(val.type, ir.ArrayType):
 			var = self.visit(node.value)
 			var_ptr = self.builder.alloca(ir.ArrayType(var.type.element, var.type.count), name='var_ptr')
 			self.builder.store(var, var_ptr)
 			var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
 			var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(32).as_pointer())
 			self.call('puts', [var_ptr_gep])
-		elif isinstance(node.value, Var):
-			val = self.visit(node.value)
-			if isinstance(val.type, ir.IntType):
-				# noinspection PyUnresolvedReferences
-				if val.type.width == 1:
-					self.call('printb', [val])
-					self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
-			elif isinstance(val.type, ir.FloatType):
-				raise NotImplementedError
-			elif isinstance(val.type, ir.DoubleType):
-				percent_f = self.stringz('%f')
-				var_ptr = self.builder.alloca(ir.ArrayType(percent_f.type.element, percent_f.type.count), name='var_ptr')
-				self.builder.store(percent_f, var_ptr)
-				var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
-				var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(8).as_pointer())
-				self.call('printf', [var_ptr_gep, self.visit(node.value)])
-				self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
-		else:
-			raise SyntaxError('Not known how to print {}'.format(self.visit(node.value)))
+			return
+		self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
 
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
 		self.new_scope()
@@ -454,7 +471,6 @@ class CodeGenerator(NodeVisitor):
 		func_type = ir.FunctionType(ret_type, args)
 		if parameter_defaults:
 			func_type.parameter_defaults = parameter_defaults
-
 		func_type.arg_order = arg_keys
 		function = ir.Function(self.module, func_type, name)
 		self.define(name, func_type, 1)
@@ -508,6 +524,21 @@ class CodeGenerator(NodeVisitor):
 			return ir.Constant(type_map[INT](), int(val))
 		elif isinstance(val, str):
 			return self.stringz(val)
+		else:
+			raise NotImplementedError
+
+	def const_as_pointer(self, val, width=None):
+		if isinstance(val, int):
+			if width:
+				return ir.Constant(ir.IntType(width).as_pointer(), val)
+			else:
+				return ir.Constant(type_map[INT]().as_pointer(), val)
+		elif isinstance(val, float):
+			return ir.Constant(type_map[DEC].as_pointer(), val)
+		elif isinstance(val, bool):
+			return ir.Constant(type_map[INT]().as_pointer(), int(val))
+		elif isinstance(val, str):
+			return self.stringz_pntr(val)
 		else:
 			raise NotImplementedError
 

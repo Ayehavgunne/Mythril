@@ -89,6 +89,15 @@ class StructLiteral(AST):
 		self.line_num = line_num
 
 
+class ClassDeclaration(AST):
+	def __init__(self, name, base=None, constructor=None, methods=None, fields=None):
+		self.name = name
+		self.constructor = constructor
+		self.base = base
+		self.methods = methods
+		self.fields = fields
+
+
 class Assign(AST):
 	def __init__(self, left, op, right, line_num):
 		self.left = left
