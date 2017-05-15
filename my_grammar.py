@@ -44,6 +44,7 @@ FLOORDIV_ASSIGN = '//='
 MOD_ASSIGN = '%='
 POWER_ASSIGN = '**='
 EQUALS = '=='
+NOT_BANG = '!'
 NOT_EQUALS = '!='
 LESS_THAN = '<'
 GREATER_THAN = '>'
@@ -54,6 +55,9 @@ DECORATOR = '@'  # TODO
 # Types
 ANY = 'Any'
 INT = 'Int'
+INT8 = 'Int8'
+INT32 = 'Int32'
+INT128 = 'Int128'
 DEC = 'Dec'
 FLOAT = 'Float'
 COMPLEX = 'Complex'  # TODO
@@ -127,7 +131,7 @@ ARITHMETIC_OP = (PLUS, MINUS, MUL, DIV, MOD, FLOORDIV, POWER, ARITHMATIC_LEFT_SH
 
 ASSIGNMENT_OP = (ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN, MOD_ASSIGN, POWER_ASSIGN)
 
-COMPARISON_OP = (EQUALS, NOT_EQUALS, LESS_THAN, GREATER_THAN, GREATER_THAN_OR_EQUAL_TO, LESS_THAN_OR_EQUAL_TO)
+COMPARISON_OP = (EQUALS, NOT_BANG, NOT_EQUALS, LESS_THAN, GREATER_THAN, GREATER_THAN_OR_EQUAL_TO, LESS_THAN_OR_EQUAL_TO)
 
 LOGICAL_OP = (AND, OR, NOT)
 
@@ -159,7 +163,7 @@ KEYWORDS = (
 
 MULTI_WORD_KEYWORDS = (IF, ELSE, ELSE_IF)
 
-TYPES = (ANY, INT, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES, ARRAY, LIST, TUPLE, DICT, ENUM, FUNC, STRUCT, NULLTYPE)
+TYPES = (ANY, INT, INT8, INT32, INT128, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES, ARRAY, LIST, TUPLE, DICT, ENUM, FUNC, STRUCT, NULLTYPE)
 
 CONSTANTS = (TRUE, FALSE, NULL, NAN, INF, NEGATIVE_INF)
 
@@ -189,7 +193,7 @@ ESCAPE = 'escape'
 # Keyword arguments {Done in Compiler}
 # Argument default values {Done in Compiler}
 # Variable number of arguments (varargs) {Partialy done in Compiler}
-# Variable number of keyword arguments (varargs)
+# Variable number of keyword arguments
 # Signed Integers {Not an issue in interpreter}
 # Structs
 # Classes
@@ -220,6 +224,7 @@ ESCAPE = 'escape'
 # Call C or Python functions from within Mythril http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/
 # Automatic integer(or number) casting on overflow
 # Support Unicode (UTF-8) by default
-# Multiple dispatch or only allow single function with given name and force heavy type aliasing?
+# Multiple dispatch or only allow single function with given name and force heavy use of type aliasing?
 # Ignore underscores in numbers (as separators to increase readability)
 # Add hexidecimal, octal, and binary literal representations of numbers
+# Javadocs like documentation built in

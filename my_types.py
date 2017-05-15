@@ -28,6 +28,36 @@ class Int(AnyVal):
 		return lambda: ir.IntType(64)
 
 
+class Int8(AnyVal):
+	def __init__(self):
+		super().__init__()
+		self.name = INT8
+
+	@staticmethod
+	def type():
+		return lambda: ir.IntType(8)
+
+
+class Int32(AnyVal):
+	def __init__(self):
+		super().__init__()
+		self.name = INT32
+
+	@staticmethod
+	def type():
+		return lambda: ir.IntType(32)
+
+
+class Int128(AnyVal):
+	def __init__(self):
+		super().__init__()
+		self.name = INT128
+
+	@staticmethod
+	def type():
+		return lambda: ir.IntType(128)
+
+
 class Dec(AnyVal):
 	def __init__(self):
 		super().__init__()

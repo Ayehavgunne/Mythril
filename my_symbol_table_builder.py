@@ -34,6 +34,14 @@ class SymbolTableBuilder(NodeVisitor):
 		super().__init__()
 		self.file_name = file_name
 		self.warnings = False
+		self.num_types = (
+			self.search_scopes(INT),
+			self.search_scopes(INT8),
+			self.search_scopes(INT32),
+			self.search_scopes(INT128),
+			self.search_scopes(DEC),
+			self.search_scopes(FLOAT)
+		)
 
 	def build(self, node):
 		res = self.visit(node)
@@ -125,6 +133,8 @@ class SymbolTableBuilder(NodeVisitor):
 		else:
 			var_name = node.left.value
 			value = self.visit(node.right)
+			if isinstance(value, VarSymbol):
+				value = value.type
 		lookup_var = self.search_scopes(var_name)
 		if not lookup_var:
 			if collection_type:
@@ -144,6 +154,8 @@ class SymbolTableBuilder(NodeVisitor):
 				if value in (self.search_scopes(INT), self.search_scopes(DEC), self.search_scopes(FLOAT)):
 					return
 			if lookup_var.type is value:
+				return
+			if lookup_var.type is value.type:
 				return
 			if isinstance(value, AliasSymbol):
 				value.accessed = True
@@ -194,8 +206,8 @@ class SymbolTableBuilder(NodeVisitor):
 			left_type = self.infer_type(left)
 			right_type = self.infer_type(right)
 			any_type = self.search_scopes(ANY)
-			if left_type in (self.search_scopes(INT), self.search_scopes(DEC), self.search_scopes(FLOAT)):
-				if right_type in (self.search_scopes(INT), self.search_scopes(DEC), self.search_scopes(FLOAT)):
+			if left_type in self.num_types:
+				if right_type in self.num_types:
 					return left_type
 			if right_type is left_type or left_type is any_type or right_type is any_type:
 				return left_type
@@ -300,7 +312,10 @@ class SymbolTableBuilder(NodeVisitor):
 		for x, param in enumerate(func.parameters.values()):
 			if x < len(node.arguments):
 				var = self.visit(node.arguments[x])
-				if param.value != var.name and param.value != var.type.name:
+				param_ss = self.search_scopes(param.value)
+				if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
+					continue
+				elif param.value != var.name and param.value != var.type.name:
 					raise TypeError
 			else:
 				func_param_keys = list(func.parameters.keys())

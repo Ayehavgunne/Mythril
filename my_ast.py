@@ -90,12 +90,13 @@ class StructLiteral(AST):
 
 
 class ClassDeclaration(AST):
-	def __init__(self, name, base=None, constructor=None, methods=None, fields=None):
+	def __init__(self, name, base=None, constructor=None, methods=None, class_fields=None, instance_fields=None):
 		self.name = name
 		self.constructor = constructor
 		self.base = base
 		self.methods = methods
-		self.fields = fields
+		self.class_fields = class_fields
+		self.instance_fields = instance_fields
 
 
 class Assign(AST):

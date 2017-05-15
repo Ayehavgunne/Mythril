@@ -26,6 +26,9 @@ class BuiltinTypeSymbol(Symbol):
 
 ANY_BUILTIN = BuiltinTypeSymbol(ANY)
 INT_BUILTIN = BuiltinTypeSymbol(INT, Int)
+INT8_BUILTIN = BuiltinTypeSymbol(INT8, Int8)
+INT32_BUILTIN = BuiltinTypeSymbol(INT32, Int32)
+INT128_BUILTIN = BuiltinTypeSymbol(INT128, Int128)
 DEC_BUILTIN = BuiltinTypeSymbol(DEC, Dec)
 FLOAT_BUILTIN = BuiltinTypeSymbol(FLOAT, Float)
 COMPLEX_BUILTIN = BuiltinTypeSymbol(COMPLEX, Complex)
@@ -119,6 +122,9 @@ class NodeVisitor(object):
 	def _init_builtins(self):
 		self.define(ANY, ANY_BUILTIN)
 		self.define(INT, INT_BUILTIN)
+		self.define(INT8, INT8_BUILTIN)
+		self.define(INT32, INT32_BUILTIN)
+		self.define(INT128, INT128_BUILTIN)
 		self.define(DEC, DEC_BUILTIN)
 		self.define(FLOAT, FLOAT_BUILTIN)
 		self.define(COMPLEX, COMPLEX_BUILTIN)

@@ -3,18 +3,29 @@ from ctypes import c_void_p
 from llvmlite import ir
 import llvmlite.binding as llvm
 from my_builtin_functions import define_printd
+# from my_builtin_functions import define_print128
 from my_builtin_functions import define_printb
 from my_visitor import NodeVisitor
-from my_ast import StructLiteral, Num
+from my_ast import StructLiteral
 from my_ast import VarDecl
-from my_ast import FuncCall
 from my_grammar import *
 
 RET_VAR = 'ret_var'
-INT8 = 'int8'
-INT32 = 'int32'
+INT8 = 'Int8'
+INT32 = 'Int32'
+INT128 = 'Int128'
 # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
-type_map = {BOOL: lambda: ir.IntType(1), INT: lambda: ir.IntType(64), INT8: lambda: ir.IntType(8), INT32: lambda: ir.IntType(32), DEC: ir.DoubleType, FLOAT: ir.FloatType, FUNC: ir.FunctionType, VOID: ir.VoidType}
+type_map = {
+	BOOL: lambda: ir.IntType(1),
+	INT: lambda: ir.IntType(64),
+	INT8: lambda: ir.IntType(8),
+	INT32: lambda: ir.IntType(32),
+	INT128: lambda: ir.IntType(128),
+	DEC: ir.DoubleType,
+	FLOAT: ir.FloatType,
+	FUNC: ir.FunctionType,
+	VOID: ir.VoidType
+}
 
 
 class CodeGenerator(NodeVisitor):
@@ -227,7 +238,17 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.icmp_unsigned(EQUALS, self.const(1), self.const(1), 'cmptmp')
 
 	def visit_while(self, node):
-		raise NotImplementedError
+		test_block = self.add_block('while.cond')
+		body_block = self.add_block('while.body')
+		end_block = self.add_block('while.end')
+		self.branch(test_block)
+		self.position_at_end(test_block)
+		cond = self.visit(node.comp)
+		self.cbranch(cond, body_block, end_block)
+		self.position_at_end(body_block)
+		self.visit(node.block)
+		self.branch(test_block)
+		self.position_at_end(end_block)
 
 	def visit_for(self, node):
 		init_block = self.add_block('for.init')
@@ -237,14 +258,14 @@ class CodeGenerator(NodeVisitor):
 		self.branch(init_block)
 		self.position_at_end(init_block)
 		loop_range = self.visit(node.iterator)
-		start = self.const(loop_range[0])
-		stop = self.const(loop_range[-1])
+		start = loop_range[0]
+		stop = loop_range[-1]
 		step = self.const(1)
 		varname = node.elements[0].value
 		self.allocate(start, varname, type_map[INT]())
 		self.branch(test_block)
 		self.position_at_end(test_block)
-		cond = self.builder.icmp_unsigned(LESS_THAN_OR_EQUAL_TO, self.load(varname), stop)
+		cond = self.builder.icmp_unsigned(LESS_THAN_OR_EQUAL_TO, self.load(varname), self.builder.sub(stop, step, 'subtmp'))
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
@@ -317,7 +338,7 @@ class CodeGenerator(NodeVisitor):
 	def visit_range(self, node):
 		left = self.visit(node.left)
 		right = self.visit(node.right)
-		return range(left.constant, right.constant)
+		return left, right
 
 	def visit_assign(self, node):
 		if isinstance(node.right, StructLiteral):
@@ -442,6 +463,8 @@ class CodeGenerator(NodeVisitor):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
 				self.call('printb', [val])
+			elif val.type.width == 128:
+				self.call('print128', [val])
 			else:
 				self.call('printd', [val])
 		elif isinstance(val.type, ir.FloatType):
@@ -463,6 +486,7 @@ class CodeGenerator(NodeVisitor):
 			return
 		self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
 
+	# noinspection PyUnusedLocal
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
 		self.new_scope()
 		ret_type = type_map[return_type.value]()
@@ -472,9 +496,9 @@ class CodeGenerator(NodeVisitor):
 		if parameter_defaults:
 			func_type.parameter_defaults = parameter_defaults
 		func_type.arg_order = arg_keys
-		function = ir.Function(self.module, func_type, name)
+		func = ir.Function(self.module, func_type, name)
 		self.define(name, func_type, 1)
-		self.function = function
+		self.function = func
 		self.new_builder(self.add_block('entry'))
 		self.exit_block = self.add_block('exit')
 
@@ -573,8 +597,9 @@ class CodeGenerator(NodeVisitor):
 		puts_ty = ir.FunctionType(type_map[INT32](), [type_map[INT32]().as_pointer()])
 		ir.Function(self.module, puts_ty, 'puts')
 
-		define_printd(ir, self.module)
-		define_printb(ir, self.module)
+		define_printd(self.module)
+		# define_print128(self.module)
+		define_printb(self.module)
 
 	@staticmethod
 	def stringz_type(string):
@@ -624,6 +649,7 @@ class CodeGenerator(NodeVisitor):
 			fptr()
 
 if __name__ == '__main__':
+	from time import time
 	from my_lexer import Lexer
 	from my_parser import Parser
 	from my_symbol_table_builder import SymbolTableBuilder
@@ -637,9 +663,13 @@ if __name__ == '__main__':
 	if not symtab_builder.warnings:
 		generator = CodeGenerator(parser.file_name)
 		generator.generate_code(t)
-		# generator.evaluate(True, True)
+		start_time = time()
+		generator.evaluate(True, True)
 		# generator.evaluate(False, True)
-		generator.evaluate(True, False)
+		# generator.evaluate(True, False)
 		# generator.evaluate(False, False)
+		end_time = time()
+		print()
+		print(end_time - start_time)
 	else:
 		print('Did not run')

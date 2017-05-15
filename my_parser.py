@@ -15,7 +15,7 @@ class Parser(object):
 
 	def next_token(self):
 		self.current_token = self.lexer.get_next_token()
-		print(self.current_token)
+		# print(self.current_token)
 
 	def eat_type(self, *token_type):
 		if self.current_token.type in token_type:

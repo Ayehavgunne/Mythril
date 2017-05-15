@@ -1,8 +1,4 @@
-class Person
-	new(Str name, Int age)
-		this.name
-		this.age
-
-frank = Person('Frank', 30)
-
-print(frank.age)
+for x in 0..10
+	if x == 5
+		continue
+	print(x)
