@@ -268,7 +268,7 @@ class Lexer(object):
 
 
 if __name__ == '__main__':
-	file = 'math.my'
+	file = 'test.my'
 	lexer = Lexer(open(file).read(), file)
 	for t in lexer.analyze():
 		if t.type == NEWLINE:

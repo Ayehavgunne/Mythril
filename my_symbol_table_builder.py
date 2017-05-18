@@ -1,7 +1,6 @@
 import warnings
 from my_visitor import NodeVisitor, StructSymbol
 from my_visitor import VarSymbol
-from my_visitor import NULLTYPE_BUILTIN
 from my_visitor import CollectionSymbol
 from my_visitor import FuncSymbol
 from my_visitor import AliasSymbol
@@ -15,10 +14,10 @@ def flatten(container):
 	for i in container:
 		if isinstance(i, (list, tuple)):
 			for j in flatten(i):
-				if j and j is not NULLTYPE_BUILTIN:
+				if j:
 					yield j
 		else:
-			if i and i is not NULLTYPE_BUILTIN:
+			if i:
 				yield i
 
 
@@ -141,6 +140,9 @@ class SymbolTableBuilder(NodeVisitor):
 				col_sym = CollectionSymbol(var_name, value, collection_type)
 				col_sym.val_assigned = True
 				self.define(var_name, col_sym)
+			elif isinstance(value, FuncSymbol):
+				value.name = var_name
+				self.define(var_name, value)
 			else:
 				var_sym = VarSymbol(var_name, value, node.left.read_only)
 				var_sym.val_assigned = True
@@ -305,6 +307,7 @@ class SymbolTableBuilder(NodeVisitor):
 				warnings.warn('file={} line={}: The actual return type does not match the declared return type'.format(self.file_name, node.line_num))
 				self.warnings = True
 		self.drop_top_scope()
+		return func_symbol
 
 	def visit_funccall(self, node):
 		func_name = node.name.value
@@ -401,7 +404,7 @@ class SymbolTableBuilder(NodeVisitor):
 if __name__ == '__main__':
 	from my_lexer import Lexer
 	from my_parser import Parser
-	f = 'math.my'
+	f = 'test.my'
 	code = open(f).read()
 	lexer = Lexer(code, f)
 	parser = Parser(lexer)

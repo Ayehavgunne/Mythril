@@ -160,7 +160,7 @@ class Interpreter(NodeVisitor):
 			elif cast_type == DICT:
 				return dict(left)
 			elif cast_type == ENUM:
-				return Enum(left.value, left)
+				return Enum(left.value)
 			elif cast_type in (ANY, FUNC, NULL):
 				raise TypeError('file={} line={}: Cannot cast to type {}'.format(self.file_name, node.line_num, cast_type))
 
@@ -300,7 +300,7 @@ if __name__ == '__main__':
 	from my_lexer import Lexer
 	from my_parser import Parser
 	from my_symbol_table_builder import SymbolTableBuilder
-	file = 'math.my'
+	file = 'test.my'
 	code = open(file).read()
 	lexer = Lexer(code, file)
 	parser = Parser(lexer)

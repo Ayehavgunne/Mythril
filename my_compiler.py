@@ -1,3 +1,5 @@
+from time import sleep
+from time import time
 from ctypes import CFUNCTYPE
 from ctypes import c_void_p
 from llvmlite import ir
@@ -34,17 +36,21 @@ class CodeGenerator(NodeVisitor):
 		self.file_name = file_name
 		self.module = ir.Module()
 		func_ty = ir.FunctionType(ir.VoidType(), [])
-		func = ir.Function(self.module, func_ty, '__main__')
+		func = ir.Function(self.module, func_ty, 'main')
 		entry_block = func.append_basic_block('entry')
 		self.function = func
 		self.main_function = func
 		self.builder = ir.IRBuilder(entry_block)
 		self.main_builder = self.builder
 		self.exit_block = None
+		self.loop_test_blocks = []
+		self.loop_end_blocks = []
+		self.is_break = False
 		llvm.initialize()
 		llvm.initialize_native_target()
 		llvm.initialize_native_asmprinter()
 		self.target = llvm.Target.from_default_triple()
+		self.anon_counter = 0
 		self._add_builtins()
 
 	def visit_program(self, node):
@@ -151,8 +157,15 @@ class CodeGenerator(NodeVisitor):
 		# 		elif cast_type in (ANY, FUNC, NULL):
 		# 			raise TypeError('file={} line={}: Cannot cast to type {}'.format(self.file_name, node.line_num, cast_type))
 
+	def visit_anonymousfunc(self, node):
+		self.anon_counter += 1
+		return self.funcdecl('anon{}'.format(self.anon_counter), node)
+
 	def visit_funcdecl(self, node):
-		self.start_function(node.name.value, node.return_type, node.parameters, node.parameter_defaults, node.varargs)
+		return self.funcdecl(node.name.value, node)
+
+	def funcdecl(self, name, node):
+		self.start_function(name, node.return_type, node.parameters, node.parameter_defaults, node.varargs)
 		for i, arg in enumerate(self.function.args):
 			arg.name = list(node.parameters.keys())[i]
 			var_addr = self.builder.alloca(arg.type, name=arg.name)
@@ -162,11 +175,18 @@ class CodeGenerator(NodeVisitor):
 			ret_var_addr = self.builder.alloca(self.function.function_type.return_type, name=RET_VAR)
 			self.define(RET_VAR, ret_var_addr)
 		ret = self.visit(node.body)
+		func = self.function
 		self.end_function(ret)
-		return self.function
+		return func
 
 	def visit_funccall(self, node):
 		func_type = self.search_scopes(node.name.value)
+		if isinstance(func_type, ir.Function):
+			func_type = func_type.type.pointee
+			name = self.search_scopes(node.name.value)
+			name = name.name
+		else:
+			name = node.name.value
 		if len(node.arguments) < len(func_type.args):
 			args = []
 			args_supplied = []
@@ -185,7 +205,7 @@ class CodeGenerator(NodeVisitor):
 			raise SyntaxError('Unexpected arguments')
 		else:
 			args = [self.visit(arg) for arg in node.arguments]
-		return self.call(node.name.value, args)
+		return self.call(name, args)
 
 	def visit_compound(self, node):
 		ret = None
@@ -221,18 +241,24 @@ class CodeGenerator(NodeVisitor):
 		pass
 
 	def visit_if(self, node):
-		func_exit = self.exit_block
-		if_end = self.add_block('if_end')
-		self.exit_block = if_end
+		start_block = self.add_block('if.start')
+		end_block = self.add_block('if.end')
+		self.builder.branch(start_block)
+		self.builder.position_at_end(start_block)
 		for x, comp in enumerate(node.comps):
+			if_true_block = self.add_block('if.true.{}'.format(x))
+			if x + 1 < len(node.comps):
+				if_false_block = self.add_block('if.false.{}'.format(x))
+			else:
+				if_false_block = end_block
 			cond_val = self.visit(comp)
-			with self.builder.if_then(cond_val):
-				ret = self.visit(node.blocks[x])
-				if not ret:
-					self.branch(if_end)
-		self.branch(if_end)
-		self.position_at_end(if_end)
-		self.exit_block = func_exit
+			self.builder.cbranch(cond_val, if_true_block, if_false_block)
+			self.builder.position_at_end(if_true_block)
+			ret = self.visit(node.blocks[x])
+			if not ret:
+				self.branch(end_block)
+			self.builder.position_at_end(if_false_block)
+		self.position_at_end(end_block)
 
 	def visit_else(self, _):
 		return self.builder.icmp_unsigned(EQUALS, self.const(1), self.const(1), 'cmptmp')
@@ -241,20 +267,29 @@ class CodeGenerator(NodeVisitor):
 		test_block = self.add_block('while.cond')
 		body_block = self.add_block('while.body')
 		end_block = self.add_block('while.end')
+		self.loop_test_blocks.append(test_block)
+		self.loop_end_blocks.append(end_block)
 		self.branch(test_block)
 		self.position_at_end(test_block)
 		cond = self.visit(node.comp)
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
-		self.branch(test_block)
+		if not self.is_break:
+			self.branch(test_block)
+		else:
+			self.is_break = False
 		self.position_at_end(end_block)
+		self.loop_test_blocks.pop()
+		self.loop_end_blocks.pop()
 
 	def visit_for(self, node):
 		init_block = self.add_block('for.init')
 		test_block = self.add_block('for.cond')
 		body_block = self.add_block('for.body')
 		end_block = self.add_block('for.end')
+		self.loop_test_blocks.append(test_block)
+		self.loop_end_blocks.append(end_block)
 		self.branch(init_block)
 		self.position_at_end(init_block)
 		loop_range = self.visit(node.iterator)
@@ -265,19 +300,24 @@ class CodeGenerator(NodeVisitor):
 		self.allocate(start, varname, type_map[INT]())
 		self.branch(test_block)
 		self.position_at_end(test_block)
-		cond = self.builder.icmp_unsigned(LESS_THAN_OR_EQUAL_TO, self.load(varname), self.builder.sub(stop, step, 'subtmp'))
+		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(varname), stop)
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
 		succ = self.builder.add(step, self.load(varname))
 		self.store(varname, succ)
-		self.branch(test_block)
+		if not self.is_break:
+			self.branch(test_block)
+		else:
+			self.is_break = False
 		self.position_at_end(end_block)
+		self.loop_test_blocks.pop()
+		self.loop_end_blocks.pop()
 
 	def visit_loopblock(self, node):
 		for child in node.children:
 			temp = self.visit(child)
-			if temp == CONTINUE or temp == BREAK:
+			if temp:
 				return temp
 
 	def visit_switch(self, node):
@@ -308,18 +348,16 @@ class CodeGenerator(NodeVisitor):
 			if case.value != DEFAULT:
 				switch.add_case(self.visit(case.value), cases[x])
 		self.position_at_end(switch_end_block)
-		return switch
 
-	def visit_case(self, node):
-		raise NotImplementedError
+	def visit_break(self, _):
+		if 'case' in self.builder.block.name:
+			return BREAK
+		else:
+			self.is_break = True
+			return self.builder.branch(self.loop_end_blocks[-1])
 
-	@staticmethod
-	def visit_break(_):
-		return BREAK
-
-	@staticmethod
-	def visit_continue(_):
-		return CONTINUE
+	def visit_continue(self, _):
+		return self.builder.branch(self.loop_test_blocks[-1])
 
 	@staticmethod
 	def visit_pass(_):
@@ -357,6 +395,8 @@ class CodeGenerator(NodeVisitor):
 					if isinstance(var_value, float):
 						node.right.value = float(node.right.value)
 					self.store(var_name, var)
+				elif isinstance(var, ir.Function):
+					self.define(var_name, var)
 				else:
 					self.allocate(var, var_name, var.type)
 
@@ -427,9 +467,6 @@ class CodeGenerator(NodeVisitor):
 				raise NotImplementedError()
 		self.store(var_name, res)
 
-	def visit_anonymousfunc(self, node):
-		raise NotImplementedError
-
 	def visit_return(self, node):
 		val = self.visit(node.value)
 		if val.type != ir.VoidType():
@@ -463,8 +500,8 @@ class CodeGenerator(NodeVisitor):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
 				self.call('printb', [val])
-			elif val.type.width == 128:
-				self.call('print128', [val])
+			# elif val.type.width == 128:
+			# 	self.call('print128', [val])
 			else:
 				self.call('printd', [val])
 		elif isinstance(val.type, ir.FloatType):
@@ -499,8 +536,9 @@ class CodeGenerator(NodeVisitor):
 		func = ir.Function(self.module, func_type, name)
 		self.define(name, func_type, 1)
 		self.function = func
-		self.new_builder(self.add_block('entry'))
+		entry = self.add_block('entry')
 		self.exit_block = self.add_block('exit')
+		self.builder.position_at_start(entry)
 
 	def end_function(self, returned=False):
 		if not returned:
@@ -511,8 +549,9 @@ class CodeGenerator(NodeVisitor):
 			self.builder.ret(retval)
 		else:
 			self.builder.ret_void()
-		self.builder = self.main_builder
+		self.builder.position_at_end(self.main_function.entry_basic_block)
 		self.function = self.main_function
+		self.drop_top_scope()
 
 	def new_builder(self, block):
 		self.builder = ir.IRBuilder(block)
@@ -583,9 +622,8 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.call(self.module.get_global(name), args)
 
 	def create_entry_block_alloca(self, name, typ):
-		builder = ir.IRBuilder()
-		builder.position_at_start(self.builder.function.entry_basic_block)
-		return builder.alloca(typ, size=None, name=name)
+		self.builder.position_at_start(self.builder.function.entry_basic_block)
+		return self.builder.alloca(typ, size=None, name=name)
 
 	def _add_builtins(self):
 		putchar_ty = ir.FunctionType(type_map[INT32](), [type_map[INT32]()])
@@ -645,15 +683,45 @@ class CodeGenerator(NodeVisitor):
 		target_machine = self.target.create_target_machine()
 		with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
 			ee.finalize_object()
-			fptr = CFUNCTYPE(c_void_p)(ee.get_function_address('__main__'))
+			fptr = CFUNCTYPE(c_void_p)(ee.get_function_address('main'))
+			start_time = time()
 			fptr()
+			end_time = time()
+			print('\n{:f} sec'.format(end_time - start_time))
+
+	def compile(self, filename, optimize=True, run=False):
+		import os
+		import subprocess
+		program_string = llvm.parse_assembly(str(self.module))
+		if optimize:
+			pmb = llvm.create_pass_manager_builder()
+			pmb.opt_level = 2
+			pm = llvm.create_module_pass_manager()
+			pmb.populate(pm)
+			pm.run(program_string)
+		cwd = os.getcwd()
+		program_string = str(program_string).replace('source_filename = "<string>"', '')
+		program_string = str(program_string).replace('target triple = "unknown-unknown-unknown"', '')
+		program_string = str(program_string).replace('local_unnamed_addr', '')
+		with open(cwd + '/' + filename + '.ll', 'w') as output:
+			output.write(program_string)
+		os.popen('llc -filetype=obj {0}.ll -march=x86-64 -o {0}.o'.format(filename))
+		sleep(.1)
+		os.popen('gcc {0}.o -o {0}.bin'.format(filename))
+		if run:
+			sleep(.1)
+			start_time = time()
+			output = subprocess.run('./{}.bin'.format(filename), stdout=subprocess.PIPE)
+			end_time = time()
+			print(output.stdout.decode('utf-8'))
+			print('{:f} sec'.format(end_time - start_time))
+
 
 if __name__ == '__main__':
-	from time import time
 	from my_lexer import Lexer
 	from my_parser import Parser
 	from my_symbol_table_builder import SymbolTableBuilder
-	file = 'math.my'
+	file = 'test.my'
 	code = open(file).read()
 	lexer = Lexer(code, file)
 	parser = Parser(lexer)
@@ -663,13 +731,11 @@ if __name__ == '__main__':
 	if not symtab_builder.warnings:
 		generator = CodeGenerator(parser.file_name)
 		generator.generate_code(t)
-		start_time = time()
-		generator.evaluate(True, True)
-		# generator.evaluate(False, True)
+		# generator.evaluate(True, True)
 		# generator.evaluate(True, False)
+		generator.evaluate(False, True)
 		# generator.evaluate(False, False)
-		end_time = time()
-		print()
-		print(end_time - start_time)
+		#
+		# generator.compile(file[:-3], True, True)
 	else:
 		print('Did not run')

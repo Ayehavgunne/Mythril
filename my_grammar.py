@@ -57,6 +57,7 @@ ANY = 'Any'
 INT = 'Int'
 INT8 = 'Int8'
 INT32 = 'Int32'
+INT64 = 'Int64' # same as int but doesn't automatically promote to larger integer type upon overflow
 INT128 = 'Int128'
 DEC = 'Dec'
 FLOAT = 'Float'
@@ -72,7 +73,6 @@ DICT = 'Dict'
 ENUM = 'Enum'  # TODO
 FUNC = 'Func'
 STRUCT = 'Struct'  # TODO
-NULLTYPE = 'NullType'
 
 # Contstants
 TRUE = 'true'
@@ -121,7 +121,7 @@ ALIAS = 'alias'
 REQUIRE = 'require'  # TODO
 ENSURE = 'ensure'  # TODO
 OVERRIDE = 'override'  # TODO
-DOC = 'doc'  # TODO allow unquoted text in doc block
+DOC = 'doc'  # TODO allow unquoted text in doc block... hehe doc block
 ABSTRACT = 'abstract'  # TODO
 GETTER = 'getter'  # TODO
 SETTER = 'setter'  # TODO
@@ -163,7 +163,7 @@ KEYWORDS = (
 
 MULTI_WORD_KEYWORDS = (IF, ELSE, ELSE_IF)
 
-TYPES = (ANY, INT, INT8, INT32, INT128, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES, ARRAY, LIST, TUPLE, DICT, ENUM, FUNC, STRUCT, NULLTYPE)
+TYPES = (ANY, INT, INT8, INT32, INT64, INT128, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES, ARRAY, LIST, TUPLE, DICT, ENUM, FUNC, STRUCT)
 
 CONSTANTS = (TRUE, FALSE, NULL, NAN, INF, NEGATIVE_INF)
 
@@ -200,12 +200,12 @@ ESCAPE = 'escape'
 # Multiple Inheritance (for both classes and structs!)
 # Enums
 # Actors
-# Tests built into the language
-# Contracts built into the language ('require' and 'ensure')
+# Tests built in ('test')
+# Contracts built in ('require' and 'ensure')
 # Exceptions
 # Yielding
 # Context Manager ('with' and 'as' keywords)
-# Modules (importing with 'from' and/or 'import')
+# Modules (importing with 'import' and 'from')
 # Object literals
 # Closures {Done in Interpreter}
 # Anonymous (multi statement) functions {Done in Interpreter}
@@ -218,9 +218,10 @@ ESCAPE = 'escape'
 # Binary operators
 # Complex number type
 # Slices
+# Fix double calling as in immediatly calling a function returned by a function ex: returns_function()()
 # More Collection types (set, hashmap, tuple)
-# Pattern matching
-# Throw away variable using '_' single underscore character
+# Pattern matching ('match')
+# Throw away variable using '_' single underscore character (be able to use it several times)
 # Call C or Python functions from within Mythril http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/
 # Automatic integer(or number) casting on overflow
 # Support Unicode (UTF-8) by default
@@ -228,3 +229,4 @@ ESCAPE = 'escape'
 # Ignore underscores in numbers (as separators to increase readability)
 # Add hexidecimal, octal, and binary literal representations of numbers
 # Javadocs like documentation built in
+# DO NOT add a Null type {Done :)}

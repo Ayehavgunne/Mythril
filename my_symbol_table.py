@@ -35,7 +35,6 @@ TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE)
 DICT_BUILTIN = BuiltinTypeSymbol(DICT)
 ENUM_BUILTIN = BuiltinTypeSymbol(ENUM)
 FUNC_BUILTIN = BuiltinTypeSymbol(FUNC)
-NULLTYPE_BUILTIN = BuiltinTypeSymbol(NULLTYPE)
 
 
 class VarSymbol(Symbol):
@@ -210,7 +209,5 @@ class SymbolTable(object):
 				return self.lookup(ENUM)
 			elif callable(value):
 				return self.lookup(FUNC)
-			elif value is None:
-				return self.lookup(NULLTYPE)
 			else:
 				raise TypeError('Type not recognized: {}'.format(value))

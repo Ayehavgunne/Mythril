@@ -42,7 +42,6 @@ TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE, Tuple)
 DICT_BUILTIN = BuiltinTypeSymbol(DICT, Dict)
 ENUM_BUILTIN = BuiltinTypeSymbol(ENUM, Enum)
 FUNC_BUILTIN = BuiltinTypeSymbol(FUNC, Func)
-NULLTYPE_BUILTIN = BuiltinTypeSymbol(NULLTYPE, NullType)
 
 
 class VarSymbol(Symbol):
@@ -138,7 +137,6 @@ class NodeVisitor(object):
 		self.define(DICT, DICT_BUILTIN)
 		self.define(ENUM, ENUM_BUILTIN)
 		self.define(FUNC, FUNC_BUILTIN)
-		self.define(NULL, NULLTYPE_BUILTIN)
 
 	def visit(self, node):
 		method_name = 'visit_' + type(node).__name__.lower()
@@ -227,7 +225,5 @@ class NodeVisitor(object):
 				return self.search_scopes(ENUM)
 			elif callable(value):
 				return self.search_scopes(FUNC)
-			elif value is None:
-				return self.search_scopes(NULLTYPE)
 			else:
 				raise TypeError('Type not recognized: {}'.format(value))

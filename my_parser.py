@@ -600,7 +600,7 @@ class Parser(object):
 
 if __name__ == '__main__':
 	from my_lexer import Lexer
-	file = 'math.my'
+	file = 'test.my'
 	l = Lexer(open(file).read(), file)
 	parser = Parser(l)
 	tree = parser.parse()

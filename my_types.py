@@ -48,6 +48,16 @@ class Int32(AnyVal):
 		return lambda: ir.IntType(32)
 
 
+class Int64(AnyVal):
+	def __init__(self):
+		super().__init__()
+		self.name = INT64
+
+	@staticmethod
+	def type():
+		return lambda: ir.IntType(64)
+
+
 class Int128(AnyVal):
 	def __init__(self):
 		super().__init__()
@@ -208,16 +218,6 @@ class Func(AnyRef):
 	@staticmethod
 	def type():
 		return ir.FunctionType
-
-
-class NullType(Any):
-	def __init__(self):
-		super().__init__()
-		self.name = NULLTYPE
-
-	@staticmethod
-	def type():
-		return ir.VoidType
 
 
 def get_type_cls(cls):
