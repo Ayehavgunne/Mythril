@@ -11,9 +11,10 @@ class Symbol(object):
 
 
 class BuiltinTypeSymbol(Symbol):
-	def __init__(self, name, llvm_type=None):
+	def __init__(self, name, llvm_type=None, return_type=None):
 		super().__init__(name)
 		self.llvm_type = llvm_type
+		self.return_type = return_type
 
 	def type(self):
 		return self.llvm_type.type()

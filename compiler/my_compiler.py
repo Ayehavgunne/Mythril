@@ -2,32 +2,23 @@ from time import sleep
 from time import time
 from ctypes import CFUNCTYPE
 from ctypes import c_void_p
+
+from decimal import Decimal
 from llvmlite import ir
 import llvmlite.binding as llvm
 from my_builtin_functions import define_printd
 # from my_builtin_functions import define_print128
 from my_builtin_functions import define_printb
+# from my_custom_llvm_types import create_dynamic_array
 from my_visitor import NodeVisitor
 from my_ast import StructLiteral
+from my_ast import DotAccess
+from my_ast import Input
 from my_ast import VarDecl
 from my_grammar import *
-
-RET_VAR = 'ret_var'
-INT8 = 'Int8'
-INT32 = 'Int32'
-INT128 = 'Int128'
-# TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
-type_map = {
-	BOOL: lambda: ir.IntType(1),
-	INT: lambda: ir.IntType(64),
-	INT8: lambda: ir.IntType(8),
-	INT32: lambda: ir.IntType(32),
-	INT128: lambda: ir.IntType(128),
-	DEC: ir.DoubleType,
-	FLOAT: ir.FloatType,
-	FUNC: ir.FunctionType,
-	VOID: ir.VoidType
-}
+from compiler import type_map
+from compiler import RET_VAR
+from compiler.operations import operations
 
 
 class CodeGenerator(NodeVisitor):
@@ -53,109 +44,22 @@ class CodeGenerator(NodeVisitor):
 		self.anon_counter = 0
 		self._add_builtins()
 
+	def __str__(self):
+		return str(self.module)
+
 	def visit_program(self, node):
 		self.visit(node.block)
 		self.builder.ret_void()
 
 	@staticmethod
 	def visit_num(node):
-		return ir.Constant(type_map[node.token.value_type](), node.value)
+		return ir.Constant(type_map[node.token.value_type], node.value)
 
 	def visit_var(self, node):
 		return self.load(node.value)
 
 	def visit_binop(self, node):
-		op = node.op.value
-		left = self.visit(node.left)
-		right = self.visit(node.right)
-		if isinstance(left.type, ir.IntType):
-			if op == PLUS:
-				return self.builder.add(left, right, 'addtmp')
-			elif op == MINUS:
-				return self.builder.sub(left, right, 'subtmp')
-			elif op == MUL:
-				return self.builder.mul(left, right, 'multmp')
-			elif op == FLOORDIV:
-				return self.builder.sdiv(left, right, 'divtmp')
-			elif op == DIV:
-				return self.builder.fdiv(self.builder.sitofp(left, type_map[DEC]()), self.builder.sitofp(right, type_map[DEC]()), 'fdivtmp')
-			elif op == MOD:
-				return self.builder.srem(left, right, 'modtmp')
-			elif op == POWER:
-				temp = self.builder.alloca(type_map[INT]())
-				self.builder.store(left, temp)
-				for _ in range(node.right.value - 1):
-					res = self.builder.mul(self.builder.load(temp), left)
-					self.builder.store(res, temp)
-				return self.builder.load(temp)
-			elif op == AND:
-				return self.builder.and_(left, right)
-			elif op == OR:
-				return self.builder.or_(left, right)
-			elif op == XOR:
-				return self.builder.xor(left, right)
-			elif op == ARITHMATIC_LEFT_SHIFT or op == BINARY_LEFT_SHIFT:
-				return self.builder.shl(left, right)
-			elif op == ARITHMATIC_RIGHT_SHIFT:
-				return self.builder.ashr(left, right)
-			elif op == BINARY_LEFT_SHIFT:
-				return self.builder.lshr(left, right)
-			elif op in (EQUALS, NOT_EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL_TO, GREATER_THAN, GREATER_THAN_OR_EQUAL_TO):
-				cmp = self.builder.icmp_signed(op, left, right, 'cmptmp')
-				return self.builder.uitofp(cmp, type_map[BOOL](), 'booltmp')
-			else:
-				raise SyntaxError('Unknown binary operator', node.op)
-		else:
-			if op == PLUS:
-				return self.builder.fadd(left, right, 'faddtmp')
-			elif op == MINUS:
-				return self.builder.fsub(left, right, 'fsubtmp')
-			elif op == MUL:
-				return self.builder.fmul(left, right, 'fmultmp')
-			elif op == FLOORDIV:
-				return self.builder.udiv(self.builder.fptosi(left, ir.IntType(64)), self.builder.fptosi(right, ir.IntType(64)), 'ffloordivtmp')
-			elif op == DIV:
-				return self.builder.fdiv(left, right, 'fdivtmp')
-			elif op == MOD:
-				return self.builder.frem(left, right, 'fmodtmp')
-			elif op == POWER:
-				temp = self.builder.alloca(type_map[DEC]())
-				self.builder.store(left, temp)
-				for _ in range(node.right.value - 1):
-					res = self.builder.fmul(self.builder.load(temp), left)
-					self.builder.store(res, temp)
-				return self.builder.load(temp)
-			elif op in (EQUALS, NOT_EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL_TO, GREATER_THAN, GREATER_THAN_OR_EQUAL_TO):
-				cmp = self.builder.fcmp_ordered(op, left, right, 'cmptmp')
-				return self.builder.sitofp(cmp, type_map[BOOL](), 'booltmp')
-			else:
-				raise SyntaxError('Unknown binary operator', node.op)
-		# 	elif op == CAST:
-		# 		cast_type = node.right.value
-		# 		if cast_type == INT:
-		# 			return int(left)
-		# 		elif cast_type == DEC:
-		# 			return Decimal(left)
-		# 		elif cast_type == FLOAT:
-		# 			return float(left)
-		# 		elif cast_type == COMPLEX:
-		# 			return complex(left)
-		# 		elif cast_type == STR:
-		# 			return str(left)
-		# 		elif cast_type == BOOL:
-		# 			return bool(left)
-		# 		elif cast_type == BYTES:
-		# 			return bytes(left)
-		# 		elif cast_type == LIST:
-		# 			return list(left)
-		# 		elif cast_type == TUPLE:
-		# 			return tuple(left)
-		# 		elif cast_type == DICT:
-		# 			return dict(left)
-		# 		elif cast_type == ENUM:
-		# 			return Enum(left.value, left)
-		# 		elif cast_type in (ANY, FUNC, NULL):
-		# 			raise TypeError('file={} line={}: Cannot cast to type {}'.format(self.file_name, node.line_num, cast_type))
+		return operations(self, node)
 
 	def visit_anonymousfunc(self, node):
 		self.anon_counter += 1
@@ -171,7 +75,7 @@ class CodeGenerator(NodeVisitor):
 			var_addr = self.builder.alloca(arg.type, name=arg.name)
 			self.define(arg.name, var_addr)
 			self.builder.store(arg, var_addr)
-		if self.function.function_type.return_type != type_map[VOID]():
+		if self.function.function_type.return_type != type_map[VOID]:
 			ret_var_addr = self.builder.alloca(self.function.function_type.return_type, name=RET_VAR)
 			self.define(RET_VAR, ret_var_addr)
 		ret = self.visit(node.body)
@@ -221,7 +125,7 @@ class CodeGenerator(NodeVisitor):
 			if field.value == STR:
 				fields.append(str)
 			else:
-				fields.append(type_map[field.value]())
+				fields.append(type_map[field.value])
 		struct = ir.LiteralStructType(fields)
 		struct.fields = [field for field in node.fields.keys()]
 		self.define(node.name.value, struct)
@@ -230,12 +134,13 @@ class CodeGenerator(NodeVisitor):
 		raise NotImplementedError
 
 	def visit_vardecl(self, node):
-		var_addr = self.builder.alloca(type_map[node.type_node.value](), name=node.var_node.value)
+		var_addr = self.builder.alloca(type_map[node.type_node.value], name=node.var_node.value)
 		self.define(node.var_node.value, var_addr)
 		self.store(self.visit(node.var_node), node.var_node.value)
 
-	def visit_type(self, node):
-		raise NotImplementedError
+	@staticmethod
+	def visit_type(node):
+		return type_map[node.value]
 
 	def visit_noop(self, node):
 		pass
@@ -297,7 +202,7 @@ class CodeGenerator(NodeVisitor):
 		stop = loop_range[-1]
 		step = self.const(1)
 		varname = node.elements[0].value
-		self.allocate(start, varname, type_map[INT]())
+		self.allocate(start, varname, type_map[INT])
 		self.branch(test_block)
 		self.position_at_end(test_block)
 		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(varname), stop)
@@ -382,12 +287,22 @@ class CodeGenerator(NodeVisitor):
 		if isinstance(node.right, StructLiteral):
 			self.struct_assign(node)
 		else:
+			if isinstance(node.right, Input):
+				node.right.type = node.left.type_node.value
 			var = self.visit(node.right)
 			if isinstance(node.left, VarDecl):
 				var_name = node.left.var_node.value
 				if node.left.type_node.value == FLOAT:
 					node.right.value = float(node.right.value)
 				self.allocate(var, var_name, var.type)
+			elif isinstance(node.left, DotAccess):
+				obj = self.search_scopes(node.left.obj)
+				obj_type = self.search_scopes(obj.struct_name)
+				new_obj = self.builder.insert_value(self.load(obj.name), self.visit(node.right), obj_type.fields.index(node.left.field))
+				struct_ptr = self.builder.alloca(obj_type, name=obj.name)
+				self.builder.store(new_obj, struct_ptr)
+				struct_ptr.struct_name = obj.struct_name
+				self.define(obj.name, struct_ptr)
 			else:
 				var_name = node.left.value
 				var_value = self.top_scope.get(var_name)
@@ -399,6 +314,11 @@ class CodeGenerator(NodeVisitor):
 					self.define(var_name, var)
 				else:
 					self.allocate(var, var_name, var.type)
+
+	def visit_fieldassignment(self, node):
+		obj = self.search_scopes(node.obj)
+		obj_type = self.search_scopes(obj.struct_name)
+		return self.builder.extract_value(self.load(node.obj), obj_type.fields.index(node.field))
 
 	def struct_assign(self, node):
 		struct_type = self.search_scopes(node.left.type_node.value)
@@ -435,7 +355,7 @@ class CodeGenerator(NodeVisitor):
 			elif op == MOD_ASSIGN:
 				res = self.builder.srem(self.load(var_name), right)
 			elif op == POWER_ASSIGN:
-				temp = self.builder.alloca(type_map[INT]())
+				temp = self.builder.alloca(type_map[INT])
 				self.builder.store(self.load(var_name), temp)
 				for _ in range(node.right.value - 1):
 					res = self.builder.mul(self.builder.load(temp), self.load(var_name))
@@ -457,7 +377,7 @@ class CodeGenerator(NodeVisitor):
 			elif op == MOD_ASSIGN:
 				res = self.builder.frem(self.load(var_name), right)
 			elif op == POWER_ASSIGN:
-				temp = self.builder.alloca(type_map[DEC]())
+				temp = self.builder.alloca(type_map[DEC])
 				self.builder.store(self.load(var_name), temp)
 				for _ in range(node.right.value - 1):
 					res = self.builder.fmul(self.builder.load(temp), self.load(var_name))
@@ -483,19 +403,48 @@ class CodeGenerator(NodeVisitor):
 			raise NotImplementedError('file={} line={}'.format(self.file_name, node.line_num))
 
 	def visit_str(self, node):
-		return self.stringz(node.value)
+		string = self.stringz(node.value)
+		percent_ptr = self.builder.alloca(ir.ArrayType(string.type.element, string.type.count), name='var_ptr')
+		self.builder.store(string, percent_ptr)
+		percent_ptr_gep = self.builder.gep(percent_ptr, [self.const(0), self.const(0)])
+		return percent_ptr_gep
 
 	def visit_collection(self, node):
+		elements = []
+		for item in node.items:
+			elements.append(self.visit(item))
+		elem_types = [item.type for item in elements]
+		if node.type == LIST:
+			if elem_types[1:] == elem_types[:-1]:
+				return self.define_array(node, elements)
+			else:
+				return self.define_list(node, elements)
+		else:
+			raise NotImplementedError
+
+	@staticmethod
+	def define_array(node, elements):
+		array_type = ir.ArrayType(elements[0].type, len(elements))
+		array = array_type(elements)
+		return array
+
+	def define_list(self, node, elements):
 		raise NotImplementedError
 
 	def visit_hashmap(self, node):
 		raise NotImplementedError
 
 	def visit_collectionaccess(self, node):
-		raise NotImplementedError
+		key = node.key.value
+		collection = self.search_scopes(node.collection.value)
+		return self.builder.extract_value(self.load(collection.name), [key])
 
 	def visit_print(self, node):
-		val = self.visit(node.value)
+		if node.value:
+			val = self.visit(node.value)
+		else:
+			self.call('putchar', [ir.Constant(type_map[INT32], 10)])
+			return
 		if isinstance(val.type, ir.IntType):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
@@ -504,35 +453,52 @@ class CodeGenerator(NodeVisitor):
 			# 	self.call('print128', [val])
 			else:
 				self.call('printd', [val])
-		elif isinstance(val.type, ir.FloatType):
-			raise NotImplementedError
-		elif isinstance(val.type, ir.DoubleType):
+		elif isinstance(val.type, (ir.FloatType, ir.DoubleType)):
 			percent_f = self.stringz('%f')
-			var_ptr = self.builder.alloca(ir.ArrayType(percent_f.type.element, percent_f.type.count), name='var_ptr')
-			self.builder.store(percent_f, var_ptr)
-			var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
-			var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(8).as_pointer())
-			self.call('printf', [var_ptr_gep, self.visit(node.value)])
-		elif isinstance(val.type, ir.ArrayType):
-			var = self.visit(node.value)
-			var_ptr = self.builder.alloca(ir.ArrayType(var.type.element, var.type.count), name='var_ptr')
-			self.builder.store(var, var_ptr)
-			var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
+			percent_f_ptr = self.builder.alloca(ir.ArrayType(percent_f.type.element, percent_f.type.count), name='var_ptr')
+			self.builder.store(percent_f, percent_f_ptr)
+			var_ptr_gep = self.builder.gep(percent_f_ptr, [self.const(0), self.const(0)])
+			var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT8].as_pointer())
+			self.call('printf', [var_ptr_gep, val])
+		elif isinstance(val.type, ir.ArrayType):  # TODO: This assumes an array of characters, make it not assume
+			val_ptr = self.builder.alloca(ir.ArrayType(val.type.element, val.type.count), name='var_ptr')
+			self.builder.store(val, val_ptr)
+			var_ptr_gep = self.builder.gep(val_ptr, [self.const(0), self.const(0)])
 			var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(32).as_pointer())
 			self.call('puts', [var_ptr_gep])
 			return
-		self.call('putchar', [ir.Constant(type_map[INT32](), 10)])
+		elif isinstance(val, (ir.LoadInstr, ir.GEPInstr)):
+			val = self.builder.bitcast(val, type_map[INT32].as_pointer())
+			self.call('puts', [val])
+			return
+		self.call('putchar', [ir.Constant(type_map[INT32], 10)])
+
+	def visit_input(self, node):
+		var_ptr = self.builder.alloca(ir.ArrayType(type_map[INT8], len(node.value.value) + 1), name='var_ptr')
+		self.builder.store(self.stringz(node.value.value), var_ptr)
+		var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
+		var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT32].as_pointer())
+		self.call('puts', [var_ptr_gep])
+		percent_d = self.stringz('%d')
+		int_ptr = self.builder.alloca(type_map[INT], name='var_ptr')
+		percent_ptr = self.builder.alloca(ir.ArrayType(percent_d.type.element, percent_d.type.count), name='var_ptr')
+		self.builder.store(percent_d, percent_ptr)
+		percent_ptr_gep = self.builder.gep(percent_ptr, [self.const(0), self.const(0)])
+		percent_ptr_gep = self.builder.bitcast(percent_ptr_gep, type_map[INT8].as_pointer())
+		return self.call('scanf', [percent_ptr_gep, int_ptr])
 
 	# noinspection PyUnusedLocal
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
 		self.new_scope()
-		ret_type = type_map[return_type.value]()
-		args = [type_map[param.value]() for param in parameters.values()]
+		ret_type = type_map[return_type.value]
+		args = [type_map[param.value] for param in parameters.values()]
 		arg_keys = [key for key in parameters.keys()]
 		func_type = ir.FunctionType(ret_type, args)
 		if parameter_defaults:
 			func_type.parameter_defaults = parameter_defaults
 		func_type.arg_order = arg_keys
+		if return_type.func_ret_type:
+			func_type.return_type = func_type.return_type(type_map[return_type.func_ret_type.value], [return_type.func_ret_type.value]).as_pointer()
 		func = ir.Function(self.module, func_type, name)
 		self.define(name, func_type, 1)
 		self.function = func
@@ -544,7 +510,7 @@ class CodeGenerator(NodeVisitor):
 		if not returned:
 			self.branch(self.exit_block)
 		self.position_at_end(self.exit_block)
-		if self.function.function_type.return_type != type_map[VOID]():
+		if self.function.function_type.return_type != type_map[VOID]:
 			retval = self.builder.load(self.search_scopes(RET_VAR))
 			self.builder.ret(retval)
 		else:
@@ -580,11 +546,11 @@ class CodeGenerator(NodeVisitor):
 			if width:
 				return ir.Constant(ir.IntType(width), val)
 			else:
-				return ir.Constant(type_map[INT](), val)
-		elif isinstance(val, float):
+				return ir.Constant(type_map[INT], val)
+		elif isinstance(val, (float, Decimal)):
 			return ir.Constant(type_map[DEC], val)
 		elif isinstance(val, bool):
-			return ir.Constant(type_map[INT](), int(val))
+			return ir.Constant(type_map[BOOL], bool(val))
 		elif isinstance(val, str):
 			return self.stringz(val)
 		else:
@@ -595,11 +561,11 @@ class CodeGenerator(NodeVisitor):
 			if width:
 				return ir.Constant(ir.IntType(width).as_pointer(), val)
 			else:
-				return ir.Constant(type_map[INT]().as_pointer(), val)
+				return ir.Constant(type_map[INT].as_pointer(), val)
 		elif isinstance(val, float):
 			return ir.Constant(type_map[DEC].as_pointer(), val)
 		elif isinstance(val, bool):
-			return ir.Constant(type_map[INT]().as_pointer(), int(val))
+			return ir.Constant(type_map[BOOL].as_pointer(), bool(val))
 		elif isinstance(val, str):
 			return self.stringz_pntr(val)
 		else:
@@ -626,13 +592,25 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.alloca(typ, size=None, name=name)
 
 	def _add_builtins(self):
-		putchar_ty = ir.FunctionType(type_map[INT32](), [type_map[INT32]()])
+		malloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT]])
+		ir.Function(self.module, malloc_ty, 'malloc')
+
+		free_ty = ir.FunctionType(type_map[VOID], [type_map[INT8].as_pointer()])
+		ir.Function(self.module, free_ty, 'free')
+
+		putchar_ty = ir.FunctionType(type_map[INT32], [type_map[INT32]])
 		ir.Function(self.module, putchar_ty, 'putchar')
 
-		printf_ty = ir.FunctionType(type_map[INT32](), [type_map[INT8]().as_pointer()], var_arg=True)
+		printf_ty = ir.FunctionType(type_map[INT32], [type_map[INT8].as_pointer()], var_arg=True)
 		ir.Function(self.module, printf_ty, 'printf')
 
-		puts_ty = ir.FunctionType(type_map[INT32](), [type_map[INT32]().as_pointer()])
+		scanf_ty = ir.FunctionType(type_map[INT], [type_map[INT8].as_pointer(), type_map[INT].as_pointer()], var_arg=True)
+		ir.Function(self.module, scanf_ty, 'scanf')
+
+		getchar_ty = ir.FunctionType(ir.IntType(4), [])
+		ir.Function(self.module, getchar_ty, 'getchar')
+
+		puts_ty = ir.FunctionType(type_map[INT32], [type_map[INT32].as_pointer()])
 		ir.Function(self.module, puts_ty, 'puts')
 
 		define_printd(self.module)
@@ -641,11 +619,11 @@ class CodeGenerator(NodeVisitor):
 
 	@staticmethod
 	def stringz_type(string):
-		return ir.ArrayType(type_map[INT8](), len(string) + 1)
+		return ir.ArrayType(type_map[INT8], len(string) + 1)
 
 	@staticmethod
 	def stringz_pntr_type(string):
-		return ir.ArrayType(type_map[INT8](), len(string) + 1).as_pointer()
+		return ir.ArrayType(type_map[INT8], len(string) + 1).as_pointer()
 
 	@staticmethod
 	def stringz(string):
@@ -653,7 +631,7 @@ class CodeGenerator(NodeVisitor):
 		buf = bytearray((' ' * n).encode('ascii'))
 		buf[-1] = 0
 		buf[:-1] = string.encode('utf-8')
-		return ir.Constant(ir.ArrayType(type_map[INT8](), n), buf)
+		return ir.Constant(ir.ArrayType(type_map[INT8], n), buf)
 
 	@staticmethod
 	def stringz_pntr(string):
@@ -661,7 +639,7 @@ class CodeGenerator(NodeVisitor):
 		buf = bytearray((' ' * n).encode('ascii'))
 		buf[-1] = 0
 		buf[:-1] = string.encode('utf-8')
-		return ir.Constant(ir.ArrayType(type_map[INT8](), n).as_pointer(), buf)
+		return ir.Constant(ir.ArrayType(type_map[INT8], n).as_pointer(), buf)
 
 	def generate_code(self, node):
 		return self.visit(node)
@@ -716,26 +694,25 @@ class CodeGenerator(NodeVisitor):
 			print(output.stdout.decode('utf-8'))
 			print('{:f} sec'.format(end_time - start_time))
 
-
-if __name__ == '__main__':
-	from my_lexer import Lexer
-	from my_parser import Parser
-	from my_symbol_table_builder import SymbolTableBuilder
-	file = 'test.my'
-	code = open(file).read()
-	lexer = Lexer(code, file)
-	parser = Parser(lexer)
-	t = parser.parse()
-	symtab_builder = SymbolTableBuilder(parser.file_name)
-	symtab_builder.build(t)
-	if not symtab_builder.warnings:
-		generator = CodeGenerator(parser.file_name)
-		generator.generate_code(t)
-		# generator.evaluate(True, True)
-		# generator.evaluate(True, False)
-		generator.evaluate(False, True)
-		# generator.evaluate(False, False)
-		#
-		# generator.compile(file[:-3], True, True)
-	else:
-		print('Did not run')
+# if __name__ == '__main__':
+# 	from my_lexer import Lexer
+# 	from my_parser import Parser
+# 	from my_symbol_table_builder import SymbolTableBuilder
+# 	file = 'test.my'
+# 	code = open(file).read()
+# 	lexer = Lexer(code, file)
+# 	parser = Parser(lexer)
+# 	t = parser.parse()
+# 	symtab_builder = SymbolTableBuilder(parser.file_name)
+# 	symtab_builder.build(t)
+# 	if not symtab_builder.warnings:
+# 		generator = CodeGenerator(parser.file_name)
+# 		generator.generate_code(t)
+# 		# generator.evaluate(True, True)
+# 		# generator.evaluate(True, False)
+# 		generator.evaluate(False, True)
+# 		# generator.evaluate(False, False)
+# 		#
+# 		# generator.compile(file[:-3], True, True)
+# 	else:
+# 		print('Did not run')

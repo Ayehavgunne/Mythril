@@ -4,7 +4,8 @@ from my_visitor import VarSymbol
 from my_visitor import CollectionSymbol
 from my_visitor import FuncSymbol
 from my_visitor import AliasSymbol
-from my_ast import VarDecl
+from my_ast import VarDecl, DotAccess
+# from my_ast import FieldAssignment
 from my_ast import Var
 from my_ast import Collection
 from my_grammar import *
@@ -122,6 +123,7 @@ class SymbolTableBuilder(NodeVisitor):
 
 	def visit_assign(self, node):  # TODO clean up this mess of a function
 		collection_type = None
+		field_assignment = None
 		if isinstance(node.left, VarDecl):
 			var_name = node.left.var_node.value
 			value = self.infer_type(node.left.type_node)
@@ -129,6 +131,10 @@ class SymbolTableBuilder(NodeVisitor):
 		elif isinstance(node.right, Collection):
 			var_name = node.left.value
 			value, collection_type = self.visit(node.right)
+		elif isinstance(node.left, DotAccess):
+			field_assignment = True
+			var_name = self.visit(node.left)
+			value = self.visit(node.right)
 		else:
 			var_name = node.left.value
 			value = self.visit(node.right)
@@ -140,9 +146,20 @@ class SymbolTableBuilder(NodeVisitor):
 				col_sym = CollectionSymbol(var_name, value, collection_type)
 				col_sym.val_assigned = True
 				self.define(var_name, col_sym)
+			elif field_assignment:
+				if var_name is value:
+					return
+				else:
+					warnings.warn('file={} line={} Type Error: What are you trying to do?!?! (fix this message)'.format(self.file_name, node.line_num))
+					self.warnings = True
 			elif isinstance(value, FuncSymbol):
 				value.name = var_name
 				self.define(var_name, value)
+			elif value.name == FUNC:
+				# noinspection PyUnresolvedReferences
+				val_info = self.search_scopes(node.right.name.value)
+				func_sym = FuncSymbol(var_name, val_info.type.return_type, val_info.parameters, val_info.body, val_info.parameter_defaults)
+				self.define(var_name, func_sym)
 			else:
 				var_sym = VarSymbol(var_name, value, node.left.read_only)
 				var_sym.val_assigned = True
@@ -185,6 +202,10 @@ class SymbolTableBuilder(NodeVisitor):
 			warnings.warn('file={} line={}: Things that should not be happening ARE happening (fix this message)'.format(self.file_name, node.line_num))
 			self.warnings = True
 
+	def visit_fieldassignment(self, node):
+		obj = self.search_scopes(node.obj)
+		return self.visit(obj.type.fields[node.field])
+
 	def visit_var(self, node):
 		var_name = node.value
 		val = self.search_scopes(var_name)
@@ -214,7 +235,7 @@ class SymbolTableBuilder(NodeVisitor):
 			if right_type is left_type or left_type is any_type or right_type is any_type:
 				return left_type
 			else:
-				warnings.warn('file={} line={}: Oh noez, it is bwoken (fix this message)'.format(self.file_name, node.line_num))
+				warnings.warn('file={} line={}: Oh noez, it is bwoakn (fix this message)'.format(self.file_name, node.line_num))
 				self.warnings = True
 
 	def visit_unaryop(self, node):
@@ -257,6 +278,8 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_funcdecl(self, node):
 		func_name = node.name.value
 		func_type = self.search_scopes(node.return_type.value)
+		if func_type.name == FUNC:
+			func_type.return_type = self.visit(node.return_type.func_ret_type)
 		self.new_scope()
 		if node.varargs:
 			varargs_type = self.search_scopes(ARRAY)
@@ -278,14 +301,15 @@ class SymbolTableBuilder(NodeVisitor):
 				sym = VarSymbol(k, var_type)
 			sym.val_assigned = True
 			self.define(sym.name, sym)
-		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
-		self.define(func_name, func_symbol, 1)
-		return_types = self.visit(func_symbol.body)
+		return_types = self.visit(node.body)
 		return_types = list(flatten(return_types))
 		for ret_type in return_types:
-			if self.infer_type(ret_type) is not func_type:
+			infered_type = self.infer_type(ret_type)
+			if infered_type is not func_type:
 				warnings.warn('file={} line={}: The actual return type does not match the declared return type: {}'.format(self.file_name, node.line_num, func_name))
 				self.warnings = True
+		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
+		self.define(func_name, func_symbol, 1)
 		self.drop_top_scope()
 
 	def visit_anonymousfunc(self, node):
@@ -335,6 +359,10 @@ class SymbolTableBuilder(NodeVisitor):
 			func.accessed = True
 			return func.type
 
+	def visit_structdeclaration(self, node):
+		sym = StructSymbol(node.name.value, node.fields)
+		self.define(sym.name, sym)
+
 	def visit_return(self, node):
 		res = self.visit(node.value)
 		return res
@@ -360,10 +388,6 @@ class SymbolTableBuilder(NodeVisitor):
 			return self.search_scopes(ARRAY), types[0]
 		else:
 			return self.search_scopes(LIST), self.search_scopes(ANY)
-
-	def visit_structdeclaration(self, node):
-		sym = StructSymbol(node.name.value, node.fields)
-		self.define(sym.name, sym)
 
 	def visit_dotaccess(self, node):
 		obj = self.search_scopes(node.obj)
@@ -399,6 +423,10 @@ class SymbolTableBuilder(NodeVisitor):
 			self.warnings = True
 
 	def visit_print(self, node):
+		if node.value:
+			self.visit(node.value)
+
+	def visit_input(self, node):
 		self.visit(node.value)
 
 if __name__ == '__main__':

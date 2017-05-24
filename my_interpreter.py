@@ -4,7 +4,6 @@ from collections import OrderedDict
 from collections import Iterable
 from enum import Enum
 from my_visitor import NodeVisitor
-from my_ast import Null
 from my_ast import FuncDecl
 from my_ast import VarDecl
 from my_ast import Else

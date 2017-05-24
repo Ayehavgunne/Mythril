@@ -46,19 +46,48 @@ switch num
 	case 3
 		print('I am Three')
 
-def fib(Int num) -> Int
-	if num == 0
+def fib(Int n) -> Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
+
+def fib_rec(Int n) -> Int
+	if n == 0
 		return 0
-	else if num == 1
+	if n == 1
 		return 1
-	else
-		return fib(num - 1) + fib(num - 2)
+	return fib_rec(n - 1) + fib_rec(n - 2)
 
 myfunc = def (Int x, Int y) -> Int
 	if x > y
 		return x + y
 	else
 		return x * y
+
+def start_at(Int x) -> Func
+	def increment_by(Int y) -> Int
+		return x + y
+	return increment_by
+
+start_at_5 = start_at(5)
+start_at_27 = start_at(27)
+
+print(start_at_5(4))
+print(start_at_27(15))
+
+Int num = 1.0::Int
+
+print(num)
+
+Int age = input('How old are you?')
+
+print('Wow! You are')
+print(age + 3)
+print('years old?!')
 
 scoots(
 	def (Str verb) -> void
@@ -73,8 +102,16 @@ Enum Genders(
 	OTHER
 )
 
-vulgar_words[Str] = ['Trump', 'Pence']
+Struct Circle
+	Int radius
+	Int x
+	Int y
 
+Circle cir = {radius=5, x=2, y=4}
+
+print(cir.radius)
+
+vulgar_words[Str] = ['Trump', 'Pence']
 
 abstract class Person
 	species = 'Human'
@@ -85,7 +122,6 @@ abstract class Person
 		this._haircolor = haircolor
 		Str this._fav_color
 		this.opinionated = true
-
 
 class Boy(Person)
 	new(Str, name, Int age, haircolor='blond')
@@ -116,3 +152,183 @@ class Boy(Person)
 
 	setter fav_color(Str color)
 		this._fav_color = color
+
+
+class Person
+	new(Str name, Int age)
+		this.name
+		this.age
+
+frank = Person('Frank', 30)
+
+print(frank.age)
+
+myfunc = def (Int x, Int y) -> Int
+	if x > y
+		return x + y
+	else
+		return x ** y
+
+print(myfunc(9, 2))
+
+num = 52
+
+if num > 6
+	num = 53
+else
+	num = 54
+
+print(num)
+
+garry = true
+larry = false
+num = 8
+
+if not num == 7
+	num += 2
+else if garry
+	num -= 1
+else
+	num *= 4
+
+print(num)
+print(garry)
+print(larry)
+
+def is_less_than_5(Int x) -> Bool
+	if x >= 5
+		return false
+	else
+		return true
+
+print(is_less_than_5(3))
+print(is_less_than_5(5))
+print(is_less_than_5(7))
+
+def do_stuff(Int y) -> void
+	print(y)
+
+def square(Int x) -> Int
+	do_stuff(x)
+	return x ** 2
+
+print(square(5))
+
+type FInt = Func[Int] -> Int
+
+def do_stuff(Int x, FInt callback) -> Int
+	x **= 2
+	x = callback(x)
+	return x
+
+num = do_stuff(3,
+	def (Int y) -> Int
+		y += 7
+		return y
+)
+
+print(
+	num
+)
+
+def greet_name(Str name) -> void
+	print('Hello ' + name)
+
+greet_name('Anthony')
+
+def start_at(Int x) -> Func
+	def increment_by(Int y) -> Int
+		return x + y
+	return increment_by
+
+start_at_5 = start_at(5)
+start_at_1 = start_at(27)
+
+print(start_at_5(4))
+print(start_at_1(15))
+
+x = 0
+while x < 10
+	if x == 1
+		break
+	x += 1
+
+switch x
+	case 2
+		print('x is Two')
+		break
+
+	case 1
+		print('x is One')
+
+	default
+		print("Sorry, wasn't paying attention")
+
+def fib(Int num) -> Int
+	if num == 0
+		return 0
+	if num == 1
+		return 1
+	return fib(num - 1) + fib(num - 2)
+
+print(fib(8))
+
+y = 10
+for x in 0..y + 1
+	print(x::Str + ' ' + fib(x)::Str)
+
+things = [3, 2, 1]
+stuff = {first_name: 'samus', last_name: 'aran'}
+
+print(things[1 + 1])
+Dec a
+b = 3
+
+def bar() -> Int
+	return 2 + 2
+
+Bool larry = true
+f = bar()
+Float g = 7.5
+h = 5
+garry = false
+
+if garry
+	g = 2.6
+	if larry and garry
+		h += h
+else if larry
+	g = 3.6
+else
+	g = 7.6
+
+if larry
+	g += 7
+first_name = 'Anthony'
+last_name = 'Post\'s'
+full_name = first_name + ' ' + last_name
+a = 2 * g
+d = 0
+c = a::Int ** b
+
+def foo(Int first, Int second) -> Int
+	def baz() -> Int
+		return 54
+	if first < second
+		return first + second
+	else
+		return baz()
+
+e = foo(c, b)
+
+while b < 30
+	b += c + 1
+	if b >= 20
+		b += 2
+	else
+		b += 1
+
+d += c + b
+
+print((1,2,3))
+print({a: a, b: b, c: c, d: d, e: e, f: f, first_name: first_name, full_name: full_name, g: g, garry: garry, h: h, larry: larry, last_name: last_name, stuff: stuff, things: things})

@@ -1,9 +1,10 @@
-def fib(Int n) -> Int
-	if n == 0
-		return 0
-	if n == 1
-		return 1
-	return fib(n - 1) + fib(n - 2)
+def start_at(Int x) -> Func[Int]
+	def increment_by(Int y) -> Int
+		return x + y
+	return increment_by
 
-for x in 0..20
-	print(fib(x))
+start_at_5 = start_at(5)
+start_at_27 = start_at(27)
+
+print(start_at_5(4))
+print(start_at_27(15))

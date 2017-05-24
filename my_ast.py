@@ -253,13 +253,6 @@ class Void(AST):
 	value = VOID
 
 
-class Null(AST):
-	def __str__(self):
-		return 'NULL'
-
-	__repr__ = __str__
-
-
 class Var(AST):
 	def __init__(self, token, line_num, read_only=False):
 		self.token = token
@@ -290,8 +283,10 @@ class Str(AST):
 
 
 class Collection(AST):
-	def __init__(self, token, line_num, read_only, *items):
+	def __init__(self, token, collection_type, line_num, read_only, *items):
 		self.token = token
+		self.type = collection_type
+		self.read_only = read_only
 		self.read_only = read_only
 		self.items = items
 		self.line_num = line_num
@@ -304,6 +299,13 @@ class HashMap(AST):
 
 
 class Print(AST):
+	def __init__(self, token, value, line_num):
+		self.token = token
+		self.value = value
+		self.line_num = line_num
+
+
+class Input(AST):
 	def __init__(self, token, value, line_num):
 		self.token = token
 		self.value = value

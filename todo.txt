@@ -1,0 +1,43 @@
+Keyword arguments {Done in Compiler}
+Argument default values {Done in Compiler}
+Variable number of arguments (varargs) {Partialy done in Compiler}
+Variable number of keyword arguments
+Signed Integers {Not an issue in interpreter}
+Structs {Done in Compiler}
+Classes
+Multiple Inheritance (for both classes and structs!)
+A Type system would most likely be good to have
+Enums
+Actors
+Tests built in ('test')
+Contracts built in ('require' and 'ensure')
+Exceptions
+Yielding
+Context Manager ('with' and 'as')
+Modules (importing with 'import' and 'from')
+Object literals
+Closures {Done in Interpreter}
+Anonymous (multi statement) functions {Done in Interpreter}
+Assigning functions to variables {Done}
+Properties ('getter' and 'setter')
+Decorators
+Delete things ('del')
+Type Aliasing
+Bytes type
+Binary operators
+Complex number type
+Slices
+Tuple unpacking
+Allow for double calling as in immediatly calling a function returned by a function ex: returns_function()()
+More Collection types (set, hashmap, tuple, linked list, trees, etc.)
+Pattern matching ('match')
+Throw away variable using '_' single underscore character (be able to use it multiple times)
+Call C or Python functions from within Mythril http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/
+Automatic integer(or number) casting on overflow
+Support Unicode (UTF-8) by default
+Multiple dispatch
+Ignore underscores in numbers (as separators to increase readability)
+Add hexidecimal, octal, and binary literal representations of numbers
+Javadocs like documentation built in
+DO NOT add a Null type {Done :)}
+Use an Option type instead of Null to distinguish invalid values
