@@ -30,7 +30,7 @@ LCURLYBRACKET = '{'
 RCURLYBRACKET = '}'
 COMMA = ','
 COLON = ':'
-DOT = '.'  # TODO
+DOT = '.'
 RANGE = '..'
 ELLIPSIS = '...'  # TODO
 ARROW = '->'
@@ -72,7 +72,7 @@ SET = 'Set'  # TODO
 DICT = 'Dict'
 ENUM = 'Enum'  # TODO
 FUNC = 'Func'
-STRUCT = 'Struct'  # TODO
+STRUCT = 'Struct'
 
 # Contstants
 TRUE = 'true'
@@ -168,10 +168,12 @@ TYPES = (ANY, INT, INT8, INT32, INT64, INT128, DEC, FLOAT, COMPLEX, STR, BOOL, B
 
 CONSTANTS = (TRUE, FALSE, NAN, INF, NEGATIVE_INF)
 
-BUILTIN_FUNCTIONS = ('print',)
-
 PRINT = 'print'
 INPUT = 'input'
+
+BUILTIN_FUNCTIONS = (PRINT, INPUT)
+
+# For Lexer
 TYPE = 'TYPE'
 NUMBER = 'NUMBER'
 STRING = 'STRING'
@@ -183,7 +185,6 @@ KEYWORD = 'KEYWORD'
 ANON = 'ANON'
 NAME = 'NAME'
 EOF = 'EOF'
-
 ALPHANUMERIC = 'alphanumeric'
 NUMERIC = 'numeric'
 OPERATIC = 'operatic'
