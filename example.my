@@ -1,35 +1,30 @@
-Int greets
-hello = 23
-hi2=hello+1.2
-hmm = "what is\" going' on"
+Int nums
+number = 23
+float_number=number+1.2
+question = "what is\" going' on"
 Str where
-things = [1, 2, 3] # Array
-other_stuff = [1, 'Hello'] # List
-stuff = {first_name: 'samus', 'last_name': 'aran'} # Dict
+things = [1, 2, 3]
+other_stuff = [1, 'Hello']
+stuff = {first_name: 'samus', 'last_name': 'aran'}
 
-if where is not hello \
+if where is not number \
 	and true
-	print('They not the same')
+	print('They are not the same')
 
-if hello == 23
-	print('whosits') # line comment
+if number == 23
+	print('equals 23') # line comment
 else
-	print('whatsits')
+	print('does not equal 23')
 
-while hello > 1:
-	hello = hello - 1
-	print(hello)
+while number > 1
+	number -= 1
+	print(number)
 
 if 2 in things
 	print('yes')
 
 if 2 not in things
 	print('no')
-
-def scoots(Func sploots) -> void
-	whats = 'loves'
-	print('snoots')
-	sploots(whats)
 
 Int num = 1
 
@@ -86,15 +81,8 @@ print(num)
 Int age = input('How old are you?')
 
 print('Wow! You are')
-print(age + 3)
+print(age)
 print('years old?!')
-
-scoots(
-	def (Str verb) -> void
-		print('Snape')
-		print(verb)
-		print('Dumbledore')
-	)
 
 Enum Genders(
 	MALE,
@@ -111,8 +99,6 @@ Circle cir = {radius=5, x=2, y=4}
 
 print(cir.radius)
 
-vulgar_words[Str] = ['Trump', 'Pence']
-
 abstract class Person
 	species = 'Human'
 
@@ -127,10 +113,6 @@ class Boy(Person)
 	new(Str, name, Int age, haircolor='blond')
 		require age < 18
 		super.Person(name=name, age=age, gender=Genders.MALE, haircolor=haircolor)
-
-	void talk(Str words)
-		assert word not in vulgar_words for word in words.split(' ')
-		print(words)
 
 	void say_age()
 		print('I am {} years old'.format(this.age))

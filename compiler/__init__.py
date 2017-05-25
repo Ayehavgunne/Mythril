@@ -8,6 +8,7 @@ NUM_TYPES = (ir.IntType, ir.DoubleType, ir.FloatType)
 
 # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
 type_map = {
+	ANY: ir.VoidType(),
 	BOOL: ir.IntType(1),
 	INT: ir.IntType(64),
 	INT8: ir.IntType(8),

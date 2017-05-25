@@ -1,10 +1,16 @@
-def start_at(Int x) -> Func[Int]
-	def increment_by(Int y) -> Int
-		return x + y
-	return increment_by
+#def start_at(Int x) -> Func[Int]
+#	def increment_by(Int y) -> Int
+#		return x + y
+#	return increment_by
+#
+#start_at_5 = start_at(5)
+#start_at_27 = start_at(27)
+#
+#print(start_at_5(4))
+#print(start_at_27(15))
 
-start_at_5 = start_at(5)
-start_at_27 = start_at(27)
+def print_it(Any var) -> void
+	print(var)
 
-print(start_at_5(4))
-print(start_at_27(15))
+print_it("hello")
+print_it(1)

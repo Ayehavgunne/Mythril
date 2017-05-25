@@ -278,7 +278,7 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_funcdecl(self, node):
 		func_name = node.name.value
 		func_type = self.search_scopes(node.return_type.value)
-		if func_type.name == FUNC:
+		if func_type and func_type.name == FUNC:
 			func_type.return_type = self.visit(node.return_type.func_ret_type)
 		self.new_scope()
 		if node.varargs:
@@ -342,7 +342,7 @@ class SymbolTableBuilder(NodeVisitor):
 				param_ss = self.search_scopes(param.value)
 				if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
 					continue
-				elif param.value != var.name and param.value != var.type.name:
+				elif param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
 					raise TypeError
 			else:
 				func_param_keys = list(func.parameters.keys())

@@ -1,32 +1,52 @@
 # Mythril
 A new multi-paradigm programming language
 
-This is super early in development so please don't expect much yet.
+This project is super early in development.
 
 ## Goals:
-  * Learn about compilers, LLVM, language design
-  * Create a Python like syntax and mix in a whole lot of new language features and ideas
-  * Use LLVM to make it more performant than Python but just as easy to use
+* Learn about compilers, LLVM, language design
+* Create a Python like syntax and mix in a whole lot of new language features and ideas
+* Use LLVM to make it more performant than Python but just as easy to use
+* Focus on designs that will reduce possible errors
 
-## TODO
+## Planned Features:
+* Type Infrence
+* Pattern Matching
+* First Class Functions
+* Classes
+* Actors
+* Default parameter values to functions
+* Keyword arguments
+* Design by Contract
+* Builtin Testing
+* Builtin Documentation
+* Genreators
+* Comprehensions
+* Context Managers
+* Anonymous (multi statement) Functions
+* Decorators
+* Type Aliasing
+* Slicing
+* Multiple Dispatch
+
+## TODO:
 - [x] Keyword arguments
-- [x] Argument default values
+- [x] Parameter default values
 - [ ] Variable number of arguments (varargs) {Partialy done}
 - [ ] Variable number of keyword arguments
 - [ ] Signed Integers
 - [x] Structs
 - [ ] Classes
-- [ ] Multiple Inheritance (for both classes and structs! Still considering alternatives however) 
-- [ ] A Type system would most likely be good to have
+- [ ] Multiple Inheritance (for both classes and structs! Considering alternatives) 
+- [ ] A more robust Type System would most likely be good to have
 - [ ] Enums
 - [ ] Actors
 - [ ] Tests built in ('test')
 - [ ] Contracts built in ('require' and 'ensure')
-- [ ] Exceptions
+- [ ] Exceptions (Looking at alternatives)
 - [ ] Yielding
 - [ ] Context Manager ('with' and 'as')
 - [ ] Modules (importing with 'import' and 'from')
-- [ ] Object literals
 - [ ] Closures
 - [ ] Anonymous (multi statement) functions
 - [x] Assigning functions to variables
@@ -55,8 +75,10 @@ This is super early in development so please don't expect much yet.
 - [ ] Do Exhaustive Pattern Matching to help reduce errors
 
 ## Influences
-  * Python
-  * Javascript
-  * Java
-  * Pony
-  * F#
+* Python
+* Javascript
+* Java
+* Go
+* Pony
+* F#
+* Cobra

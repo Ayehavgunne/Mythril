@@ -497,7 +497,7 @@ class CodeGenerator(NodeVisitor):
 		if parameter_defaults:
 			func_type.parameter_defaults = parameter_defaults
 		func_type.arg_order = arg_keys
-		if return_type.func_ret_type:
+		if hasattr(return_type, 'func_ret_type') and return_type.func_ret_type:
 			func_type.return_type = func_type.return_type(type_map[return_type.func_ret_type.value], [return_type.func_ret_type.value]).as_pointer()
 		func = ir.Function(self.module, func_type, name)
 		self.define(name, func_type, 1)
