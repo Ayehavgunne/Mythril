@@ -250,7 +250,7 @@ class Parser(object):
 			if self.current_token.type == NEWLINE:
 				self.next_token()
 			elif self.current_token.type == EOF:
-				results.pop()
+				results = [x for x in results if x is not None]
 				break
 		return results
 

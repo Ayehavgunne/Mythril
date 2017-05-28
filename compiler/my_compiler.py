@@ -25,7 +25,8 @@ class CodeGenerator(NodeVisitor):
 	def __init__(self, file_name):
 		super().__init__()
 		self.file_name = file_name
-		self.module = ir.Module()
+		self.module = ir.Module(name='main')
+		self._add_builtins()
 		func_ty = ir.FunctionType(ir.VoidType(), [])
 		func = ir.Function(self.module, func_ty, 'main')
 		entry_block = func.append_basic_block('entry')
@@ -42,7 +43,7 @@ class CodeGenerator(NodeVisitor):
 		llvm.initialize_native_asmprinter()
 		self.target = llvm.Target.from_default_triple()
 		self.anon_counter = 0
-		self._add_builtins()
+		# self._add_builtins()
 
 	def __str__(self):
 		return str(self.module)
@@ -646,8 +647,8 @@ class CodeGenerator(NodeVisitor):
 
 	def evaluate(self, optimize=True, llvmdump=False):
 		if llvmdump:
-			print('======== Unoptimized LLVM IR')
-			print(str(self.module))
+			# print('======== Unoptimized LLVM IR')
+			print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
 		llvmmod = llvm.parse_assembly(str(self.module))
 		if optimize:
 			pmb = llvm.create_pass_manager_builder()
@@ -655,9 +656,10 @@ class CodeGenerator(NodeVisitor):
 			pm = llvm.create_module_pass_manager()
 			pmb.populate(pm)
 			pm.run(llvmmod)
-			if llvmdump:
-				print('======== Optimized LLVM IR')
-				print(str(llvmmod))
+			# if llvmdump:
+			# 	print('======== Optimized LLVM IR')
+			# 	# print(str(llvmmod))
+			# 	print('define void @main(){}'.format(str(llvmmod).split('define void @main()')[1]))
 		target_machine = self.target.create_target_machine()
 		with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
 			ee.finalize_object()
@@ -678,21 +680,22 @@ class CodeGenerator(NodeVisitor):
 			pmb.populate(pm)
 			pm.run(program_string)
 		cwd = os.getcwd()
-		program_string = str(program_string).replace('source_filename = "<string>"', '')
-		program_string = str(program_string).replace('target triple = "unknown-unknown-unknown"', '')
-		program_string = str(program_string).replace('local_unnamed_addr', '')
-		with open(cwd + '/' + filename + '.ll', 'w') as output:
+		program_string = str(program_string).replace('source_filename = "<string>"\n', '')
+		program_string = program_string.replace('target triple = "unknown-unknown-unknown"\n', '')
+		program_string = program_string.replace('local_unnamed_addr', '')
+		with open(cwd + '/out/' + filename + '.ll', 'w') as output:
 			output.write(program_string)
-		os.popen('llc -filetype=obj {0}.ll -march=x86-64 -o {0}.o'.format(filename))
-		sleep(.1)
-		os.popen('gcc {0}.o -o {0}.bin'.format(filename))
-		if run:
-			sleep(.1)
-			start_time = time()
-			output = subprocess.run('./{}.bin'.format(filename), stdout=subprocess.PIPE)
-			end_time = time()
-			print(output.stdout.decode('utf-8'))
-			print('{:f} sec'.format(end_time - start_time))
+		if os.name != 'nt':
+			os.popen('llc -filetype=obj out/{0}.ll -march=x86-64 -o out/{0}.o'.format(filename))
+			sleep(1)
+			os.popen('gcc out/{0}.o -o out/{0}.bin'.format(filename))
+			if run:
+				sleep(.1)
+				start_time = time()
+				output = subprocess.run('out/{}.bin'.format(filename), stdout=subprocess.PIPE)
+				end_time = time()
+				print(output.stdout.decode('utf-8'))
+				print('{:f} sec'.format(end_time - start_time))
 
 # if __name__ == '__main__':
 # 	from my_lexer import Lexer

@@ -1,16 +1,11 @@
-#def start_at(Int x) -> Func[Int]
-#	def increment_by(Int y) -> Int
-#		return x + y
-#	return increment_by
-#
-#start_at_5 = start_at(5)
-#start_at_27 = start_at(27)
-#
-#print(start_at_5(4))
-#print(start_at_27(15))
+def fib(Int n) -> Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
 
-def print_it(Any var) -> void
-	print(var)
-
-print_it("hello")
-print_it(1)
+for x in 0..40
+	print(fib(x))

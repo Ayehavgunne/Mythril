@@ -1,5 +1,5 @@
 # Mythril
-A new multi-paradigm programming language
+A new multi-paradigm programming language. Right now it is being coded in Python using llvmlite.
 
 This project is super early in development.
 
@@ -10,7 +10,7 @@ This project is super early in development.
 * Focus on designs that will reduce possible errors
 
 ## Planned Features:
-* Type Infrence
+* Type Infrencing
 * Pattern Matching
 * First Class Functions
 * Classes
@@ -30,6 +30,7 @@ This project is super early in development.
 * Multiple Dispatch
 
 ## TODO:
+- [ ] Make a super cool logo
 - [x] Keyword arguments
 - [x] Parameter default values
 - [ ] Variable number of arguments (varargs) {Partialy done}
@@ -78,6 +79,7 @@ This project is super early in development.
 * Python
 * Javascript
 * Java
+* Julia
 * Go
 * Pony
 * F#

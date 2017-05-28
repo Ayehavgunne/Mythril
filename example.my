@@ -1,6 +1,7 @@
-Int nums
-number = 23
-float_number=number+1.2
+# line comment
+Int nums # Initialize an Integer
+number = 23 # Type Inference
+float_number=number+1.2 # Spaces are generally insignificant
 question = "what is\" going' on"
 Str where
 things = [1, 2, 3]
@@ -12,7 +13,7 @@ if where is not number \
 	print('They are not the same')
 
 if number == 23
-	print('equals 23') # line comment
+	print('equals 23')
 else
 	print('does not equal 23')
 
