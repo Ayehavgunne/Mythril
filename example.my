@@ -2,20 +2,26 @@
 Int nums # Initialize an Integer
 number = 23 # Type Inference
 float_number=number+1.2 # Spaces are generally insignificant
-question = "what is\" going' on"
+question = 'what\'s going on' # Escaping
 Str where
-things = [1, 2, 3]
-other_stuff = [1, 'Hello']
-stuff = {first_name: 'samus', 'last_name': 'aran'}
+things = [1, 2, 3] # List
+other_stuff = [1, 'Hello'] # Data doesn't have to be homogeneous
+stuff = {first_name: 'samus', 'last_name': 'aran'} # Dictionary, keys as strings don't have to be in quotes
 
-if where is not number \
-	and true
+if where is not number \ # Continuing statement onto next line
+	and true # Indentaion is with tabs only
 	print('They are not the same')
 
 if number == 23
 	print('equals 23')
 else
 	print('does not equal 23')
+
+for x in 0..40 # For loop using a range
+	print(x * 2)
+
+for item in things: # Iterate over objects
+	print(item)
 
 while number > 1
 	number -= 1
@@ -29,19 +35,19 @@ if 2 not in things
 
 Int num = 1
 
-switch num
+switch num # Switch soon to be replaced with Pattern Matching
 	case 1
 		print('I am One')
 	case 2
 		print('I am Two')
 		break
 	default
-		printd(num)
-		putchar(10)
+		print(num)
 		print('I know not what I am')
 	case 3
 		print('I am Three')
 
+				# Function Return notation
 def fib(Int n) -> Int
 	a = 0
 	b = 1
@@ -75,7 +81,7 @@ start_at_27 = start_at(27)
 print(start_at_5(4))
 print(start_at_27(15))
 
-Int num = 1.0::Int
+Int num = 1.0::Int # Casting a Decimal to Int
 
 print(num)
 

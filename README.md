@@ -15,12 +15,14 @@ This project is super early in development.
 * First Class Functions
 * Classes
 * Actors
+* Default to an accurate Decimal type and offer Floating Point as an option
 * Default parameter values to functions
 * Keyword arguments
 * Design by Contract
 * Builtin Testing
 * Builtin Documentation
-* Genreators
+* Array programming
+* Generators
 * Comprehensions
 * Context Managers
 * Anonymous (multi statement) Functions
@@ -42,6 +44,7 @@ This project is super early in development.
 - [ ] A more robust Type System would most likely be good to have
 - [ ] Enums
 - [ ] Actors
+- [ ] Single quote strings for Interpolation and Double quote strings for literals
 - [ ] Tests built in ('test')
 - [ ] Contracts built in ('require' and 'ensure')
 - [ ] Exceptions (Looking at alternatives)
@@ -65,7 +68,7 @@ This project is super early in development.
 - [ ] Pattern matching ('match')
 - [ ] Throw away variable using a single underscore character (be able to use it multiple times)
 - [ ] Call C and/or Python functions from within Mythril [Example](http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/)
-- [ ] Automatic integer(or number) casting on overflow
+- [ ] Automatic integer(or number) promotion on overflow
 - [ ] Support Unicode (UTF-8) by default
 - [ ] Multiple dispatch
 - [ ] Ignore underscores in numbers (as separators to increase readability)
