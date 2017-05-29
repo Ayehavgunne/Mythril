@@ -1,4 +1,4 @@
-# Mythril <img src="https://github.com/Ayehavgunne/Mythril/blob/gh-pages/Mythril.png" width=50 />
+# Mythril <img src="https://github.com/Ayehavgunne/Mythril/blob/gh-pages/Mythril.png" width=40 />
 A new multi-paradigm programming language. Right now it is being coded in Python using llvmlite.
 
 This project is super early in development.
