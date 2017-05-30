@@ -5,7 +5,7 @@ float_number=number+1.2 # Spaces are generally insignificant
 question = 'what\'s going on' # Escaping
 Str something
 things = [1, 2, 3] # Array, homogeneous
-other_stuff = (1, 'Hello') #List, non-homogeneous
+other_stuff = (1, 'Hello') # List, non-homogeneous
 stuff = {first_name: 'samus', 'last_name': 'aran'} # Dictionary, key strings don't have to be in quotes
 
 if something is not number \ # Continuing statement onto next line
