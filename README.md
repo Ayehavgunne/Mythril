@@ -3,6 +3,9 @@ A new multi-paradigm programming language. Right now it is being coded in Python
 
 This project is super early in development.
 
+Some examples of the code for Mythril can be seen in the [example.my file](https://github.com/Ayehavgunne/Mythril/blob/master/example.my).
+That is where I have been placing bits of test code as I work on various features.
+
 ## Goals:
 * Learn about compilers, LLVM, language design
 * Create a Python like syntax and mix in a whole lot of new language features and ideas
