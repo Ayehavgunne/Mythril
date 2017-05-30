@@ -217,6 +217,7 @@ class Range(AST):
 		self.left = left
 		self.op = op
 		self.right = right
+		self.value = 'range_temp'
 		self.line_num = line_num
 
 

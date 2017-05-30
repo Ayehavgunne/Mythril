@@ -7,9 +7,8 @@ from decimal import Decimal
 from llvmlite import ir
 import llvmlite.binding as llvm
 from my_builtin_functions import define_printd
-# from my_builtin_functions import define_print128
 from my_builtin_functions import define_printb
-# from my_custom_llvm_types import create_dynamic_array
+from my_builtin_functions import define_dynamic_array
 from my_visitor import NodeVisitor
 from my_ast import StructLiteral
 from my_ast import DotAccess
@@ -143,8 +142,8 @@ class CodeGenerator(NodeVisitor):
 	def visit_type(node):
 		return type_map[node.value]
 
-	def visit_noop(self, node):
-		pass
+	# def visit_noop(self, node):
+	# 	pass
 
 	def visit_if(self, node):
 		start_block = self.add_block('if.start')
@@ -198,20 +197,25 @@ class CodeGenerator(NodeVisitor):
 		self.loop_end_blocks.append(end_block)
 		self.branch(init_block)
 		self.position_at_end(init_block)
-		loop_range = self.visit(node.iterator)
-		start = loop_range[0]
-		stop = loop_range[-1]
+		iterator = self.visit(node.iterator)
+		iterator_ptr = self.search_scopes(node.iterator.value)
+		zero = self.const(0)
+		stop = self.const(iterator.type.count)
 		step = self.const(1)
 		varname = node.elements[0].value
-		self.allocate(start, varname, type_map[INT])
+		position = 'position'
+		val = self.builder.gep(iterator_ptr, [zero, zero])
+		self.allocate(self.builder.load(val), varname, iterator.type.element)
+		self.allocate(zero, position, type_map[INT])
 		self.branch(test_block)
 		self.position_at_end(test_block)
-		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(varname), stop)
+		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(position), stop)
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
-		succ = self.builder.add(step, self.load(varname))
-		self.store(varname, succ)
+		succ = self.builder.add(step, self.load(position))
+		self.store(position, succ)
+		self.store(varname, self.builder.load(self.builder.gep(iterator_ptr, [zero, succ])))
 		if not self.is_break:
 			self.branch(test_block)
 		else:
@@ -282,7 +286,13 @@ class CodeGenerator(NodeVisitor):
 	def visit_range(self, node):
 		left = self.visit(node.left)
 		right = self.visit(node.right)
-		return left, right
+		size = right.constant - left.constant
+		array_type = ir.ArrayType(type_map[INT], size)
+		array = array_type(list(range(left.constant, right.constant)))
+		array_ptr = self.builder.alloca(array_type, name='range_temp')
+		self.builder.store(array, array_ptr)
+		self.define('range_temp', array_ptr)
+		return array
 
 	def visit_assign(self, node):
 		if isinstance(node.right, StructLiteral):
@@ -424,7 +434,7 @@ class CodeGenerator(NodeVisitor):
 			raise NotImplementedError
 
 	@staticmethod
-	def define_array(node, elements):
+	def define_array(_, elements):
 		array_type = ir.ArrayType(elements[0].type, len(elements))
 		array = array_type(elements)
 		return array
@@ -461,7 +471,7 @@ class CodeGenerator(NodeVisitor):
 			var_ptr_gep = self.builder.gep(percent_f_ptr, [self.const(0), self.const(0)])
 			var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT8].as_pointer())
 			self.call('printf', [var_ptr_gep, val])
-		elif isinstance(val.type, ir.ArrayType):  # TODO: This assumes an array of characters, make it not assume
+		elif isinstance(val.type, ir.ArrayType):  # TODO: This assumes an array of characters, aka a string, make it not assume
 			val_ptr = self.builder.alloca(ir.ArrayType(val.type.element, val.type.count), name='var_ptr')
 			self.builder.store(val, val_ptr)
 			var_ptr_gep = self.builder.gep(val_ptr, [self.const(0), self.const(0)])
@@ -593,6 +603,8 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.alloca(typ, size=None, name=name)
 
 	def _add_builtins(self):
+		# linked_list_module = llvm.parse_assembly(open('llvm_ir/linked_list.ll', 'r').read())
+
 		malloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT]])
 		ir.Function(self.module, malloc_ty, 'malloc')
 
@@ -615,7 +627,7 @@ class CodeGenerator(NodeVisitor):
 		ir.Function(self.module, puts_ty, 'puts')
 
 		define_printd(self.module)
-		# define_print128(self.module)
+		define_dynamic_array(self)
 		define_printb(self.module)
 
 	@staticmethod
@@ -645,10 +657,10 @@ class CodeGenerator(NodeVisitor):
 	def generate_code(self, node):
 		return self.visit(node)
 
-	def evaluate(self, optimize=True, llvmdump=False):
-		if llvmdump:
-			# print('======== Unoptimized LLVM IR')
-			print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
+	def evaluate(self, optimize=True, ir_dump=False):
+		if ir_dump:
+			# print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
+			print(str(self.module))
 		llvmmod = llvm.parse_assembly(str(self.module))
 		if optimize:
 			pmb = llvm.create_pass_manager_builder()
@@ -656,10 +668,6 @@ class CodeGenerator(NodeVisitor):
 			pm = llvm.create_module_pass_manager()
 			pmb.populate(pm)
 			pm.run(llvmmod)
-			# if llvmdump:
-			# 	print('======== Optimized LLVM IR')
-			# 	# print(str(llvmmod))
-			# 	print('define void @main(){}'.format(str(llvmmod).split('define void @main()')[1]))
 		target_machine = self.target.create_target_machine()
 		with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
 			ee.finalize_object()
