@@ -47,7 +47,15 @@ switch num # Switch soon to be replaced with Pattern Matching
 	case 3
 		print('I am Three')
 
-				# Function Return notation
+# Proposed pattern matching scheme
+s = 'hello
+match s.contains
+| 'hello'
+	print('Greating')
+| 'goodby'
+	print('Farewell')
+
+		# Function Return notation
 def fib(Int n) -> Int
 	a = 0
 	b = 1
