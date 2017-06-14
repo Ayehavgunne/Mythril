@@ -2,6 +2,7 @@ from collections import OrderedDict
 from decimal import Decimal
 from enum import Enum
 from my_ast import Type
+from my_visitor import BuiltinFuncSymbol
 from my_types import *
 
 
@@ -83,23 +84,23 @@ class TypeSymbol(Symbol):
 	__repr__ = __str__
 
 
-class BuiltinFuncSymbol(Symbol):
-	def __init__(self, name, return_type, parameters, body):
-		super().__init__(name, return_type)
-		self.parameters = parameters
-		self.body = body
-		self.accessed = False
-		self.val_assigned = True
-
-	def __str__(self):
-		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
-
-	__repr__ = __str__
+# class BuiltinFuncSymbol(Symbol):
+# 	def __init__(self, name, return_type, parameters, body):
+# 		super().__init__(name, return_type)
+# 		self.parameters = parameters
+# 		self.body = body
+# 		self.accessed = False
+# 		self.val_assigned = True
+#
+# 	def __str__(self):
+# 		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+#
+# 	__repr__ = __str__
 
 
 print_parameters = OrderedDict()
 print_parameters['objects'] = []
-PRINT_BUILTIN = BuiltinFuncSymbol('print', NULLTYPE_BUILTIN, print_parameters, print)
+PRINT_BUILTIN = BuiltinFuncSymbol('print', VOID, print_parameters, print)
 
 
 class SymbolTable(object):
@@ -122,13 +123,10 @@ class SymbolTable(object):
 		self.define(DICT_BUILTIN)
 		self.define(ENUM_BUILTIN)
 		self.define(FUNC_BUILTIN)
-		self.define(NULLTYPE_BUILTIN)
 		self.define(PRINT_BUILTIN)
 
 	def __str__(self):
-		s = 'Symbols: {symbols}'.format(
-			symbols=self.symbols
-		)
+		s = 'Symbols: {}'.format(self.symbols)
 		return s
 
 	__repr__ = __str__

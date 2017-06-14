@@ -7,7 +7,7 @@ ARRAY_INITIAL_CAPACITY = 100
 
 def define_printd(the_module):  # TODO: Change to an Int -> Str function
 	# function start
-	func_type = ir.FunctionType(ir.VoidType(), [type_map[INT]])
+	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
 	func = ir.Function(the_module, func_type, 'printd')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
@@ -235,7 +235,7 @@ def define_int_to_str(the_module):
 
 def define_printb(the_module):
 	# function start
-	func_type = ir.FunctionType(ir.VoidType(), [type_map[BOOL]])
+	func_type = ir.FunctionType(type_map[VOID], [type_map[BOOL]])
 	func = ir.Function(the_module, func_type, 'printb')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)

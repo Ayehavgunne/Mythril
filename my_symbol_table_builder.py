@@ -5,7 +5,6 @@ from my_visitor import CollectionSymbol
 from my_visitor import FuncSymbol
 from my_visitor import AliasSymbol
 from my_ast import VarDecl, DotAccess
-# from my_ast import FieldAssignment
 from my_ast import Var
 from my_ast import Collection
 from my_grammar import *
