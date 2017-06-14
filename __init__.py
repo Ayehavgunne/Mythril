@@ -9,7 +9,7 @@ if __name__ == '__main__':
 	parser = Parser(lexer)
 	t = parser.parse()
 	symtab_builder = SymbolTableBuilder(parser.file_name)
-	symtab_builder.build(t)
+	symtab_builder.check(t)
 	if not symtab_builder.warnings:
 		generator = CodeGenerator(parser.file_name)
 		generator.generate_code(t)

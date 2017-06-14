@@ -3,13 +3,13 @@ Int nums # Initialize an Integer
 number = 23 # Type Inference
 float_number=number+1.2 # Spaces are generally insignificant
 question = 'what\'s going on' # Escaping
-Str where
-things = [1, 2, 3] # List
-other_stuff = [1, 'Hello'] # Data doesn't have to be homogeneous
-stuff = {first_name: 'samus', 'last_name': 'aran'} # Dictionary, keys as strings don't have to be in quotes
+Str something
+things = [1, 2, 3] # Array, homogeneous
+other_stuff = (1, 'Hello') # List, non-homogeneous
+stuff = {first_name: 'samus', 'last_name': 'aran'} # Dictionary, key strings don't have to be in quotes
 
-if where is not number \ # Continuing statement onto next line
-	and true # Indentaion is with tabs only
+if something is not number \ # Continuing statement onto next line
+		and true # Indentaion is with tabs only
 	print('They are not the same')
 
 if number == 23

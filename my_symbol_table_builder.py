@@ -5,7 +5,6 @@ from my_visitor import CollectionSymbol
 from my_visitor import FuncSymbol
 from my_visitor import AliasSymbol
 from my_ast import VarDecl, DotAccess
-# from my_ast import FieldAssignment
 from my_ast import Var
 from my_ast import Collection
 from my_grammar import *
@@ -43,7 +42,7 @@ class SymbolTableBuilder(NodeVisitor):
 			self.search_scopes(FLOAT)
 		)
 
-	def build(self, node):
+	def check(self, node):
 		res = self.visit(node)
 		if self.unvisited_symbols:
 			warnings.warn('Unused variables ({})'.format(','.join(sym_name for sym_name in self.unvisited_symbols)))
@@ -68,7 +67,10 @@ class SymbolTableBuilder(NodeVisitor):
 
 	def visit_for(self, node):
 		for element in node.elements:
-			var_sym = VarSymbol(element.value, self.visit(node.iterator))
+			elem_type = self.visit(node.iterator)
+			if isinstance(elem_type, CollectionSymbol):
+				elem_type = elem_type.item_types
+			var_sym = VarSymbol(element.value, elem_type)
 			var_sym.val_assigned = True
 			self.define(var_sym.name, var_sym)
 		self.visit(node.block)
@@ -280,6 +282,7 @@ class SymbolTableBuilder(NodeVisitor):
 		func_type = self.search_scopes(node.return_type.value)
 		if func_type and func_type.name == FUNC:
 			func_type.return_type = self.visit(node.return_type.func_ret_type)
+		self.define(func_name, FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults))
 		self.new_scope()
 		if node.varargs:
 			varargs_type = self.search_scopes(ARRAY)
@@ -308,8 +311,8 @@ class SymbolTableBuilder(NodeVisitor):
 			if infered_type is not func_type:
 				warnings.warn('file={} line={}: The actual return type does not match the declared return type: {}'.format(self.file_name, node.line_num, func_name))
 				self.warnings = True
-		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
-		self.define(func_name, func_symbol, 1)
+		# func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
+		# self.define(func_name, func_symbol, 1)
 		self.drop_top_scope()
 
 	def visit_anonymousfunc(self, node):
@@ -438,6 +441,6 @@ if __name__ == '__main__':
 	parser = Parser(lexer)
 	tree = parser.parse()
 	symtab_builder = SymbolTableBuilder(parser.file_name)
-	symtab_builder.build(tree)
+	symtab_builder.check(tree)
 	if not symtab_builder.warnings:
 		print('Looks good!')

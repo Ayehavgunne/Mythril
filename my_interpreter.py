@@ -28,7 +28,7 @@ class Interpreter(NodeVisitor):
 		pass
 
 	def visit_vardecl(self, node):
-		self.define(node.var_node.value, Null())
+		self.define(node.var_node.value, None)
 
 	def visit_type(self, node):
 		return self.search_scopes(node.value)
@@ -160,7 +160,7 @@ class Interpreter(NodeVisitor):
 				return dict(left)
 			elif cast_type == ENUM:
 				return Enum(left.value)
-			elif cast_type in (ANY, FUNC, NULL):
+			elif cast_type in (ANY, FUNC):
 				raise TypeError('file={} line={}: Cannot cast to type {}'.format(self.file_name, node.line_num, cast_type))
 
 	def visit_unaryop(self, node):
@@ -305,7 +305,7 @@ if __name__ == '__main__':
 	parser = Parser(lexer)
 	t = parser.parse()
 	symtab_builder = SymbolTableBuilder(parser.file_name)
-	symtab_builder.build(t)
+	symtab_builder.check(t)
 	if not symtab_builder.warnings:
 		interpreter = Interpreter(parser.file_name)
 		interpreter.interpret(t)

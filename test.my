@@ -1,11 +1,9 @@
-def fib(Int n) -> Int
-	a = 0
-	b = 1
-	for _ in 0..n
-		prev_a = a
-		a = b
-		b = prev_a + b
-	return a
+def fib(Int num) -> Int
+	if num == 0
+		return 0
+	if num == 1
+		return 1
+	return fib(num - 1) + fib(num - 2)
 
 for x in 0..40
 	print(fib(x))

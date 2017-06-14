@@ -1,43 +1,47 @@
 from llvmlite import ir
+from compiler import type_map
+from my_grammar import *
+
+ARRAY_INITIAL_CAPACITY = 100
 
 
-def define_printd(the_module):
+def define_printd(the_module):  # TODO: Change to an Int -> Str function
 	# function start
-	func_type = ir.FunctionType(ir.VoidType(), [ir.IntType(64)])
+	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
 	func = ir.Function(the_module, func_type, 'printd')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
-	n_addr = builder.alloca(ir.IntType(64), name='n')
+	n_addr = builder.alloca(type_map[INT], name='n')
 	builder.store(func.args[0], n_addr)
-	x_addr = builder.alloca(ir.IntType(32), name='x')
+	x_addr = builder.alloca(type_map[INT32], name='x')
 
 	# function body
-	int_zero = ir.Constant(ir.IntType(32), 0)
-	int_one = ir.Constant(ir.IntType(32), 1)
-	int_two = ir.Constant(ir.IntType(32), 2)
-	int_three = ir.Constant(ir.IntType(32), 3)
-	int_four = ir.Constant(ir.IntType(32), 4)
-	int_five = ir.Constant(ir.IntType(32), 5)
-	int_six = ir.Constant(ir.IntType(32), 6)
-	int_seven = ir.Constant(ir.IntType(32), 7)
-	int_eight = ir.Constant(ir.IntType(32), 8)
-	int_nine = ir.Constant(ir.IntType(32), 9)
-	int_ten = ir.Constant(ir.IntType(32), 10)
-	int_fourtyeight = ir.Constant(ir.IntType(32), 48)
-	int_fourtynine = ir.Constant(ir.IntType(32), 49)
-	int_fifty = ir.Constant(ir.IntType(32), 50)
-	int_fiftyone = ir.Constant(ir.IntType(32), 51)
-	int_fiftytwo = ir.Constant(ir.IntType(32), 52)
-	int_fiftythree = ir.Constant(ir.IntType(32), 53)
-	int_fiftyfour = ir.Constant(ir.IntType(32), 54)
-	int_fiftyfive = ir.Constant(ir.IntType(32), 55)
-	int_fiftysix = ir.Constant(ir.IntType(32), 56)
-	int_fiftyseven = ir.Constant(ir.IntType(32), 57)
+	int_zero = ir.Constant(type_map[INT32], 0)
+	int_one = ir.Constant(type_map[INT32], 1)
+	int_two = ir.Constant(type_map[INT32], 2)
+	int_three = ir.Constant(type_map[INT32], 3)
+	int_four = ir.Constant(type_map[INT32], 4)
+	int_five = ir.Constant(type_map[INT32], 5)
+	int_six = ir.Constant(type_map[INT32], 6)
+	int_seven = ir.Constant(type_map[INT32], 7)
+	int_eight = ir.Constant(type_map[INT32], 8)
+	int_nine = ir.Constant(type_map[INT32], 9)
+	int_ten = ir.Constant(type_map[INT32], 10)
+	int_fourtyeight = ir.Constant(type_map[INT32], 48)
+	int_fourtynine = ir.Constant(type_map[INT32], 49)
+	int_fifty = ir.Constant(type_map[INT32], 50)
+	int_fiftyone = ir.Constant(type_map[INT32], 51)
+	int_fiftytwo = ir.Constant(type_map[INT32], 52)
+	int_fiftythree = ir.Constant(type_map[INT32], 53)
+	int_fiftyfour = ir.Constant(type_map[INT32], 54)
+	int_fiftyfive = ir.Constant(type_map[INT32], 55)
+	int_fiftysix = ir.Constant(type_map[INT32], 56)
+	int_fiftyseven = ir.Constant(type_map[INT32], 57)
 
-	div_ten = builder.udiv(builder.load(n_addr), builder.zext(int_ten, ir.IntType(64)), 'divten')
+	div_ten = builder.udiv(builder.load(n_addr), builder.zext(int_ten, type_map[INT]), 'divten')
 	greater_than_zero = builder.icmp_unsigned('>', div_ten, int_zero, 'greaterthanzero')
-	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), ir.IntType(32)), int_ten, 'modten')
+	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT32]), int_ten, 'modten')
 	builder.store(mod_ten, x_addr)
 
 	with builder.if_then(greater_than_zero):
@@ -115,47 +119,47 @@ def define_printd(the_module):
 	builder.ret_void()
 
 
-def define_print128(the_module):
+def define_int_to_str(the_module):
 	# function start
-	func_type = ir.FunctionType(ir.VoidType(), [ir.IntType(128)])
-	func = ir.Function(the_module, func_type, 'print128')
+	func_type = ir.FunctionType(ir.VoidType(), [type_map[INT]])
+	func = ir.Function(the_module, func_type, 'int_to_str')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
-	n_addr = builder.alloca(ir.IntType(128), name='n')
+	n_addr = builder.alloca(type_map[INT], name='n')
 	builder.store(func.args[0], n_addr)
-	x_addr = builder.alloca(ir.IntType(32), name='x')
+	x_addr = builder.alloca(type_map[INT32], name='x')
 
 	# function body
-	int_zero = ir.Constant(ir.IntType(32), 0)
-	int_one = ir.Constant(ir.IntType(32), 1)
-	int_two = ir.Constant(ir.IntType(32), 2)
-	int_three = ir.Constant(ir.IntType(32), 3)
-	int_four = ir.Constant(ir.IntType(32), 4)
-	int_five = ir.Constant(ir.IntType(32), 5)
-	int_six = ir.Constant(ir.IntType(32), 6)
-	int_seven = ir.Constant(ir.IntType(32), 7)
-	int_eight = ir.Constant(ir.IntType(32), 8)
-	int_nine = ir.Constant(ir.IntType(32), 9)
-	int_ten = ir.Constant(ir.IntType(32), 10)
-	int_fourtyeight = ir.Constant(ir.IntType(32), 48)
-	int_fourtynine = ir.Constant(ir.IntType(32), 49)
-	int_fifty = ir.Constant(ir.IntType(32), 50)
-	int_fiftyone = ir.Constant(ir.IntType(32), 51)
-	int_fiftytwo = ir.Constant(ir.IntType(32), 52)
-	int_fiftythree = ir.Constant(ir.IntType(32), 53)
-	int_fiftyfour = ir.Constant(ir.IntType(32), 54)
-	int_fiftyfive = ir.Constant(ir.IntType(32), 55)
-	int_fiftysix = ir.Constant(ir.IntType(32), 56)
-	int_fiftyseven = ir.Constant(ir.IntType(32), 57)
+	int_zero = ir.Constant(type_map[INT32], 0)
+	int_one = ir.Constant(type_map[INT32], 1)
+	int_two = ir.Constant(type_map[INT32], 2)
+	int_three = ir.Constant(type_map[INT32], 3)
+	int_four = ir.Constant(type_map[INT32], 4)
+	int_five = ir.Constant(type_map[INT32], 5)
+	int_six = ir.Constant(type_map[INT32], 6)
+	int_seven = ir.Constant(type_map[INT32], 7)
+	int_eight = ir.Constant(type_map[INT32], 8)
+	int_nine = ir.Constant(type_map[INT32], 9)
+	int_ten = ir.Constant(type_map[INT32], 10)
+	int_fourtyeight = ir.Constant(type_map[INT32], 48)
+	int_fourtynine = ir.Constant(type_map[INT32], 49)
+	int_fifty = ir.Constant(type_map[INT32], 50)
+	int_fiftyone = ir.Constant(type_map[INT32], 51)
+	int_fiftytwo = ir.Constant(type_map[INT32], 52)
+	int_fiftythree = ir.Constant(type_map[INT32], 53)
+	int_fiftyfour = ir.Constant(type_map[INT32], 54)
+	int_fiftyfive = ir.Constant(type_map[INT32], 55)
+	int_fiftysix = ir.Constant(type_map[INT32], 56)
+	int_fiftyseven = ir.Constant(type_map[INT32], 57)
 
-	div_ten = builder.udiv(builder.load(n_addr), builder.zext(int_ten, ir.IntType(128)), 'divten')
+	div_ten = builder.udiv(builder.load(n_addr), builder.zext(int_ten, type_map[INT]), 'divten')
 	greater_than_zero = builder.icmp_unsigned('>', div_ten, int_zero, 'greaterthanzero')
-	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), ir.IntType(32)), int_ten, 'modten')
+	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT32]), int_ten, 'modten')
 	builder.store(mod_ten, x_addr)
 
 	with builder.if_then(greater_than_zero):
-		builder.call(the_module.get_global('print128'), [div_ten])
+		builder.call(the_module.get_global('int_to_str'), [div_ten])
 
 	case_0 = func.append_basic_block('case')
 	case_1 = func.append_basic_block('case')
@@ -231,28 +235,28 @@ def define_print128(the_module):
 
 def define_printb(the_module):
 	# function start
-	func_type = ir.FunctionType(ir.VoidType(), [ir.IntType(1)])
+	func_type = ir.FunctionType(type_map[VOID], [type_map[BOOL]])
 	func = ir.Function(the_module, func_type, 'printb')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
 
 	# function body
-	equalszero = builder.icmp_unsigned('==', func.args[0], ir.Constant(ir.IntType(1), 0), 'equalszero')
+	equalszero = builder.icmp_unsigned('==', func.args[0], ir.Constant(type_map[BOOL], 0), 'equalszero')
 
 	with builder.if_else(equalszero) as (then, otherwise):
 		with then:
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 102)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 97)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 108)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 115)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 101)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 102)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 97)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 108)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 115)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 101)])
 			builder.branch(exit_block)
 		with otherwise:
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 116)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 114)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 117)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(ir.IntType(32), 101)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 116)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 114)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 117)])
+			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT32], 101)])
 			builder.branch(exit_block)
 
 	builder.branch(exit_block)
