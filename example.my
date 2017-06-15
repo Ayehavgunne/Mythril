@@ -15,7 +15,7 @@ Str something # Initialize a String
 
 things = [1, 2, 3] # Array, homogeneous
 other_things = (1, 'Hello') # List, non-homogeneous
-stuff = {first_name: 'samus', 'last_name': 'aran'} # Dictionary, key strings don't have to be in quotes
+stuff = {first_name: 'Samus', 'last_name': 'Aran'} # Dictionary, key strings don't have to be in quotes
 Int[] other_stuff = [] # Empty Array of Ints
 
 if number > 23
@@ -76,13 +76,36 @@ def fib_rec(Int n) -> Int
 		return 1
 	return fib_rec(n - 1) + fib_rec(n - 2)
 
+# Assign anonymous function to a variable
 myfunc = def (Int x, Int y) -> Int
 	if x > y
 		return x + y
 	else
 		return x * y
 
-def start_at(Int x) -> Func[Int]
+print(myfunc(2, 3))
+
+# Type Aliasing
+type FInt = Func[Int] -> Int
+# All types (including structs and classes) should start with a capital
+
+def do_stuff(Int x, FInt callback) -> Int
+	x **= 2
+	x = callback(x)
+	return x
+
+num = do_stuff(3,
+	def (Int y) -> Int
+		y += 7
+		return y
+)
+
+print(
+	num
+)
+
+# Closure
+def start_at(Int x) -> FInt
 	def increment_by(Int y) -> Int
 		return x + y
 	return increment_by
@@ -97,11 +120,11 @@ Int num = 1.0::Int # Casting a Decimal to Int
 
 print(num)
 
+# User input
 Int age = input('How old are you?')
 
-print('Wow! You are')
-print(age)
-print('years old?!')
+# String Interpolation
+print('Wow! You are {age} years old?!')
 
 Enum Genders(
 	MALE,
@@ -118,42 +141,24 @@ Circle cir = {radius=5, x=2, y=4}
 
 print(cir.radius)
 
-abstract class Person
-	species = 'Human'
-
-	new(Str name, Int age, Genders gender, Str haircolor)
-		this.age = age
-		this.gender # Automtically assigns gender from argument if they have the same name
-		this._haircolor = haircolor
+abstract class Vehicle
+	# Constructor
+	new(Str make, Int year, Str color)
+		this.year = year
+		this.make # Automtically assigns make from argument if they have the same name
+		this._color = color
 		Str this._fav_color
-		this.opinionated = true
 
-class Boy(Person)
-	new(Str, name, Int age, haircolor='blond')
-		require age < 18
-		super.Person(name=name, age=age, gender=Genders.MALE, haircolor=haircolor)
+# Inheritance
+class Car(Vehicle)
+	new(Str make, Int year, color='green', hatchback=false)
+		# Design by Contract
+		require year < 10
+		this.hatchback
+		super.Vehicle(make, year, color)
 
-	void say_age()
-		print('I am {} years old'.format(this.age))
-
-	void birthday()
-		this.age += 1
-
-	getter Int time_till_adult
-		if this.age <= 18
-			return 18 - this.age
-		else
-			return 0
-
-	setter dye_hair(Str color)
-		this._haircolor = color
-
-	getter Str fav_color
-		return this._fav_color
-
-	setter fav_color(Str color)
-		this._fav_color = color
-
+	void print_year()
+		print('This car was made in {this.year}')
 
 class Person
 	new(Str name, Int age)
@@ -163,23 +168,6 @@ class Person
 frank = Person('Frank', 30)
 
 print(frank.age)
-
-myfunc = def (Int x, Int y) -> Int
-	if x > y
-		return x + y
-	else
-		return x ** y
-
-print(myfunc(9, 2))
-
-num = 52
-
-if num > 6
-	num = 53
-else
-	num = 54
-
-print(num)
 
 garry = true
 larry = false
@@ -206,6 +194,7 @@ print(is_less_than_5(3))
 print(is_less_than_5(5))
 print(is_less_than_5(7))
 
+# Testing scope
 def do_stuff(Int y) -> void
 	print(y)
 
@@ -215,38 +204,10 @@ def square(Int x) -> Int
 
 print(square(5))
 
-type FInt = Func[Int] -> Int
-
-def do_stuff(Int x, FInt callback) -> Int
-	x **= 2
-	x = callback(x)
-	return x
-
-num = do_stuff(3,
-	def (Int y) -> Int
-		y += 7
-		return y
-)
-
-print(
-	num
-)
-
 def greet_name(Str name) -> void
 	print('Hello ' + name)
 
 greet_name('Anthony')
-
-def start_at(Int x) -> Func
-	def increment_by(Int y) -> Int
-		return x + y
-	return increment_by
-
-start_at_5 = start_at(5)
-start_at_1 = start_at(27)
-
-print(start_at_5(4))
-print(start_at_1(15))
 
 x = 0
 while x < 10
@@ -265,23 +226,13 @@ switch x
 	default
 		print("Sorry, wasn't paying attention")
 
-def fib(Int num) -> Int
-	if num == 0
-		return 0
-	if num == 1
-		return 1
-	return fib(num - 1) + fib(num - 2)
-
-print(fib(8))
-
 y = 10
 for x in 0..y + 1
 	print(x::Str + ' ' + fib(x)::Str)
 
 things = [3, 2, 1]
-stuff = {first_name: 'samus', last_name: 'aran'}
-
 print(things[1 + 1])
+
 Dec a
 b = 3
 
@@ -313,6 +264,7 @@ d = 0
 c = a::Int ** b
 
 def foo(Int first, Int second) -> Int
+	# Nested function
 	def baz() -> Int
 		return 54
 	if first < second
@@ -330,6 +282,3 @@ while b < 30
 		b += 1
 
 d += c + b
-
-print((1,2,3))
-print({a: a, b: b, c: c, d: d, e: e, f: f, first_name: first_name, full_name: full_name, g: g, garry: garry, h: h, larry: larry, last_name: last_name, stuff: stuff, things: things})
