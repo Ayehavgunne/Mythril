@@ -4,7 +4,7 @@ from my_visitor import VarSymbol
 from my_visitor import CollectionSymbol
 from my_visitor import FuncSymbol
 from my_visitor import AliasSymbol
-from my_ast import VarDecl, DotAccess
+from my_ast import VarDecl, DotAccess, CollectionAccess
 from my_ast import Var
 from my_ast import Collection
 from my_grammar import *
@@ -126,6 +126,7 @@ class SymbolTableBuilder(NodeVisitor):
 	def visit_assign(self, node):  # TODO clean up this mess of a function
 		collection_type = None
 		field_assignment = None
+		collection_assignment = None
 		if isinstance(node.left, VarDecl):
 			var_name = node.left.var_node.value
 			value = self.infer_type(node.left.type_node)
@@ -136,6 +137,11 @@ class SymbolTableBuilder(NodeVisitor):
 		elif isinstance(node.left, DotAccess):
 			field_assignment = True
 			var_name = self.visit(node.left)
+			value = self.visit(node.right)
+		elif isinstance(node.left, CollectionAccess):
+			collection_assignment = True
+			var_name = node.left.collection.value
+			key = node.left.key.value
 			value = self.visit(node.right)
 		else:
 			var_name = node.left.value
@@ -167,6 +173,9 @@ class SymbolTableBuilder(NodeVisitor):
 				var_sym.val_assigned = True
 				self.define(var_name, var_sym)
 		else:
+			if collection_assignment:
+				if lookup_var.item_types == value:
+					return
 			if lookup_var.read_only:
 				warnings.warn('file={} line={}: Cannot change the value of a variable declared constant: {}'.format(self.file_name, var_name, node.line_num))
 				self.warnings = True
@@ -361,6 +370,33 @@ class SymbolTableBuilder(NodeVisitor):
 		else:
 			func.accessed = True
 			return func.type
+
+	def visit_methodcall(self, node):
+		method_name = node.name
+		obj = self.search_scopes(node.obj)
+		method = self.search_scopes(method_name)
+		for x, param in enumerate(method.parameters.values()):
+			if x < len(node.arguments):
+				var = self.visit(node.arguments[x])
+				param_ss = self.search_scopes(param.value)
+				if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
+					continue
+				elif param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
+					raise TypeError
+			else:
+				method_param_keys = list(method.parameters.keys())
+				if method_param_keys[x] not in node.named_arguments.keys() and method_param_keys[x] not in method.parameter_defaults.keys():
+					raise TypeError('Missing arguments to method')
+				else:
+					if method_param_keys[x] in node.named_arguments.keys():
+						if param.value != self.visit(node.named_arguments[method_param_keys[x]]).name:
+							raise TypeError
+		if method is None:
+			warnings.warn('file={} line={}: Name Error: {}'.format(self.file_name, node.line_num, repr(method_name)))
+			self.warnings = True
+		else:
+			method.accessed = True
+			return method.type
 
 	def visit_structdeclaration(self, node):
 		sym = StructSymbol(node.name.value, node.fields)

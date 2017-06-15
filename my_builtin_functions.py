@@ -3,6 +3,29 @@ from compiler import type_map
 from my_grammar import *
 
 ARRAY_INITIAL_CAPACITY = 100
+zero = ir.Constant(type_map[INT], 0)
+one = ir.Constant(type_map[INT], 1)
+two = ir.Constant(type_map[INT], 2)
+eight = ir.Constant(type_map[INT], 8)
+zero_32 = ir.Constant(type_map[INT32], 0)
+one_32 = ir.Constant(type_map[INT32], 1)
+two_32 = ir.Constant(type_map[INT32], 2)
+
+
+def define_dynamic_array(compiler):
+	# define a struct dynamic_array
+	# 0: int size
+	# 1: int capacity
+	# 2: int *data  TODO: make this a void pointer to allow any kind of data
+	dyn_array_struct = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[INT].as_pointer()])
+	compiler.define('Dynamic_Array', dyn_array_struct)
+	dyn_array_struct_ptr = dyn_array_struct.as_pointer()
+
+	dynamic_array_init(compiler, dyn_array_struct_ptr)
+	dynamic_array_double_if_full(compiler, dyn_array_struct_ptr)
+	dynamic_array_append(compiler, dyn_array_struct_ptr)
+	dynamic_array_get(compiler, dyn_array_struct_ptr)
+	dynamic_array_set(compiler, dyn_array_struct_ptr)
 
 
 def define_printd(the_module):  # TODO: Change to an Int -> Str function
@@ -266,25 +289,8 @@ def define_printb(the_module):
 	builder.ret_void()
 
 
-def define_dynamic_array(compiler):
-	zero = ir.Constant(type_map[INT], 0)
-	one = ir.Constant(type_map[INT], 1)
-	two = ir.Constant(type_map[INT], 2)
-	eight = ir.Constant(type_map[INT], 8)
-
-	zero_32 = ir.Constant(type_map[INT32], 0)
-	one_32 = ir.Constant(type_map[INT32], 1)
-	two_32 = ir.Constant(type_map[INT32], 2)
-
-	# define a struct dynamic_array
-	# 0: int size
-	# 1: int capacity
-	# 2: int *data  TODO: make this a void pointer to allow any kind of data
-	dyn_array_struct = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[INT].as_pointer()])
-	compiler.define('Dynamic_Array', dyn_array_struct)
-	dyn_array_struct_ptr = dyn_array_struct.as_pointer()
-
-	# function init array START
+def dynamic_array_init(compiler, dyn_array_struct_ptr):
+	# START
 	dyn_array_init_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr])
 	dyn_array_init = ir.Function(compiler.module, dyn_array_init_type, 'dyn_array_init')
 	dyn_array_init_entry = dyn_array_init.append_basic_block('entry')
@@ -296,7 +302,7 @@ def define_dynamic_array(compiler):
 
 	array_init_capacity = ir.Constant(type_map[INT], ARRAY_INITIAL_CAPACITY)
 
-	# function 'init array' BODY
+	# BODY
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	builder.store(zero, size_ptr)
 
@@ -311,11 +317,11 @@ def define_dynamic_array(compiler):
 
 	builder.branch(dyn_array_init_exit)
 
-	# function 'init array' CLOSE
+	# CLOSE
 	builder.position_at_end(dyn_array_init_exit)
 	builder.ret_void()
 
-
+def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
 	# function 'array double capacity if full' START
 	dyn_array_double_capacity_if_full_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr])
 	dyn_array_double_capacity_if_full = ir.Function(compiler.module, dyn_array_double_capacity_if_full_type, 'dyn_array_double_capacity_if_full')
@@ -359,7 +365,8 @@ def define_dynamic_array(compiler):
 	builder.ret_void()
 
 
-	# function 'array append' START
+def dynamic_array_append(compiler, dyn_array_struct_ptr):
+	# START
 	dyn_array_append_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr, type_map[INT]])
 	dyn_array_append = ir.Function(compiler.module, dyn_array_append_type, 'dyn_array_append')
 	dyn_array_append_entry = dyn_array_append.append_basic_block('entry')
@@ -371,13 +378,13 @@ def define_dynamic_array(compiler):
 	value_ptr = builder.alloca(type_map[INT], name='value_ptr')
 	builder.store(dyn_array_append.args[1], value_ptr)
 
-	# function 'array append' BODY
+	# BODY
 	builder.call(compiler.module.get_global('dyn_array_double_capacity_if_full'), [builder.load(array_ptr)])
 
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	size_val = builder.load(size_ptr)
 
-	size_val = builder.add(size_val, one, 'addtmp')
+	size_val = builder.add(size_val, one)
 	builder.store(size_val, size_ptr)
 
 	data_ptr = builder.gep(builder.load(array_ptr), [zero_32, two_32], inbounds=True)
@@ -388,12 +395,13 @@ def define_dynamic_array(compiler):
 
 	builder.branch(dyn_array_append_exit)
 
-	# function 'array append' CLOSE
+	# CLOSE
 	builder.position_at_end(dyn_array_append_exit)
 	builder.ret_void()
 
 
-	# function 'array get' START
+def dynamic_array_get(compiler, dyn_array_struct_ptr):
+	# START
 	dyn_array_get_type = ir.FunctionType(type_map[INT], [dyn_array_struct_ptr, type_map[INT]])
 	dyn_array_get = ir.Function(compiler.module, dyn_array_get_type, 'dyn_array_get')
 	dyn_array_get_entry = dyn_array_get.append_basic_block('entry')
@@ -409,13 +417,13 @@ def define_dynamic_array(compiler):
 	index_ptr = builder.alloca(type_map[INT], name='index_ptr')
 	builder.store(dyn_array_get.args[1], index_ptr)
 
-	# function 'array get' BODY
+	# BODY
 	index_val = builder.load(index_ptr)
 
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	size_val = builder.load(size_ptr)
 
-	compare_index_to_size = builder.icmp_unsigned('>=', index_val, size_val, 'compareindextosize')
+	compare_index_to_size = builder.icmp_unsigned('>=', index_val, size_val)
 
 	builder.cbranch(compare_index_to_size, dyn_array_get_index_out_of_bounds, dyn_array_get_is_index_less_than_zero)
 
@@ -425,13 +433,13 @@ def define_dynamic_array(compiler):
 
 	builder.position_at_end(dyn_array_get_is_index_less_than_zero)
 
-	compare_index_to_zero = builder.icmp_unsigned('<', index_val, zero, 'compareindextozero')
+	compare_index_to_zero = builder.icmp_unsigned('<', index_val, zero)
 
 	builder.cbranch(compare_index_to_zero, dyn_array_get_negative_index, dyn_array_get_block)
 
 	builder.position_at_end(dyn_array_get_negative_index)
 
-	add = builder.add(size_val, index_val, 'addtmp')
+	add = builder.add(size_val, index_val)
 	builder.store(add, index_ptr)
 	builder.branch(dyn_array_get_block)
 
@@ -439,7 +447,7 @@ def define_dynamic_array(compiler):
 
 	data_ptr = builder.gep(builder.load(array_ptr), [zero_32, two_32], inbounds=True)
 
-	add_1 = builder.add(one, index_val, 'addtmp')
+	add_1 = builder.add(one, index_val)
 	builder.store(add_1, index_ptr)
 	index_val = builder.load(index_ptr)
 
@@ -447,6 +455,82 @@ def define_dynamic_array(compiler):
 
 	builder.branch(dyn_array_get_exit)
 
-	# function 'array get' CLOSE
+	# CLOSE
 	builder.position_at_end(dyn_array_get_exit)
 	builder.ret(builder.load(data_element_ptr))
+
+
+def dynamic_array_set(compiler, dyn_array_struct_ptr):
+	# START
+	dyn_array_set_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr, type_map[INT], type_map[INT]])
+	dyn_array_set = ir.Function(compiler.module, dyn_array_set_type, 'dyn_array_set')
+	dyn_array_set_entry = dyn_array_set.append_basic_block('entry')
+	builder = ir.IRBuilder(dyn_array_set_entry)
+	dyn_array_set_exit = dyn_array_set.append_basic_block('exit')
+	dyn_array_set_index_out_of_bounds = dyn_array_set.append_basic_block('index_out_of_bounds')
+	dyn_array_set_is_index_less_than_zero = dyn_array_set.append_basic_block('is_index_less_than_zero')
+	dyn_array_set_negative_index = dyn_array_set.append_basic_block('negative_index')
+	dyn_array_set_block = dyn_array_set.append_basic_block('set')
+	builder.position_at_end(dyn_array_set_entry)
+	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
+	builder.store(dyn_array_set.args[0], array_ptr)
+	index_ptr = builder.alloca(type_map[INT], name='index_ptr')
+	builder.store(dyn_array_set.args[1], index_ptr)
+	value_ptr = builder.alloca(type_map[INT], name='value_ptr')
+	builder.store(dyn_array_set.args[2], value_ptr)
+
+	# BODY
+	index_val = builder.load(index_ptr)
+
+	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
+	size_val = builder.load(size_ptr)
+
+	compare_index_to_size = builder.icmp_unsigned('>=', index_val, size_val)
+
+	builder.cbranch(compare_index_to_size, dyn_array_set_index_out_of_bounds, dyn_array_set_is_index_less_than_zero)
+
+	builder.position_at_end(dyn_array_set_index_out_of_bounds)
+	builder.call(compiler.module.get_global('exit'), [one_32])
+	builder.unreachable()
+
+	builder.position_at_end(dyn_array_set_is_index_less_than_zero)
+
+	compare_index_to_zero = builder.icmp_unsigned('<', index_val, zero)
+
+	builder.cbranch(compare_index_to_zero, dyn_array_set_negative_index, dyn_array_set_block)
+
+	builder.position_at_end(dyn_array_set_negative_index)
+
+	add = builder.add(size_val, index_val)
+	builder.store(add, index_ptr)
+	builder.branch(dyn_array_set_block)
+
+	builder.position_at_end(dyn_array_set_block)
+
+	data_ptr = builder.gep(builder.load(array_ptr), [zero_32, two_32], inbounds=True)
+
+	add_1 = builder.add(one, index_val)
+	builder.store(add_1, index_ptr)
+	index_val = builder.load(index_ptr)
+
+	data_element_ptr = builder.gep(builder.load(data_ptr), [index_val])
+
+	builder.store(builder.load(value_ptr), data_element_ptr)
+
+	builder.branch(dyn_array_set_exit)
+
+	# CLOSE
+	builder.position_at_end(dyn_array_set_exit)
+	builder.ret_void()
+
+# TODO: add the following functions for dynamic array
+# extend(iterable)
+# insert(item, index)
+# remove(item)
+# pop([index])
+# clear()
+# index(x[, start[, end]])
+# count(item)
+# sort(key=None, reverse=False)
+# reverse()
+# length()

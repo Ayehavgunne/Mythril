@@ -1,21 +1,33 @@
 # line comment
-Int nums # Initialize an Integer
+
+# Hello World example
+print('Hello World')
+
+Int nums # Initialize an Integer, must be assigned a value before it can be used
+
 number = 23 # Type Inference
-float_number=number+1.2 # Spaces are generally insignificant
+
+float_number=number+1.2 # Spaces are generally insignificant, but encouraged for readability
+
 question = 'what\'s going on' # Escaping
-Str something
+
+Str something # Initialize a String
+
 things = [1, 2, 3] # Array, homogeneous
-other_stuff = (1, 'Hello') # List, non-homogeneous
+other_things = (1, 'Hello') # List, non-homogeneous
 stuff = {first_name: 'samus', 'last_name': 'aran'} # Dictionary, key strings don't have to be in quotes
+Int[] other_stuff = [] # Empty Array of Ints
+
+if number > 23
+	print('number greater than 23')
+else if number == 23
+	print('equals 23')
+else
+	print('number greater than or equal to 23')
 
 if something is not number \ # Continuing statement onto next line
 		and true # Indentaion is with tabs only
 	print('They are not the same')
-
-if number == 23
-	print('equals 23')
-else
-	print('does not equal 23')
 
 for x in 0..40 # For loop using a range
 	print(x * 2)
@@ -33,7 +45,7 @@ if 2 in things
 if 2 not in things
 	print('no')
 
-Int num = 1
+num = 1
 
 switch num # Switch soon to be replaced with Pattern Matching
 	case 1
@@ -70,7 +82,7 @@ myfunc = def (Int x, Int y) -> Int
 	else
 		return x * y
 
-def start_at(Int x) -> Func
+def start_at(Int x) -> Func[Int]
 	def increment_by(Int y) -> Int
 		return x + y
 	return increment_by

@@ -49,7 +49,7 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] A more robust Type System would most likely be good to have
 - [ ] Enums
 - [ ] Actors
-- [ ] Single quote strings for Interpolation and Double quote strings for literals
+- [ ] Single quotes for Interpolated strings and Double quotes for literal strings
 - [ ] Tests built in ('test')
 - [ ] Contracts built in ('require' and 'ensure')
 - [ ] Exceptions (Looking at alternatives)
@@ -81,7 +81,7 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Javadocs like documentation built in
 - [x] DO NOT add a Null type
 - [ ] Use an Option type instead of Null for sentinal values
-- [ ] Do Exhaustive Pattern Matching to help reduce errors
+- [ ] Implement Exhaustive Pattern Matching to help reduce potential errors
 
 ## Influences
 * Python

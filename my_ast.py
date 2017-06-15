@@ -70,6 +70,15 @@ class FuncCall(AST):
 		self.line_num = line_num
 
 
+class MethodCall(AST):
+	def __init__(self, obj, name, arguments, line_num, named_arguments=None):
+		self.obj = obj
+		self.name = name
+		self.arguments = arguments
+		self.named_arguments = named_arguments or {}
+		self.line_num = line_num
+
+
 class Return(AST):
 	def __init__(self, value, line_num):
 		self.value = value

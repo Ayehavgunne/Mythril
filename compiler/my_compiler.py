@@ -10,7 +10,7 @@ from my_builtin_functions import define_printd
 from my_builtin_functions import define_printb
 from my_builtin_functions import define_dynamic_array
 from my_visitor import NodeVisitor
-from my_ast import StructLiteral
+from my_ast import StructLiteral, CollectionAccess
 from my_ast import DotAccess
 from my_ast import Input
 from my_ast import VarDecl
@@ -42,7 +42,6 @@ class CodeGenerator(NodeVisitor):
 		llvm.initialize_native_asmprinter()
 		self.target = llvm.Target.from_default_triple()
 		self.anon_counter = 0
-		# self._add_builtins()
 
 	def __str__(self):
 		return str(self.module)
@@ -141,9 +140,6 @@ class CodeGenerator(NodeVisitor):
 	@staticmethod
 	def visit_type(node):
 		return type_map[node.value]
-
-	# def visit_noop(self, node):
-	# 	pass
 
 	def visit_if(self, node):
 		start_block = self.add_block('if.start')
@@ -314,6 +310,9 @@ class CodeGenerator(NodeVisitor):
 				self.builder.store(new_obj, struct_ptr)
 				struct_ptr.struct_name = obj.struct_name
 				self.define(obj.name, struct_ptr)
+			elif isinstance(node.left, CollectionAccess):
+				right = self.visit(node.right)
+				self.call('dyn_array_set', [self.search_scopes(node.left.collection.value), self.const(node.left.key.value), right])
 			else:
 				var_name = node.left.value
 				var_value = self.top_scope.get(var_name)
@@ -349,54 +348,68 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.extract_value(self.load(node.obj), obj_type.fields.index(node.field))
 
 	def visit_opassign(self, node):
-		var_name = node.left.value
-		op = node.op.value
 		right = self.visit(node.right)
-		if isinstance(self.search_scopes(var_name).type.pointee, ir.IntType):
+		collection_access = None
+		key = None
+		if isinstance(node.left, CollectionAccess):
+			collection_access = True
+			var_name = self.search_scopes(node.left.collection.value)
+			key = self.const(node.left.key.value)
+			var = self.call('dyn_array_get', [var_name, key])
+			pointee = var.type
+		else:
+			var_name = node.left.value
+			var = self.load(var_name)
+			pointee = self.search_scopes(var_name).type.pointee
+		op = node.op.value
+		if isinstance(pointee, ir.IntType):
 			if op == PLUS_ASSIGN:
-				res = self.builder.add(self.load(var_name), right)
+				res = self.builder.add(var, right)
 			elif op == MINUS_ASSIGN:
-				res = self.builder.sub(self.load(var_name), right)
+				res = self.builder.sub(var, right)
 			elif op == MUL_ASSIGN:
-				res = self.builder.mul(self.load(var_name), right)
+				res = self.builder.mul(var, right)
 			elif op == FLOORDIV_ASSIGN:
-				res = self.builder.sdiv(self.load(var_name), right)
+				res = self.builder.sdiv(var, right)
 			elif op == DIV_ASSIGN:
-				res = self.builder.fdiv(self.load(var_name), right)
+				res = self.builder.fdiv(var, right)
 			elif op == MOD_ASSIGN:
-				res = self.builder.srem(self.load(var_name), right)
+				res = self.builder.srem(var, right)
 			elif op == POWER_ASSIGN:
 				temp = self.builder.alloca(type_map[INT])
-				self.builder.store(self.load(var_name), temp)
+				self.builder.store(var, temp)
 				for _ in range(node.right.value - 1):
-					res = self.builder.mul(self.builder.load(temp), self.load(var_name))
+					res = self.builder.mul(self.builder.load(temp), var)
 					self.builder.store(res, temp)
 				res = self.builder.load(temp)
 			else:
 				raise NotImplementedError()
 		else:
 			if op == PLUS_ASSIGN:
-				res = self.builder.fadd(self.load(var_name), right)
+				res = self.builder.fadd(var, right)
 			elif op == MINUS_ASSIGN:
-				res = self.builder.fsub(self.load(var_name), right)
+				res = self.builder.fsub(var, right)
 			elif op == MUL_ASSIGN:
-				res = self.builder.fmul(self.load(var_name), right)
+				res = self.builder.fmul(var, right)
 			elif op == FLOORDIV_ASSIGN:
-				res = self.builder.sdiv(self.builder.fptosi(self.load(var_name), ir.IntType(64)), self.builder.fptosi(right, ir.IntType(64)))
+				res = self.builder.sdiv(self.builder.fptosi(var, ir.IntType(64)), self.builder.fptosi(right, ir.IntType(64)))
 			elif op == DIV_ASSIGN:
-				res = self.builder.fdiv(self.load(var_name), right)
+				res = self.builder.fdiv(var, right)
 			elif op == MOD_ASSIGN:
-				res = self.builder.frem(self.load(var_name), right)
+				res = self.builder.frem(var, right)
 			elif op == POWER_ASSIGN:
 				temp = self.builder.alloca(type_map[DEC])
-				self.builder.store(self.load(var_name), temp)
+				self.builder.store(var, temp)
 				for _ in range(node.right.value - 1):
-					res = self.builder.fmul(self.builder.load(temp), self.load(var_name))
+					res = self.builder.fmul(self.builder.load(temp), var)
 					self.builder.store(res, temp)
 				res = self.builder.load(temp)
 			else:
 				raise NotImplementedError()
-		self.store(var_name, res)
+		if collection_access:
+			self.call('dyn_array_set', [var_name, key, res])
+		else:
+			self.store(var_name, res)
 
 	def visit_return(self, node):
 		val = self.visit(node.value)

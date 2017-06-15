@@ -281,7 +281,7 @@ class Parser(object):
 			node = self.variable_declaration()
 		elif self.current_token.type == NAME:
 			if self.preview().value == DOT:
-				node = self.field_assignment(self.next_token())
+				node = self.property_or_method(self.next_token())
 			else:
 				node = self.name_statement()
 		elif self.current_token.value == DEF:
@@ -320,6 +320,22 @@ class Parser(object):
 			elif self.current_token.value == RSQUAREBRACKET:
 				self.next_token()
 				return self.collection_expression(token, type_token)
+		elif self.current_token.type == NUMBER:
+			tok = self.expr()
+			if self.current_token.value == COMMA:
+				return self.slice_expression(tok)
+			else:
+				self.eat_value(RSQUAREBRACKET)
+				access = self.access_collection(token, tok)
+				if self.current_token.value in ASSIGNMENT_OP:
+					op = self.current_token
+					self.next_token()
+					right = self.expr()
+					if op.value == ASSIGN:
+						return Assign(access, op, right, self.current_token.line_num)
+					else:
+						return OpAssign(access, op, right, self.current_token.line_num)
+				return access
 		elif token.type == NAME:
 			self.eat_value(LSQUAREBRACKET)
 			tok = self.expr()
@@ -407,12 +423,45 @@ class Parser(object):
 			raise SyntaxError
 		return node
 
-	def field_assignment(self, token):
+	def property_or_method(self, token):
 		self.eat_value(DOT)
 		field = self.current_token.value
 		self.next_token()
 		left = DotAccess(token.value, field, self.current_token.line_num)
 		token = self.next_token()
+		if token.value in ASSIGNMENT_OP:
+			return self.field_assignment(token, left)
+		else:
+			return self.method_call(token, left)
+
+	def method_call(self, token, left):
+		args = []
+		named_args = {}
+		while self.current_token.value != RPAREN:
+			while self.current_token.type == NEWLINE:
+				self.eat_type(NEWLINE)
+			if self.current_token.value in (LPAREN, LSQUAREBRACKET, LCURLYBRACKET):
+				args.append(self.bracket_literal())
+			elif self.preview().value == ASSIGN:
+				name = self.expr().value
+				self.eat_value(ASSIGN)
+				named_args[name] = self.expr()
+			else:
+				args.append(self.expr())
+			while self.current_token.type == NEWLINE:
+				self.eat_type(NEWLINE)
+			if self.current_token.value != RPAREN:
+				self.eat_value(COMMA)
+		method = MethodCall(left.obj, left.field, args, self.current_token.line_num, named_args)
+		self.next_token()
+		return method
+
+	def field_assignment(self, token, left):
+		# self.eat_value(DOT)
+		# field = self.current_token.value
+		# self.next_token()
+		# left = DotAccess(token.value, field, self.current_token.line_num)
+		# token = self.next_token()
 		if token.value == ASSIGN:
 			right = self.expr()
 			node = Assign(left, token, right, self.current_token.line_num)
