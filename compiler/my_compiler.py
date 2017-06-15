@@ -433,11 +433,15 @@ class CodeGenerator(NodeVisitor):
 		else:
 			raise NotImplementedError
 
-	@staticmethod
-	def define_array(_, elements):
-		array_type = ir.ArrayType(elements[0].type, len(elements))
-		array = array_type(elements)
-		return array
+	def define_array(self, node, elements):
+		dyn_array_type = self.search_scopes('Dynamic_Array')
+		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
+		array_ptr = self.builder.alloca(dyn_array_type)
+		self.builder.store(array, array_ptr)
+		self.builder.call(self.module.get_global('dyn_array_init'), [array_ptr])
+		for element in elements:
+			self.builder.call(self.module.get_global('dyn_array_append'), [array_ptr, element])
+		return self.builder.load(array_ptr)
 
 	def define_list(self, node, elements):
 		raise NotImplementedError
@@ -448,7 +452,10 @@ class CodeGenerator(NodeVisitor):
 	def visit_collectionaccess(self, node):
 		key = node.key.value
 		collection = self.search_scopes(node.collection.value)
-		return self.builder.extract_value(self.load(collection.name), [key])
+		if collection.type.pointee == self.search_scopes('Dynamic_Array'):
+			return self.builder.call(self.module.get_global('dyn_array_get'), [collection, self.const(key)])
+		else:
+			return self.builder.extract_value(self.load(collection.name), [key])
 
 	def visit_print(self, node):
 		if node.value:
@@ -460,8 +467,6 @@ class CodeGenerator(NodeVisitor):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
 				self.call('printb', [val])
-			# elif val.type.width == 128:
-			# 	self.call('print128', [val])
 			else:
 				self.call('printd', [val])
 		elif isinstance(val.type, (ir.FloatType, ir.DoubleType)):
@@ -482,7 +487,7 @@ class CodeGenerator(NodeVisitor):
 			val = self.builder.bitcast(val, type_map[INT32].as_pointer())
 			self.call('puts', [val])
 			return
-		self.call('putchar', [ir.Constant(type_map[INT32], 10)])
+		self.call('putchar', [ir.Constant(type_map[INT], 10)])
 
 	def visit_input(self, node):
 		var_ptr = self.builder.alloca(ir.ArrayType(type_map[INT8], len(node.value.value) + 1), name='var_ptr')
@@ -608,10 +613,16 @@ class CodeGenerator(NodeVisitor):
 		malloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT]])
 		ir.Function(self.module, malloc_ty, 'malloc')
 
+		realloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT8].as_pointer(), type_map[INT]])
+		ir.Function(self.module, realloc_ty, 'realloc')
+
 		free_ty = ir.FunctionType(type_map[VOID], [type_map[INT8].as_pointer()])
 		ir.Function(self.module, free_ty, 'free')
 
-		putchar_ty = ir.FunctionType(type_map[INT32], [type_map[INT32]])
+		exit_ty = ir.FunctionType(type_map[VOID], [type_map[INT32]])
+		ir.Function(self.module, exit_ty, 'exit')
+
+		putchar_ty = ir.FunctionType(type_map[INT], [type_map[INT]])
 		ir.Function(self.module, putchar_ty, 'putchar')
 
 		printf_ty = ir.FunctionType(type_map[INT32], [type_map[INT8].as_pointer()], var_arg=True)
