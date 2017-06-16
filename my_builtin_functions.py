@@ -35,6 +35,7 @@ def define_create_range(compiler, dyn_array_struct_ptr):
 	create_range = ir.Function(compiler.module, create_range_type, 'create_range')
 	create_range_entry = create_range.append_basic_block('entry')
 	builder = ir.IRBuilder(create_range_entry)
+	compiler.builder = builder
 	create_range_test = create_range.append_basic_block('test')
 	create_range_body = create_range.append_basic_block('body')
 	create_range_exit = create_range.append_basic_block('exit')
@@ -77,215 +78,18 @@ def define_printd(mod):  # TODO: Change to an Int -> Str function
 	x_addr = builder.alloca(type_map[INT], name='x')
 
 	# BODY
-	int_zero = ir.Constant(type_map[INT], 0)
-	int_one = ir.Constant(type_map[INT], 1)
-	int_two = ir.Constant(type_map[INT], 2)
-	int_three = ir.Constant(type_map[INT], 3)
-	int_four = ir.Constant(type_map[INT], 4)
-	int_five = ir.Constant(type_map[INT], 5)
-	int_six = ir.Constant(type_map[INT], 6)
-	int_seven = ir.Constant(type_map[INT], 7)
-	int_eight = ir.Constant(type_map[INT], 8)
-	int_nine = ir.Constant(type_map[INT], 9)
 	int_ten = ir.Constant(type_map[INT], 10)
 	int_fourtyeight = ir.Constant(type_map[INT], 48)
-	int_fourtynine = ir.Constant(type_map[INT], 49)
-	int_fifty = ir.Constant(type_map[INT], 50)
-	int_fiftyone = ir.Constant(type_map[INT], 51)
-	int_fiftytwo = ir.Constant(type_map[INT], 52)
-	int_fiftythree = ir.Constant(type_map[INT], 53)
-	int_fiftyfour = ir.Constant(type_map[INT], 54)
-	int_fiftyfive = ir.Constant(type_map[INT], 55)
-	int_fiftysix = ir.Constant(type_map[INT], 56)
-	int_fiftyseven = ir.Constant(type_map[INT], 57)
 
 	div_ten = builder.udiv(builder.load(n_addr), int_ten, 'divten')
-	greater_than_zero = builder.icmp_unsigned(GREATER_THAN, div_ten, int_zero, 'greaterthanzero')
+	greater_than_zero = builder.icmp_unsigned(GREATER_THAN, div_ten, zero, 'greaterthanzero')
 	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT]), int_ten, 'modten')
 	builder.store(mod_ten, x_addr)
 
 	with builder.if_then(greater_than_zero):
 		builder.call(mod.get_global('printd'), [div_ten])
 
-	case_0 = func.append_basic_block('case')
-	case_1 = func.append_basic_block('case')
-	case_2 = func.append_basic_block('case')
-	case_3 = func.append_basic_block('case')
-	case_4 = func.append_basic_block('case')
-	case_5 = func.append_basic_block('case')
-	case_6 = func.append_basic_block('case')
-	case_7 = func.append_basic_block('case')
-	case_8 = func.append_basic_block('case')
-	case_9 = func.append_basic_block('case')
-	default = func.append_basic_block('default')
-
-	switch = builder.switch(builder.load(x_addr), default)
-	switch.add_case(int_zero, case_0)
-	switch.add_case(int_one, case_1)
-	switch.add_case(int_two, case_2)
-	switch.add_case(int_three, case_3)
-	switch.add_case(int_four, case_4)
-	switch.add_case(int_five, case_5)
-	switch.add_case(int_six, case_6)
-	switch.add_case(int_seven, case_7)
-	switch.add_case(int_eight, case_8)
-	switch.add_case(int_nine, case_9)
-
-	builder.position_at_start(case_0)
-	builder.call(mod.get_global('putchar'), [int_fourtyeight])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_1)
-	builder.call(mod.get_global('putchar'), [int_fourtynine])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_2)
-	builder.call(mod.get_global('putchar'), [int_fifty])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_3)
-	builder.call(mod.get_global('putchar'), [int_fiftyone])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_4)
-	builder.call(mod.get_global('putchar'), [int_fiftytwo])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_5)
-	builder.call(mod.get_global('putchar'), [int_fiftythree])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_6)
-	builder.call(mod.get_global('putchar'), [int_fiftyfour])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_7)
-	builder.call(mod.get_global('putchar'), [int_fiftyfive])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_8)
-	builder.call(mod.get_global('putchar'), [int_fiftysix])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_9)
-	builder.call(mod.get_global('putchar'), [int_fiftyseven])
-	builder.branch(exit_block)
-
-	builder.position_at_start(default)
-	builder.branch(exit_block)
-
-	# CLOSE
-	builder.position_at_end(exit_block)
-	builder.ret_void()
-
-
-def define_int_to_str(mod):
-	# START
-	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
-	func = ir.Function(mod, func_type, 'int_to_str')
-	entry_block = func.append_basic_block('entry')
-	builder = ir.IRBuilder(entry_block)
-	exit_block = func.append_basic_block('exit')
-	n_addr = builder.alloca(type_map[INT], name='n')
-	builder.store(func.args[0], n_addr)
-	x_addr = builder.alloca(type_map[INT32], name='x')
-
-	# BODY
-	int_zero = ir.Constant(type_map[INT32], 0)
-	int_one = ir.Constant(type_map[INT32], 1)
-	int_two = ir.Constant(type_map[INT32], 2)
-	int_three = ir.Constant(type_map[INT32], 3)
-	int_four = ir.Constant(type_map[INT32], 4)
-	int_five = ir.Constant(type_map[INT32], 5)
-	int_six = ir.Constant(type_map[INT32], 6)
-	int_seven = ir.Constant(type_map[INT32], 7)
-	int_eight = ir.Constant(type_map[INT32], 8)
-	int_nine = ir.Constant(type_map[INT32], 9)
-	int_ten = ir.Constant(type_map[INT32], 10)
-	int_fourtyeight = ir.Constant(type_map[INT32], 48)
-	int_fourtynine = ir.Constant(type_map[INT32], 49)
-	int_fifty = ir.Constant(type_map[INT32], 50)
-	int_fiftyone = ir.Constant(type_map[INT32], 51)
-	int_fiftytwo = ir.Constant(type_map[INT32], 52)
-	int_fiftythree = ir.Constant(type_map[INT32], 53)
-	int_fiftyfour = ir.Constant(type_map[INT32], 54)
-	int_fiftyfive = ir.Constant(type_map[INT32], 55)
-	int_fiftysix = ir.Constant(type_map[INT32], 56)
-	int_fiftyseven = ir.Constant(type_map[INT32], 57)
-
-	div_ten = builder.udiv(builder.load(n_addr), builder.zext(int_ten, type_map[INT]), 'divten')
-	greater_than_zero = builder.icmp_unsigned(GREATER_THAN, div_ten, int_zero, 'greaterthanzero')
-	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT32]), int_ten, 'modten')
-	builder.store(mod_ten, x_addr)
-
-	with builder.if_then(greater_than_zero):
-		builder.call(mod.get_global('int_to_str'), [div_ten])
-
-	case_0 = func.append_basic_block('case')
-	case_1 = func.append_basic_block('case')
-	case_2 = func.append_basic_block('case')
-	case_3 = func.append_basic_block('case')
-	case_4 = func.append_basic_block('case')
-	case_5 = func.append_basic_block('case')
-	case_6 = func.append_basic_block('case')
-	case_7 = func.append_basic_block('case')
-	case_8 = func.append_basic_block('case')
-	case_9 = func.append_basic_block('case')
-	default = func.append_basic_block('default')
-
-	switch = builder.switch(builder.load(x_addr), default)
-	switch.add_case(int_zero, case_0)
-	switch.add_case(int_one, case_1)
-	switch.add_case(int_two, case_2)
-	switch.add_case(int_three, case_3)
-	switch.add_case(int_four, case_4)
-	switch.add_case(int_five, case_5)
-	switch.add_case(int_six, case_6)
-	switch.add_case(int_seven, case_7)
-	switch.add_case(int_eight, case_8)
-	switch.add_case(int_nine, case_9)
-
-	builder.position_at_start(case_0)
-	builder.call(mod.get_global('putchar'), [int_fourtyeight])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_1)
-	builder.call(mod.get_global('putchar'), [int_fourtynine])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_2)
-	builder.call(mod.get_global('putchar'), [int_fifty])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_3)
-	builder.call(mod.get_global('putchar'), [int_fiftyone])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_4)
-	builder.call(mod.get_global('putchar'), [int_fiftytwo])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_5)
-	builder.call(mod.get_global('putchar'), [int_fiftythree])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_6)
-	builder.call(mod.get_global('putchar'), [int_fiftyfour])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_7)
-	builder.call(mod.get_global('putchar'), [int_fiftyfive])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_8)
-	builder.call(mod.get_global('putchar'), [int_fiftysix])
-	builder.branch(exit_block)
-
-	builder.position_at_start(case_9)
-	builder.call(mod.get_global('putchar'), [int_fiftyseven])
-	builder.branch(exit_block)
-
-	builder.position_at_start(default)
+	builder.call(mod.get_global('putchar'), [builder.add(int_fourtyeight, builder.load(x_addr))])
 	builder.branch(exit_block)
 
 	# CLOSE
@@ -332,6 +136,7 @@ def dynamic_array_init(compiler, dyn_array_struct_ptr):
 	dyn_array_init = ir.Function(compiler.module, dyn_array_init_type, 'dyn_array_init')
 	dyn_array_init_entry = dyn_array_init.append_basic_block('entry')
 	builder = ir.IRBuilder(dyn_array_init_entry)
+	compiler.builder = builder
 	dyn_array_init_exit = dyn_array_init.append_basic_block('exit')
 	builder.position_at_end(dyn_array_init_entry)
 	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
@@ -365,6 +170,7 @@ def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
 	dyn_array_double_capacity_if_full = ir.Function(compiler.module, dyn_array_double_capacity_if_full_type, 'dyn_array_double_capacity_if_full')
 	dyn_array_double_capacity_if_full_entry = dyn_array_double_capacity_if_full.append_basic_block('entry')
 	builder = ir.IRBuilder(dyn_array_double_capacity_if_full_entry)
+	compiler.builder = builder
 	dyn_array_double_capacity_if_full_exit = dyn_array_double_capacity_if_full.append_basic_block('exit')
 	dyn_array_double_capacity_block = dyn_array_double_capacity_if_full.append_basic_block('double_capacity')
 	builder.position_at_end(dyn_array_double_capacity_if_full_entry)
@@ -409,6 +215,7 @@ def dynamic_array_append(compiler, dyn_array_struct_ptr):
 	dyn_array_append = ir.Function(compiler.module, dyn_array_append_type, 'dyn_array_append')
 	dyn_array_append_entry = dyn_array_append.append_basic_block('entry')
 	builder = ir.IRBuilder(dyn_array_append_entry)
+	compiler.builder = builder
 	dyn_array_append_exit = dyn_array_append.append_basic_block('exit')
 	builder.position_at_end(dyn_array_append_entry)
 	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
@@ -444,6 +251,7 @@ def dynamic_array_get(compiler, dyn_array_struct_ptr):
 	dyn_array_get = ir.Function(compiler.module, dyn_array_get_type, 'dyn_array_get')
 	dyn_array_get_entry = dyn_array_get.append_basic_block('entry')
 	builder = ir.IRBuilder(dyn_array_get_entry)
+	compiler.builder = builder
 	dyn_array_get_exit = dyn_array_get.append_basic_block('exit')
 	dyn_array_get_index_out_of_bounds = dyn_array_get.append_basic_block('index_out_of_bounds')
 	dyn_array_get_is_index_less_than_zero = dyn_array_get.append_basic_block('is_index_less_than_zero')
@@ -466,6 +274,7 @@ def dynamic_array_get(compiler, dyn_array_struct_ptr):
 	builder.cbranch(compare_index_to_size, dyn_array_get_index_out_of_bounds, dyn_array_get_is_index_less_than_zero)
 
 	builder.position_at_end(dyn_array_get_index_out_of_bounds)
+	compiler.print_string('Array index out of bounds')
 	builder.call(compiler.module.get_global('exit'), [one_32])
 	builder.unreachable()
 
@@ -504,6 +313,7 @@ def dynamic_array_set(compiler, dyn_array_struct_ptr):
 	dyn_array_set = ir.Function(compiler.module, dyn_array_set_type, 'dyn_array_set')
 	dyn_array_set_entry = dyn_array_set.append_basic_block('entry')
 	builder = ir.IRBuilder(dyn_array_set_entry)
+	compiler.builder = builder
 	dyn_array_set_exit = dyn_array_set.append_basic_block('exit')
 	dyn_array_set_index_out_of_bounds = dyn_array_set.append_basic_block('index_out_of_bounds')
 	dyn_array_set_is_index_less_than_zero = dyn_array_set.append_basic_block('is_index_less_than_zero')
@@ -528,6 +338,7 @@ def dynamic_array_set(compiler, dyn_array_struct_ptr):
 	builder.cbranch(compare_index_to_size, dyn_array_set_index_out_of_bounds, dyn_array_set_is_index_less_than_zero)
 
 	builder.position_at_end(dyn_array_set_index_out_of_bounds)
+	compiler.print_string('Array index out of bounds')
 	builder.call(compiler.module.get_global('exit'), [one_32])
 	builder.unreachable()
 
@@ -568,6 +379,7 @@ def dynamic_array_length(compiler, dyn_array_struct_ptr):
 	dyn_array_length = ir.Function(compiler.module, dyn_array_length_type, 'dyn_array_length')
 	dyn_array_length_entry = dyn_array_length.append_basic_block('entry')
 	builder = ir.IRBuilder(dyn_array_length_entry)
+	compiler.builder = builder
 	builder.position_at_end(dyn_array_length_entry)
 	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
 	builder.store(dyn_array_length.args[0], array_ptr)

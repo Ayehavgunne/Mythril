@@ -1,4 +1,61 @@
-things = [3, 2, 7]
+things = [3, 2, 1]
+print(things[1 + 1])
 
-for item in things
-	print(item)
+Dec a
+b = 3
+
+def bar() -> Int
+	return 2 + 2
+
+Bool larry = true
+f = bar()
+Float g = 7.5
+h = 5
+garry = false
+
+if garry
+	g = 2.6
+	if larry and garry
+		h += h
+else if larry
+	g = 3.6
+else
+	g = 7.6
+
+if larry
+	g += 7::Dec
+
+a = 2 * g
+d = 0
+c = a::Int * b
+
+def foo(Int first, Int second) -> Int
+	if first < second
+		return first + second
+	else
+		return 54
+
+e = foo(c, b)
+
+d += c + b
+
+print('a')
+print(a)
+print('b')
+print(b)
+print('c')
+print(c)
+print('d')
+print(d)
+print('e')
+print(e)
+print('f')
+print(f)
+print('g')
+print(g)
+print('h')
+print(h)
+print('larry')
+print(larry)
+print('garry')
+print(garry)

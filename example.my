@@ -292,3 +292,24 @@ while b < 30
 		b += 1
 
 d += c + b
+
+print('a')
+print(a)
+print('b')
+print(b)
+print('c')
+print(c)
+print('d')
+print(d)
+print('e')
+print(e)
+print('f')
+print(f)
+print('g')
+print(g)
+print('h')
+print(h)
+print('larry')
+print(larry)
+print('garry')
+print(garry)

@@ -336,9 +336,9 @@ class Parser(object):
 					self.next_token()
 					right = self.expr()
 					if op.value == ASSIGN:
-						return Assign(access, op, right, self.line_num)
+						return Assign(access, op.value, right, self.line_num)
 					else:
-						return OpAssign(access, op, right, self.line_num)
+						return OpAssign(access, op.value, right, self.line_num)
 				return access
 		elif token.type == NAME:
 			self.eat_value(LSQUAREBRACKET)
@@ -568,7 +568,7 @@ class Parser(object):
 		token = self.next_token()
 		if token.value == ASSIGN:
 			right = self.expr()
-			node = Assign(left, token, right, self.line_num)
+			node = Assign(left, token.value, right, self.line_num)
 		elif token.value in ARITHMETIC_ASSIGNMENT_OP:
 			right = self.expr()
 			node = OpAssign(left, token.value, right, self.line_num)
