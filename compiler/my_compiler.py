@@ -189,10 +189,10 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_for(self, node):
 		init_block = self.add_block('for.init')
-		test_block = self.add_block('for.cond')
+		cond_block = self.add_block('for.cond')
 		body_block = self.add_block('for.body')
 		end_block = self.add_block('for.end')
-		self.loop_test_blocks.append(test_block)
+		self.loop_test_blocks.append(cond_block)
 		self.loop_end_blocks.append(end_block)
 		self.branch(init_block)
 		self.position_at_end(init_block)
@@ -207,17 +207,16 @@ class CodeGenerator(NodeVisitor):
 		val = self.call('dyn_array_get', [iterator, zero])
 		self.alloc_define_store(val, varname, iterator.type.pointee.elements[2].pointee)
 		position = self.alloc_define_store(zero, 'position', type_map[INT])
-		self.branch(test_block)
-		self.position_at_end(test_block)
-		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(position), stop)
+		self.branch(cond_block)
+		self.position_at_end(cond_block)
+		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(position), self.builder.sub(stop, one))
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
-		succ = self.builder.add(one, self.load(position))
-		self.store(succ, position)
-		self.store(self.call('dyn_array_get', [iterator, succ]), varname)
+		self.store(self.builder.add(one, self.load(position)), position)
+		self.store(self.call('dyn_array_get', [iterator, self.load(position)]), varname)
 		if not self.is_break:
-			self.branch(test_block)
+			self.branch(cond_block)
 		else:
 			self.is_break = False
 		self.position_at_end(end_block)
@@ -511,6 +510,13 @@ class CodeGenerator(NodeVisitor):
 			return
 		self.call('putchar', [ir.Constant(type_map[INT], 10)])
 
+	def print_string(self, string):
+		stringz = self.stringz(string)
+		percent_ptr = self.alloc_and_store(stringz, ir.ArrayType(stringz.type.element, stringz.type.count))
+		percent_ptr_gep = self.gep(percent_ptr, [self.const(0), self.const(0)])
+		val = self.builder.bitcast(percent_ptr_gep, type_map[INT32].as_pointer())
+		self.call('puts', [val])
+
 	def visit_input(self, node):
 		# var_ptr = self.builder.alloca(ir.ArrayType(type_map[INT8], len(node.value.value) + 1))
 		# self.store(self.stringz(node.value.value), var_ptr)
@@ -708,8 +714,7 @@ class CodeGenerator(NodeVisitor):
 		return self.visit(node)
 
 	def evaluate(self, optimize=True, ir_dump=False):
-		if ir_dump:
-			# print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
+		if ir_dump and not optimize:
 			print(str(self.module))
 		llvmmod = llvm.parse_assembly(str(self.module))
 		if optimize:
@@ -718,6 +723,8 @@ class CodeGenerator(NodeVisitor):
 			pm = llvm.create_module_pass_manager()
 			pmb.populate(pm)
 			pm.run(llvmmod)
+			if ir_dump:
+				print(str(llvmmod))
 		target_machine = self.target.create_target_machine()
 		with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
 			ee.finalize_object()
@@ -741,6 +748,7 @@ class CodeGenerator(NodeVisitor):
 		program_string = str(program_string).replace('source_filename = "<string>"\n', '')
 		program_string = program_string.replace('target triple = "unknown-unknown-unknown"\n', '')
 		program_string = program_string.replace('local_unnamed_addr', '')
+		program_string = program_string.replace('@llvm.memset.p0i8.i64(i8* nocapture writeonly', '@llvm.memset.p0i8.i64(i8* nocapture')
 		with open(cwd + '/out/' + filename + '.ll', 'w') as output:
 			output.write(program_string)
 		if os.name != 'nt':
@@ -754,6 +762,8 @@ class CodeGenerator(NodeVisitor):
 				end_time = time()
 				print(output.stdout.decode('utf-8'))
 				print('{:f} sec'.format(end_time - start_time))
+				# os.remove('out/{}.bin'.format(filename))
+				# os.remove('out/{}.o'.format(filename))
 
 # if __name__ == '__main__':
 # 	from my_lexer import Lexer

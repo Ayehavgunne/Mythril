@@ -1,4 +1,4 @@
-things = [3, 2, 1]
+things = [3, 2, 7]
 
 for item in things
 	print(item)

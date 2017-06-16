@@ -61,13 +61,12 @@ def define_create_range(compiler, dyn_array_struct_ptr):
 
 	builder.branch(create_range_test)
 
-	# CLOSE
 	builder.position_at_end(create_range_exit)
 	builder.ret_void()
 
 
 def define_printd(mod):  # TODO: Change to an Int -> Str function
-	# function start
+	# START
 	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
 	func = ir.Function(mod, func_type, 'printd')
 	entry_block = func.append_basic_block('entry')
@@ -77,7 +76,7 @@ def define_printd(mod):  # TODO: Change to an Int -> Str function
 	builder.store(func.args[0], n_addr)
 	x_addr = builder.alloca(type_map[INT], name='x')
 
-	# function body
+	# BODY
 	int_zero = ir.Constant(type_map[INT], 0)
 	int_one = ir.Constant(type_map[INT], 1)
 	int_two = ir.Constant(type_map[INT], 2)
@@ -101,7 +100,7 @@ def define_printd(mod):  # TODO: Change to an Int -> Str function
 	int_fiftyseven = ir.Constant(type_map[INT], 57)
 
 	div_ten = builder.udiv(builder.load(n_addr), int_ten, 'divten')
-	greater_than_zero = builder.icmp_unsigned('>', div_ten, int_zero, 'greaterthanzero')
+	greater_than_zero = builder.icmp_unsigned(GREATER_THAN, div_ten, int_zero, 'greaterthanzero')
 	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT]), int_ten, 'modten')
 	builder.store(mod_ten, x_addr)
 
@@ -175,13 +174,13 @@ def define_printd(mod):  # TODO: Change to an Int -> Str function
 	builder.position_at_start(default)
 	builder.branch(exit_block)
 
-	# function close
+	# CLOSE
 	builder.position_at_end(exit_block)
 	builder.ret_void()
 
 
 def define_int_to_str(mod):
-	# function start
+	# START
 	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
 	func = ir.Function(mod, func_type, 'int_to_str')
 	entry_block = func.append_basic_block('entry')
@@ -191,7 +190,7 @@ def define_int_to_str(mod):
 	builder.store(func.args[0], n_addr)
 	x_addr = builder.alloca(type_map[INT32], name='x')
 
-	# function body
+	# BODY
 	int_zero = ir.Constant(type_map[INT32], 0)
 	int_one = ir.Constant(type_map[INT32], 1)
 	int_two = ir.Constant(type_map[INT32], 2)
@@ -215,7 +214,7 @@ def define_int_to_str(mod):
 	int_fiftyseven = ir.Constant(type_map[INT32], 57)
 
 	div_ten = builder.udiv(builder.load(n_addr), builder.zext(int_ten, type_map[INT]), 'divten')
-	greater_than_zero = builder.icmp_unsigned('>', div_ten, int_zero, 'greaterthanzero')
+	greater_than_zero = builder.icmp_unsigned(GREATER_THAN, div_ten, int_zero, 'greaterthanzero')
 	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT32]), int_ten, 'modten')
 	builder.store(mod_ten, x_addr)
 
@@ -289,21 +288,21 @@ def define_int_to_str(mod):
 	builder.position_at_start(default)
 	builder.branch(exit_block)
 
-	# function close
+	# CLOSE
 	builder.position_at_end(exit_block)
 	builder.ret_void()
 
 
 def define_printb(mod):
-	# function start
+	# START
 	func_type = ir.FunctionType(type_map[VOID], [type_map[BOOL]])
 	func = ir.Function(mod, func_type, 'printb')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
 
-	# function body
-	equalszero = builder.icmp_unsigned('==', func.args[0], ir.Constant(type_map[BOOL], 0), 'equalszero')
+	# BODY
+	equalszero = builder.icmp_unsigned(EQUALS, func.args[0], ir.Constant(type_map[BOOL], 0), 'equalszero')
 
 	with builder.if_else(equalszero) as (then, otherwise):
 		with then:
@@ -322,7 +321,7 @@ def define_printb(mod):
 
 	builder.branch(exit_block)
 
-	# function close
+	# CLOSE
 	builder.position_at_end(exit_block)
 	builder.ret_void()
 
@@ -361,7 +360,7 @@ def dynamic_array_init(compiler, dyn_array_struct_ptr):
 
 
 def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
-	# function 'array double capacity if full' START
+	# START
 	dyn_array_double_capacity_if_full_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr])
 	dyn_array_double_capacity_if_full = ir.Function(compiler.module, dyn_array_double_capacity_if_full_type, 'dyn_array_double_capacity_if_full')
 	dyn_array_double_capacity_if_full_entry = dyn_array_double_capacity_if_full.append_basic_block('entry')
@@ -372,7 +371,7 @@ def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
 	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
 	builder.store(dyn_array_double_capacity_if_full.args[0], array_ptr)
 
-	# function 'array double capacity if full' BODY
+	# BODY
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	size_val = builder.load(size_ptr)
 
@@ -381,7 +380,7 @@ def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
 
 	data_ptr = builder.gep(builder.load(array_ptr), [zero_32, two_32], inbounds=True)
 
-	compare_size_to_capactiy = builder.icmp_unsigned('>=', size_val, capacity_val)
+	compare_size_to_capactiy = builder.icmp_unsigned(GREATER_THAN_OR_EQUAL_TO, size_val, capacity_val)
 
 	builder.cbranch(compare_size_to_capactiy, dyn_array_double_capacity_block, dyn_array_double_capacity_if_full_exit)
 
@@ -399,7 +398,7 @@ def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
 
 	builder.branch(dyn_array_double_capacity_if_full_exit)
 
-	# function 'array double capacity if full' CLOSE
+	# CLOSE
 	builder.position_at_end(dyn_array_double_capacity_if_full_exit)
 	builder.ret_void()
 
@@ -462,7 +461,7 @@ def dynamic_array_get(compiler, dyn_array_struct_ptr):
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	size_val = builder.load(size_ptr)
 
-	compare_index_to_size = builder.icmp_unsigned('>=', index_val, size_val)
+	compare_index_to_size = builder.icmp_unsigned(GREATER_THAN_OR_EQUAL_TO, index_val, size_val)
 
 	builder.cbranch(compare_index_to_size, dyn_array_get_index_out_of_bounds, dyn_array_get_is_index_less_than_zero)
 
@@ -472,7 +471,7 @@ def dynamic_array_get(compiler, dyn_array_struct_ptr):
 
 	builder.position_at_end(dyn_array_get_is_index_less_than_zero)
 
-	compare_index_to_zero = builder.icmp_unsigned('<', index_val, zero)
+	compare_index_to_zero = builder.icmp_unsigned(LESS_THAN, index_val, zero)
 
 	builder.cbranch(compare_index_to_zero, dyn_array_get_negative_index, dyn_array_get_block)
 
@@ -524,7 +523,7 @@ def dynamic_array_set(compiler, dyn_array_struct_ptr):
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	size_val = builder.load(size_ptr)
 
-	compare_index_to_size = builder.icmp_unsigned('>=', index_val, size_val)
+	compare_index_to_size = builder.icmp_unsigned(GREATER_THAN_OR_EQUAL_TO, index_val, size_val)
 
 	builder.cbranch(compare_index_to_size, dyn_array_set_index_out_of_bounds, dyn_array_set_is_index_less_than_zero)
 
@@ -534,7 +533,7 @@ def dynamic_array_set(compiler, dyn_array_struct_ptr):
 
 	builder.position_at_end(dyn_array_set_is_index_less_than_zero)
 
-	compare_index_to_zero = builder.icmp_unsigned('<', index_val, zero)
+	compare_index_to_zero = builder.icmp_unsigned(LESS_THAN, index_val, zero)
 
 	builder.cbranch(compare_index_to_zero, dyn_array_set_negative_index, dyn_array_set_block)
 
