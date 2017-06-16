@@ -1,2 +1,4 @@
-for x in 0..40 # For loop using a range
-	print(x * 2)
+things = [3, 2, 1]
+
+for item in things
+	print(item)

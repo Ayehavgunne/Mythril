@@ -154,16 +154,6 @@ class List(Collection):
 		raise NotImplementedError
 
 
-class Tuple(Collection):
-	def __init__(self):
-		super().__init__()
-		self.name = TUPLE
-
-	@staticmethod
-	def type():
-		raise NotImplementedError
-
-
 class Set(Collection):
 	def __init__(self):
 		super().__init__()

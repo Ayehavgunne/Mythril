@@ -39,7 +39,6 @@ STR_BUILTIN = BuiltinTypeSymbol(STR, Str)
 STRUCT_BUILTIN = BuiltinTypeSymbol(STRUCT, Str)
 ARRAY_BUILTIN = BuiltinTypeSymbol(ARRAY, Array)
 LIST_BUILTIN = BuiltinTypeSymbol(LIST, List)
-TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE, Tuple)
 DICT_BUILTIN = BuiltinTypeSymbol(DICT, Dict)
 ENUM_BUILTIN = BuiltinTypeSymbol(ENUM, Enum)
 FUNC_BUILTIN = BuiltinTypeSymbol(FUNC, Func)
@@ -134,7 +133,6 @@ class NodeVisitor(object):
 		self.define(STRUCT, STRUCT_BUILTIN)
 		self.define(ARRAY, ARRAY_BUILTIN)
 		self.define(LIST, LIST_BUILTIN)
-		self.define(TUPLE, TUPLE_BUILTIN)
 		self.define(DICT, DICT_BUILTIN)
 		self.define(ENUM, ENUM_BUILTIN)
 		self.define(FUNC, FUNC_BUILTIN)
@@ -218,8 +216,6 @@ class NodeVisitor(object):
 				return self.search_scopes(BYTES)
 			elif isinstance(value, list):
 				return self.search_scopes(LIST)
-			elif isinstance(value, tuple):
-				return self.search_scopes(TUPLE)
 			elif isinstance(value, dict):
 				return self.search_scopes(DICT)
 			elif isinstance(value, Enum):

@@ -125,10 +125,11 @@ class OpAssign(AST):
 
 
 class If(AST):
-	def __init__(self, op, comps, blocks, line_num):
+	def __init__(self, op, comps, blocks, indent_level, line_num):
 		self.op = op
 		self.comps = comps
 		self.blocks = blocks
+		self.indent_level = indent_level
 		self.line_num = line_num
 
 
@@ -222,11 +223,10 @@ class UnaryOp(AST):
 
 
 class Range(AST):
-	def __init__(self, left, op, right, line_num):
+	def __init__(self, left, right, line_num):
 		self.left = left
-		self.op = op
 		self.right = right
-		self.value = 'range_temp'
+		self.value = RANGE
 		self.line_num = line_num
 
 
@@ -245,9 +245,8 @@ class DotAccess(AST):
 
 
 class Type(AST):
-	def __init__(self, token, line_num, func_ret_type=None):
-		self.token = token
-		self.value = token.value
+	def __init__(self, value, line_num, func_ret_type=None):
+		self.value = value
 		self.func_ret_type = func_ret_type or []
 		self.line_num = line_num
 
@@ -264,37 +263,33 @@ class Void(AST):
 
 
 class Var(AST):
-	def __init__(self, token, line_num, read_only=False):
-		self.token = token
-		self.value = token.value
+	def __init__(self, value, line_num, read_only=False):
+		self.value = value
 		self.read_only = read_only
 		self.line_num = line_num
 
 
 class Constant(AST):
-	def __init__(self, token, line_num):
-		self.token = token
-		self.value = token.value
+	def __init__(self, value, line_num):
+		self.value = value
 		self.line_num = line_num
 
 
 class Num(AST):
-	def __init__(self, token, line_num):
-		self.token = token
-		self.value = token.value
+	def __init__(self, value, val_type, line_num):
+		self.value = value
+		self.val_type = val_type
 		self.line_num = line_num
 
 
 class Str(AST):
-	def __init__(self, token, line_num):
-		self.token = token
-		self.value = token.value
+	def __init__(self, value, line_num):
+		self.value = value
 		self.line_num = line_num
 
 
 class Collection(AST):
-	def __init__(self, token, collection_type, line_num, read_only, *items):
-		self.token = token
+	def __init__(self, collection_type, line_num, read_only, *items):
 		self.type = collection_type
 		self.read_only = read_only
 		self.read_only = read_only
@@ -309,21 +304,12 @@ class HashMap(AST):
 
 
 class Print(AST):
-	def __init__(self, token, value, line_num):
-		self.token = token
+	def __init__(self, value, line_num):
 		self.value = value
 		self.line_num = line_num
 
 
 class Input(AST):
-	def __init__(self, token, value, line_num):
-		self.token = token
+	def __init__(self, value, line_num):
 		self.value = value
 		self.line_num = line_num
-
-
-class NoOp(AST):
-	def __str__(self):
-		return 'noop'
-
-	__repr__ = __str__

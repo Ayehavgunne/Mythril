@@ -1,5 +1,4 @@
 from llvmlite import ir
-
 from compiler import type_map
 from compiler import NUM_TYPES
 from my_grammar import *
@@ -12,8 +11,9 @@ I128 = 'i128'
 DOUBLE = 'double'
 FLOATINGPOINT = 'float'
 
+
 def operations(generator, node):
-	op = node.op.value
+	op = node.op
 	left = generator.visit(node.left)
 	right = generator.visit(node.right)
 	if op == CAST:
@@ -125,23 +125,21 @@ def cast_ops(generator, left, right, node):
 			cast = generator.builder.uitofp(left, type_map[DEC])
 			return cast
 	elif cast_type == FLOAT:
-		return float(left)
+		raise NotImplementedError
 	elif cast_type == COMPLEX:
-		return complex(left)
+		raise NotImplementedError
 	elif cast_type == STR:
-		return str(left)
+		raise NotImplementedError
 	elif cast_type == BOOL:
-		return bool(left)
+		raise NotImplementedError
 	elif cast_type == BYTES:
-		return bytes(left)
+		raise NotImplementedError
 	elif cast_type == LIST:
-		return list(left)
-	elif cast_type == TUPLE:
-		return tuple(left)
+		raise NotImplementedError
 	elif cast_type == DICT:
-		return dict(left)
+		raise NotImplementedError
 	elif cast_type == ENUM:
-		return Enum(left.value, left)
+		raise NotImplementedError
 	elif cast_type in (ANY, FUNC):
 		raise TypeError('file={} line={}: Cannot cast to type {}'.format(
 			generator.file_name,

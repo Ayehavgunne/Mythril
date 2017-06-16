@@ -231,7 +231,7 @@ class SymbolTableBuilder(NodeVisitor):
 			return val
 
 	def visit_binop(self, node):
-		if node.op.value == CAST:
+		if node.op == CAST:
 			self.visit(node.left)
 			return self.infer_type(self.visit(node.right))
 		else:
@@ -287,7 +287,7 @@ class SymbolTableBuilder(NodeVisitor):
 		self.define(typ.name, typ)
 
 	def visit_funcdecl(self, node):
-		func_name = node.name.value
+		func_name = node.name
 		func_type = self.search_scopes(node.return_type.value)
 		if func_type and func_type.name == FUNC:
 			func_type.return_type = self.visit(node.return_type.func_ret_type)
@@ -346,7 +346,7 @@ class SymbolTableBuilder(NodeVisitor):
 		return func_symbol
 
 	def visit_funccall(self, node):
-		func_name = node.name.value
+		func_name = node.name
 		func = self.search_scopes(func_name)
 		for x, param in enumerate(func.parameters.values()):
 			if x < len(node.arguments):
@@ -447,7 +447,7 @@ class SymbolTableBuilder(NodeVisitor):
 			key = self.infer_type(node.key.value)
 		else:
 			key = self.visit(node.key)
-		if collection.type is self.search_scopes(ARRAY) or collection.type is self.search_scopes(LIST) or collection.type is self.search_scopes(TUPLE) or collection.type is self.search_scopes(SET):
+		if collection.type is self.search_scopes(ARRAY) or collection.type is self.search_scopes(LIST) or collection.type is self.search_scopes(SET):
 			if key is not self.search_scopes(INT) and key.type is not self.search_scopes(INT):
 				warnings.warn('file={} line={}: Something something error... huh? (fix this message)'.format(self.file_name, node.line_num))
 				self.warnings = True

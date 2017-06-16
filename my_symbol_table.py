@@ -32,7 +32,6 @@ BYTES_BUILTIN = BuiltinTypeSymbol(BYTES)
 STR_BUILTIN = BuiltinTypeSymbol(STR)
 ARRAY_BUILTIN = BuiltinTypeSymbol(ARRAY)
 LIST_BUILTIN = BuiltinTypeSymbol(LIST)
-TUPLE_BUILTIN = BuiltinTypeSymbol(TUPLE)
 DICT_BUILTIN = BuiltinTypeSymbol(DICT)
 ENUM_BUILTIN = BuiltinTypeSymbol(ENUM)
 FUNC_BUILTIN = BuiltinTypeSymbol(FUNC)
@@ -119,7 +118,6 @@ class SymbolTable(object):
 		self.define(STR_BUILTIN)
 		self.define(ARRAY_BUILTIN)
 		self.define(LIST_BUILTIN)
-		self.define(TUPLE_BUILTIN)
 		self.define(DICT_BUILTIN)
 		self.define(ENUM_BUILTIN)
 		self.define(FUNC_BUILTIN)
@@ -199,8 +197,6 @@ class SymbolTable(object):
 				return self.lookup(BYTES)
 			elif isinstance(value, list):
 				return self.lookup(LIST)
-			elif isinstance(value, tuple):
-				return self.lookup(TUPLE)
 			elif isinstance(value, dict):
 				return self.lookup(DICT)
 			elif isinstance(value, Enum):

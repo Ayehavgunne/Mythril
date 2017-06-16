@@ -26,12 +26,50 @@ def define_dynamic_array(compiler):
 	dynamic_array_append(compiler, dyn_array_struct_ptr)
 	dynamic_array_get(compiler, dyn_array_struct_ptr)
 	dynamic_array_set(compiler, dyn_array_struct_ptr)
+	dynamic_array_length(compiler, dyn_array_struct_ptr)
+	define_create_range(compiler, dyn_array_struct_ptr)
 
 
-def define_printd(the_module):  # TODO: Change to an Int -> Str function
+def define_create_range(compiler, dyn_array_struct_ptr):
+	create_range_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr, type_map[INT], type_map[INT]])
+	create_range = ir.Function(compiler.module, create_range_type, 'create_range')
+	create_range_entry = create_range.append_basic_block('entry')
+	builder = ir.IRBuilder(create_range_entry)
+	create_range_test = create_range.append_basic_block('test')
+	create_range_body = create_range.append_basic_block('body')
+	create_range_exit = create_range.append_basic_block('exit')
+
+	builder.position_at_end(create_range_entry)
+	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
+	builder.store(create_range.args[0], array_ptr)
+	start_ptr = builder.alloca(type_map[INT], name='start_ptr')
+	builder.store(create_range.args[1], start_ptr)
+	stop_ptr = builder.alloca(type_map[INT], name='stop_ptr')
+	builder.store(create_range.args[2], stop_ptr)
+
+	num_ptr = builder.alloca(type_map[INT], name='num')
+	builder.store(builder.load(start_ptr), num_ptr)
+	builder.branch(create_range_test)
+
+	builder.position_at_end(create_range_test)
+	cond = builder.icmp_unsigned(LESS_THAN, builder.load(num_ptr), builder.load(stop_ptr))
+	builder.cbranch(cond, create_range_body, create_range_exit)
+
+	builder.position_at_end(create_range_body)
+	builder.call(compiler.module.get_global('dyn_array_append'), [builder.load(array_ptr), builder.load(num_ptr)])
+	builder.store(builder.add(one, builder.load(num_ptr)), num_ptr)
+
+	builder.branch(create_range_test)
+
+	# CLOSE
+	builder.position_at_end(create_range_exit)
+	builder.ret_void()
+
+
+def define_printd(mod):  # TODO: Change to an Int -> Str function
 	# function start
 	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
-	func = ir.Function(the_module, func_type, 'printd')
+	func = ir.Function(mod, func_type, 'printd')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
@@ -68,7 +106,7 @@ def define_printd(the_module):  # TODO: Change to an Int -> Str function
 	builder.store(mod_ten, x_addr)
 
 	with builder.if_then(greater_than_zero):
-		builder.call(the_module.get_global('printd'), [div_ten])
+		builder.call(mod.get_global('printd'), [div_ten])
 
 	case_0 = func.append_basic_block('case')
 	case_1 = func.append_basic_block('case')
@@ -95,43 +133,43 @@ def define_printd(the_module):  # TODO: Change to an Int -> Str function
 	switch.add_case(int_nine, case_9)
 
 	builder.position_at_start(case_0)
-	builder.call(the_module.get_global('putchar'), [int_fourtyeight])
+	builder.call(mod.get_global('putchar'), [int_fourtyeight])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_1)
-	builder.call(the_module.get_global('putchar'), [int_fourtynine])
+	builder.call(mod.get_global('putchar'), [int_fourtynine])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_2)
-	builder.call(the_module.get_global('putchar'), [int_fifty])
+	builder.call(mod.get_global('putchar'), [int_fifty])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_3)
-	builder.call(the_module.get_global('putchar'), [int_fiftyone])
+	builder.call(mod.get_global('putchar'), [int_fiftyone])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_4)
-	builder.call(the_module.get_global('putchar'), [int_fiftytwo])
+	builder.call(mod.get_global('putchar'), [int_fiftytwo])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_5)
-	builder.call(the_module.get_global('putchar'), [int_fiftythree])
+	builder.call(mod.get_global('putchar'), [int_fiftythree])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_6)
-	builder.call(the_module.get_global('putchar'), [int_fiftyfour])
+	builder.call(mod.get_global('putchar'), [int_fiftyfour])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_7)
-	builder.call(the_module.get_global('putchar'), [int_fiftyfive])
+	builder.call(mod.get_global('putchar'), [int_fiftyfive])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_8)
-	builder.call(the_module.get_global('putchar'), [int_fiftysix])
+	builder.call(mod.get_global('putchar'), [int_fiftysix])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_9)
-	builder.call(the_module.get_global('putchar'), [int_fiftyseven])
+	builder.call(mod.get_global('putchar'), [int_fiftyseven])
 	builder.branch(exit_block)
 
 	builder.position_at_start(default)
@@ -142,10 +180,10 @@ def define_printd(the_module):  # TODO: Change to an Int -> Str function
 	builder.ret_void()
 
 
-def define_int_to_str(the_module):
+def define_int_to_str(mod):
 	# function start
 	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
-	func = ir.Function(the_module, func_type, 'int_to_str')
+	func = ir.Function(mod, func_type, 'int_to_str')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
@@ -182,7 +220,7 @@ def define_int_to_str(the_module):
 	builder.store(mod_ten, x_addr)
 
 	with builder.if_then(greater_than_zero):
-		builder.call(the_module.get_global('int_to_str'), [div_ten])
+		builder.call(mod.get_global('int_to_str'), [div_ten])
 
 	case_0 = func.append_basic_block('case')
 	case_1 = func.append_basic_block('case')
@@ -209,43 +247,43 @@ def define_int_to_str(the_module):
 	switch.add_case(int_nine, case_9)
 
 	builder.position_at_start(case_0)
-	builder.call(the_module.get_global('putchar'), [int_fourtyeight])
+	builder.call(mod.get_global('putchar'), [int_fourtyeight])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_1)
-	builder.call(the_module.get_global('putchar'), [int_fourtynine])
+	builder.call(mod.get_global('putchar'), [int_fourtynine])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_2)
-	builder.call(the_module.get_global('putchar'), [int_fifty])
+	builder.call(mod.get_global('putchar'), [int_fifty])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_3)
-	builder.call(the_module.get_global('putchar'), [int_fiftyone])
+	builder.call(mod.get_global('putchar'), [int_fiftyone])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_4)
-	builder.call(the_module.get_global('putchar'), [int_fiftytwo])
+	builder.call(mod.get_global('putchar'), [int_fiftytwo])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_5)
-	builder.call(the_module.get_global('putchar'), [int_fiftythree])
+	builder.call(mod.get_global('putchar'), [int_fiftythree])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_6)
-	builder.call(the_module.get_global('putchar'), [int_fiftyfour])
+	builder.call(mod.get_global('putchar'), [int_fiftyfour])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_7)
-	builder.call(the_module.get_global('putchar'), [int_fiftyfive])
+	builder.call(mod.get_global('putchar'), [int_fiftyfive])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_8)
-	builder.call(the_module.get_global('putchar'), [int_fiftysix])
+	builder.call(mod.get_global('putchar'), [int_fiftysix])
 	builder.branch(exit_block)
 
 	builder.position_at_start(case_9)
-	builder.call(the_module.get_global('putchar'), [int_fiftyseven])
+	builder.call(mod.get_global('putchar'), [int_fiftyseven])
 	builder.branch(exit_block)
 
 	builder.position_at_start(default)
@@ -256,10 +294,10 @@ def define_int_to_str(the_module):
 	builder.ret_void()
 
 
-def define_printb(the_module):
+def define_printb(mod):
 	# function start
 	func_type = ir.FunctionType(type_map[VOID], [type_map[BOOL]])
-	func = ir.Function(the_module, func_type, 'printb')
+	func = ir.Function(mod, func_type, 'printb')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	exit_block = func.append_basic_block('exit')
@@ -269,17 +307,17 @@ def define_printb(the_module):
 
 	with builder.if_else(equalszero) as (then, otherwise):
 		with then:
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 102)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 97)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 108)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 115)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 101)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 102)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 97)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 108)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 115)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 101)])
 			builder.branch(exit_block)
 		with otherwise:
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 116)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 114)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 117)])
-			builder.call(the_module.get_global('putchar'), [ir.Constant(type_map[INT], 101)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 116)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 114)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 117)])
+			builder.call(mod.get_global('putchar'), [ir.Constant(type_map[INT], 101)])
 			builder.branch(exit_block)
 
 	builder.branch(exit_block)
@@ -320,6 +358,7 @@ def dynamic_array_init(compiler, dyn_array_struct_ptr):
 	# CLOSE
 	builder.position_at_end(dyn_array_init_exit)
 	builder.ret_void()
+
 
 def dynamic_array_double_if_full(compiler, dyn_array_struct_ptr):
 	# function 'array double capacity if full' START
@@ -523,6 +562,22 @@ def dynamic_array_set(compiler, dyn_array_struct_ptr):
 	builder.position_at_end(dyn_array_set_exit)
 	builder.ret_void()
 
+
+def dynamic_array_length(compiler, dyn_array_struct_ptr):
+	# START
+	dyn_array_length_type = ir.FunctionType(type_map[INT], [dyn_array_struct_ptr])
+	dyn_array_length = ir.Function(compiler.module, dyn_array_length_type, 'dyn_array_length')
+	dyn_array_length_entry = dyn_array_length.append_basic_block('entry')
+	builder = ir.IRBuilder(dyn_array_length_entry)
+	builder.position_at_end(dyn_array_length_entry)
+	array_ptr = builder.alloca(dyn_array_struct_ptr, name='array_ptr')
+	builder.store(dyn_array_length.args[0], array_ptr)
+
+	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
+
+	# CLOSE
+	builder.ret(builder.load(size_ptr))
+
 # TODO: add the following functions for dynamic array
 # extend(iterable)
 # insert(item, index)
@@ -533,4 +588,3 @@ def dynamic_array_set(compiler, dyn_array_struct_ptr):
 # count(item)
 # sort(key=None, reverse=False)
 # reverse()
-# length()

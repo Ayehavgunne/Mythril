@@ -15,9 +15,9 @@ if __name__ == '__main__':
 		generator.generate_code(t)
 		# generator.evaluate(True, True)
 		# generator.evaluate(True, False)
-		generator.evaluate(False, True)
+		# generator.evaluate(False, True)
 		# generator.evaluate(False, False)
 		#
-		# generator.compile(file[:-3], True, True)
+		generator.compile(file[:-3], True, True)
 	else:
 		print('Did not run')

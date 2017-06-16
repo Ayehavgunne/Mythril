@@ -154,8 +154,6 @@ class Interpreter(NodeVisitor):
 				return bytes(left)
 			elif cast_type == LIST:
 				return list(left)
-			elif cast_type == TUPLE:
-				return tuple(left)
 			elif cast_type == DICT:
 				return dict(left)
 			elif cast_type == ENUM:
