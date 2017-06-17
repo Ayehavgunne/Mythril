@@ -33,7 +33,8 @@ class CodeGenerator(NodeVisitor):
 		self.main_function = func
 		self.builder = ir.IRBuilder(entry_block)
 		self.main_builder = self.builder
-		self.exit_block = None
+		self.exit_blocks = []
+		self.last_block = None
 		self.loop_test_blocks = []
 		self.loop_end_blocks = []
 		self.is_break = False
@@ -65,7 +66,7 @@ class CodeGenerator(NodeVisitor):
 		return self.funcdecl('anon{}'.format(self.anon_counter), node)
 
 	def visit_funcdecl(self, node):
-		return self.funcdecl(node.name, node)
+		self.funcdecl(node.name, node)
 
 	def funcdecl(self, name, node):
 		self.start_function(name, node.return_type, node.parameters, node.parameter_defaults, node.varargs)
@@ -75,9 +76,16 @@ class CodeGenerator(NodeVisitor):
 		if self.function.function_type.return_type != type_map[VOID]:
 			self.alloc_and_define(RET_VAR, self.function.function_type.return_type)
 		ret = self.visit(node.body)
-		func = self.function
+		# func = self.function
 		self.end_function(ret)
-		return func
+		# return func
+
+	def visit_return(self, node):
+		val = self.visit(node.value)
+		if val.type != ir.VoidType():
+			self.store(val, RET_VAR)
+		self.branch(self.exit_blocks[-1])
+		return True
 
 	def visit_funccall(self, node):
 		func_type = self.search_scopes(node.name)
@@ -130,8 +138,7 @@ class CodeGenerator(NodeVisitor):
 		raise NotImplementedError
 
 	def visit_vardecl(self, node):
-		# self.alloc_define_store(node.var_node.value, node.var_node.value, type_map[node.type_node.value])
-		var_addr = self.builder.alloca(type_map[node.type_node.value], name=node.var_node.value)
+		var_addr = self.allocate(type_map[node.type_node.value], name=node.var_node.value)
 		self.define(node.var_node.value, var_addr)
 		self.store(self.visit(node.var_node), node.var_node.value)
 
@@ -417,13 +424,6 @@ class CodeGenerator(NodeVisitor):
 		else:
 			self.store(res, var_name)
 
-	def visit_return(self, node):
-		val = self.visit(node.value)
-		if val.type != ir.VoidType():
-			self.store(val, RET_VAR)
-		self.branch(self.exit_block)
-		return True
-
 	def visit_constant(self, node):
 		if node.value == TRUE:
 			return self.const(1, 1)
@@ -526,6 +526,7 @@ class CodeGenerator(NodeVisitor):
 
 	# noinspection PyUnusedLocal
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
+		self.last_block = self.builder.block
 		self.new_scope()
 		ret_type = type_map[return_type.value]
 		args = [type_map[param.value] for param in parameters.values()]
@@ -540,19 +541,19 @@ class CodeGenerator(NodeVisitor):
 		self.define(name, func_type, 1)
 		self.function = func
 		entry = self.add_block('entry')
-		self.exit_block = self.add_block('exit')
+		self.exit_blocks.append(self.add_block('exit'))
 		self.position_at_start(entry)
 
 	def end_function(self, returned=False):
 		if not returned:
-			self.branch(self.exit_block)
-		self.position_at_end(self.exit_block)
+			self.branch(self.exit_blocks[-1])
+		self.position_at_end(self.exit_blocks.pop())
 		if self.function.function_type.return_type != type_map[VOID]:
 			retval = self.load(self.search_scopes(RET_VAR))
 			self.builder.ret(retval)
 		else:
 			self.builder.ret_void()
-		self.position_at_end(self.main_function.entry_basic_block)
+		self.position_at_end(self.last_block)
 		self.function = self.main_function
 		self.drop_top_scope()
 

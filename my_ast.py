@@ -42,7 +42,7 @@ class FuncDecl(AST):
 		self.line_num = line_num
 
 	def __str__(self):
-		return '<{name}:{type} ({params})>'.format(name=self.name.value, type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
 
 	__repr__ = __str__
 
