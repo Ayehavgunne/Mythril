@@ -9,6 +9,8 @@ from my_ast import VarDecl
 from my_ast import Else
 from my_grammar import *
 
+# The Interpreter has been abandoned for now. Maybe I'll get back to it if I see a use for it
+
 
 class Interpreter(NodeVisitor):
 	def __init__(self, file_name=None):
@@ -296,13 +298,13 @@ class Interpreter(NodeVisitor):
 if __name__ == '__main__':
 	from my_lexer import Lexer
 	from my_parser import Parser
-	from my_symbol_table_builder import SymbolTableBuilder
+	from my_preprocessor import Preprocessor
 	file = 'test.my'
 	code = open(file).read()
 	lexer = Lexer(code, file)
 	parser = Parser(lexer)
 	t = parser.parse()
-	symtab_builder = SymbolTableBuilder(parser.file_name)
+	symtab_builder = Preprocessor(parser.file_name)
 	symtab_builder.check(t)
 	if not symtab_builder.warnings:
 		interpreter = Interpreter(parser.file_name)

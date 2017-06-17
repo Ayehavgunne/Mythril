@@ -83,25 +83,6 @@ class TypeSymbol(Symbol):
 	__repr__ = __str__
 
 
-# class BuiltinFuncSymbol(Symbol):
-# 	def __init__(self, name, return_type, parameters, body):
-# 		super().__init__(name, return_type)
-# 		self.parameters = parameters
-# 		self.body = body
-# 		self.accessed = False
-# 		self.val_assigned = True
-#
-# 	def __str__(self):
-# 		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.type, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
-#
-# 	__repr__ = __str__
-
-
-print_parameters = OrderedDict()
-print_parameters['objects'] = []
-PRINT_BUILTIN = BuiltinFuncSymbol('print', VOID, print_parameters, print)
-
-
 class SymbolTable(object):
 	def __init__(self):
 		self._scope = [OrderedDict()]
@@ -121,7 +102,6 @@ class SymbolTable(object):
 		self.define(DICT_BUILTIN)
 		self.define(ENUM_BUILTIN)
 		self.define(FUNC_BUILTIN)
-		self.define(PRINT_BUILTIN)
 
 	def __str__(self):
 		s = 'Symbols: {}'.format(self.symbols)
@@ -171,37 +151,37 @@ class SymbolTable(object):
 	def lookup(self, name):
 		return self.search_scopes(name)
 
-	def infer_type(self, value):
-		if isinstance(value, BuiltinTypeSymbol):
-			return value
-		if isinstance(value, FuncSymbol):
-			return self.lookup(FUNC)
-		elif isinstance(value, VarSymbol):
-			return value.type
-		elif isinstance(value, Type):
-			return self.lookup(value.value)
-		else:
-			if isinstance(value, int):
-				return self.lookup(INT)
-			elif isinstance(value, Decimal):
-				return self.lookup(DEC)
-			elif isinstance(value, float):
-				return self.lookup(FLOAT)
-			elif isinstance(value, complex):
-				return self.lookup(COMPLEX)
-			elif isinstance(value, str):
-				return self.lookup(STR)
-			elif isinstance(value, bool):
-				return self.lookup(BOOL)
-			elif isinstance(value, bytes):
-				return self.lookup(BYTES)
-			elif isinstance(value, list):
-				return self.lookup(LIST)
-			elif isinstance(value, dict):
-				return self.lookup(DICT)
-			elif isinstance(value, Enum):
-				return self.lookup(ENUM)
-			elif callable(value):
-				return self.lookup(FUNC)
-			else:
-				raise TypeError('Type not recognized: {}'.format(value))
+	# def infer_type(self, value):
+	# 	if isinstance(value, BuiltinTypeSymbol):
+	# 		return value
+	# 	if isinstance(value, FuncSymbol):
+	# 		return self.lookup(FUNC)
+	# 	elif isinstance(value, VarSymbol):
+	# 		return value.type
+	# 	elif isinstance(value, Type):
+	# 		return self.lookup(value.value)
+	# 	else:
+	# 		if isinstance(value, int):
+	# 			return self.lookup(INT)
+	# 		elif isinstance(value, Decimal):
+	# 			return self.lookup(DEC)
+	# 		elif isinstance(value, float):
+	# 			return self.lookup(FLOAT)
+	# 		elif isinstance(value, complex):
+	# 			return self.lookup(COMPLEX)
+	# 		elif isinstance(value, str):
+	# 			return self.lookup(STR)
+	# 		elif isinstance(value, bool):
+	# 			return self.lookup(BOOL)
+	# 		elif isinstance(value, bytes):
+	# 			return self.lookup(BYTES)
+	# 		elif isinstance(value, list):
+	# 			return self.lookup(LIST)
+	# 		elif isinstance(value, dict):
+	# 			return self.lookup(DICT)
+	# 		elif isinstance(value, Enum):
+	# 			return self.lookup(ENUM)
+	# 		elif callable(value):
+	# 			return self.lookup(FUNC)
+	# 		else:
+	# 			raise TypeError('Type not recognized: {}'.format(value))

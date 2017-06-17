@@ -1,47 +1,47 @@
-from time import sleep
-from time import time
 from ctypes import CFUNCTYPE
 from ctypes import c_void_p
 from decimal import Decimal
-from llvmlite import ir
+from time import sleep
+from time import time
 import llvmlite.binding as llvm
-from my_builtin_functions import define_printd
-from my_builtin_functions import define_printb
-from my_builtin_functions import define_dynamic_array
-from my_visitor import NodeVisitor
-from my_ast import StructLiteral, CollectionAccess
+from llvmlite import ir
+from compiler import RET_VAR
+from compiler import type_map
+from compiler.my_builtin_functions import define_dynamic_array
+from compiler.my_builtin_functions import define_printb
+from compiler.my_builtin_functions import define_printd
+from compiler.operations import operations
 from my_ast import DotAccess
 from my_ast import Input
+from my_ast import StructLiteral
+from my_ast import CollectionAccess
 from my_ast import VarDecl
 from my_grammar import *
-from compiler import type_map
-from compiler import RET_VAR
-from compiler.operations import operations
+from my_visitor import NodeVisitor
 
 
 class CodeGenerator(NodeVisitor):
 	def __init__(self, file_name):
 		super().__init__()
 		self.file_name = file_name
-		self.module = ir.Module(name='main')
+		self.module = ir.Module()
 		self.builder = None
 		self._add_builtins()
 		func_ty = ir.FunctionType(ir.VoidType(), [])
 		func = ir.Function(self.module, func_ty, 'main')
 		entry_block = func.append_basic_block('entry')
+		exit_block = func.append_basic_block('exit')
 		self.function = func
-		self.main_function = func
+		self.function_stack = [func]
 		self.builder = ir.IRBuilder(entry_block)
-		self.main_builder = self.builder
-		self.exit_blocks = []
-		self.last_block = None
+		self.exit_blocks = [exit_block]
+		self.block_stack = [entry_block]
 		self.loop_test_blocks = []
 		self.loop_end_blocks = []
 		self.is_break = False
 		llvm.initialize()
 		llvm.initialize_native_target()
 		llvm.initialize_native_asmprinter()
-		self.target = llvm.Target.from_default_triple()
 		self.anon_counter = 0
 
 	def __str__(self):
@@ -49,6 +49,8 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_program(self, node):
 		self.visit(node.block)
+		self.branch(self.exit_blocks[0])
+		self.position_at_end(self.exit_blocks[0])
 		self.builder.ret_void()
 
 	@staticmethod
@@ -76,9 +78,7 @@ class CodeGenerator(NodeVisitor):
 		if self.function.function_type.return_type != type_map[VOID]:
 			self.alloc_and_define(RET_VAR, self.function.function_type.return_type)
 		ret = self.visit(node.body)
-		# func = self.function
 		self.end_function(ret)
-		# return func
 
 	def visit_return(self, node):
 		val = self.visit(node.value)
@@ -170,19 +170,19 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.icmp_unsigned(EQUALS, self.const(1), self.const(1), 'cmptmp')
 
 	def visit_while(self, node):
-		test_block = self.add_block('while.cond')
+		cond_block = self.add_block('while.cond')
 		body_block = self.add_block('while.body')
 		end_block = self.add_block('while.end')
-		self.loop_test_blocks.append(test_block)
+		self.loop_test_blocks.append(cond_block)
 		self.loop_end_blocks.append(end_block)
-		self.branch(test_block)
-		self.position_at_end(test_block)
+		self.branch(cond_block)
+		self.position_at_end(cond_block)
 		cond = self.visit(node.comp)
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
 		if not self.is_break:
-			self.branch(test_block)
+			self.branch(cond_block)
 		else:
 			self.is_break = False
 		self.position_at_end(end_block)
@@ -257,10 +257,10 @@ class CodeGenerator(NodeVisitor):
 			else:
 				cases.append(self.add_block('case'))
 		if not default_exists:
-			self.position_at_start(default_block)
+			self.position_at_end(default_block)
 			self.branch(switch_end_block)
 		for x, case in enumerate(node.cases):
-			self.position_at_start(cases[x])
+			self.position_at_end(cases[x])
 			break_ = self.visit(case.block)
 			if break_ == BREAK:
 				self.branch(switch_end_block)
@@ -300,9 +300,7 @@ class CodeGenerator(NodeVisitor):
 	def visit_range(self, node):
 		start = self.visit(node.left)
 		stop = self.visit(node.right)
-		dyn_array_type = self.search_scopes('Dynamic_Array')
-		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
-		array_ptr = self.alloc_and_store(array, dyn_array_type)
+		array_ptr = self.create_array()
 		self.call('dyn_array_init', [array_ptr])
 		self.call('create_range', [array_ptr, start, stop])
 		return array_ptr
@@ -314,6 +312,8 @@ class CodeGenerator(NodeVisitor):
 			if isinstance(node.right, Input):
 				node.right.type = node.left.type_node.value
 			var = self.visit(node.right)
+			if not var:
+				return
 			if isinstance(node.left, VarDecl):
 				var_name = node.left.var_node.value
 				if node.left.type_node.value == FLOAT:
@@ -426,17 +426,11 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_constant(self, node):
 		if node.value == TRUE:
-			return self.const(1, 1)
+			return self.const(1, BOOL)
 		elif node.value == FALSE:
-			return self.const(0, 1)
+			return self.const(0, BOOL)
 		else:
 			raise NotImplementedError('file={} line={}'.format(self.file_name, node.line_num))
-
-	def visit_str(self, node):
-		string = self.stringz(node.value)
-		percent_ptr = self.alloc_and_store(string, ir.ArrayType(string.type.element, string.type.count))
-		percent_ptr_gep = self.gep(percent_ptr, [self.const(0), self.const(0)])
-		return percent_ptr_gep
 
 	def visit_collection(self, node):
 		elements = []
@@ -450,13 +444,16 @@ class CodeGenerator(NodeVisitor):
 			raise NotImplementedError
 
 	def define_array(self, _, elements):
-		dyn_array_type = self.search_scopes('Dynamic_Array')
-		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
-		array_ptr = self.alloc_and_store(array, dyn_array_type)
+		array_ptr = self.create_array()
 		self.call('dyn_array_init', [array_ptr])
 		for element in elements:
 			self.call('dyn_array_append', [array_ptr, element])
 		return self.load(array_ptr)
+
+	def create_array(self):
+		dyn_array_type = self.search_scopes('Dynamic_Array')
+		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
+		return self.alloc_and_store(array, dyn_array_type)
 
 	def define_list(self, node, elements):
 		raise NotImplementedError
@@ -472,6 +469,14 @@ class CodeGenerator(NodeVisitor):
 		else:
 			return self.builder.extract_value(self.load(collection.name), [key])
 
+	def visit_str(self, node):
+		array = self.create_array()
+		self.call('dyn_array_init', [array])
+		string = node.value.encode('utf-8')
+		for char in string:
+			self.call('dyn_array_append', [array, self.const(char)])
+		return array
+
 	def visit_print(self, node):
 		if node.value:
 			val = self.visit(node.value)
@@ -482,32 +487,39 @@ class CodeGenerator(NodeVisitor):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
 				self.call('printb', [val])
+				self.call('putchar', [ir.Constant(type_map[INT], 10)])
+				return
+				# val = self.call('bool_to_str', [val])
 			else:
 				self.call('printd', [val])
+				self.call('putchar', [ir.Constant(type_map[INT], 10)])
+				return
+				# val = self.call('int_to_str', [val])
 		elif isinstance(val.type, (ir.FloatType, ir.DoubleType)):
-			percent_f = self.stringz('%f')
-			percent_f_ptr = self.alloc_and_store(percent_f, ir.ArrayType(percent_f.type.element, percent_f.type.count))
-			var_ptr_gep = self.gep(percent_f_ptr, [self.const(0), self.const(0)])
-			var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT8].as_pointer())
-			self.call('printf', [var_ptr_gep, val])
-		elif isinstance(val.type, ir.ArrayType):  # TODO: This assumes an array of characters, aka a string, make it not assume
-			val_ptr = self.alloc_and_store(val, ir.ArrayType(val.type.element, val.type.count))
-			var_ptr_gep = self.gep(val_ptr, [self.const(0), self.const(0)])
-			var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(32).as_pointer())
-			self.call('puts', [var_ptr_gep])
+			percent_g = self.stringz('%g')
+			percent_g = self.alloc_and_store(percent_g, ir.ArrayType(percent_g.type.element, percent_g.type.count))
+			percent_g = self.gep(percent_g, [self.const(0), self.const(0)])
+			percent_g = self.builder.bitcast(percent_g, type_map[INT8].as_pointer())
+			self.call('printf', [percent_g, val])
+			self.call('putchar', [ir.Constant(type_map[INT], 10)])
 			return
-		elif isinstance(val, (ir.LoadInstr, ir.GEPInstr)):
-			val = self.builder.bitcast(val, type_map[INT32].as_pointer())
-			self.call('puts', [val])
-			return
-		self.call('putchar', [ir.Constant(type_map[INT], 10)])
+		# elif isinstance(val.type, ir.ArrayType):
+		# 	val = self.alloc_and_store(val, ir.ArrayType(val.type.element, val.type.count))
+		# 	val = self.gep(val, [self.const(0), self.const(0)])
+		# 	self.call('puts', [val])
+		# 	return
+		# elif isinstance(val, (ir.LoadInstr, ir.GEPInstr)):
+		# 	val = self.builder.bitcast(val, type_map[INT].as_pointer())
+		# 	self.call('puts', [val])
+		# 	return
+		self.call('print', [val])
 
 	def print_string(self, string):
 		stringz = self.stringz(string)
-		percent_ptr = self.alloc_and_store(stringz, ir.ArrayType(stringz.type.element, stringz.type.count))
-		percent_ptr_gep = self.gep(percent_ptr, [self.const(0), self.const(0)])
-		val = self.builder.bitcast(percent_ptr_gep, type_map[INT32].as_pointer())
-		self.call('puts', [val])
+		str_ptr = self.alloc_and_store(stringz, ir.ArrayType(stringz.type.element, stringz.type.count))
+		str_ptr = self.gep(str_ptr, [self.const(0), self.const(0)])
+		str_ptr = self.builder.bitcast(str_ptr, type_map[INT].as_pointer())
+		self.call('puts', [str_ptr])
 
 	def print_int(self, integer):
 		self.call('printd', [integer])
@@ -516,7 +528,6 @@ class CodeGenerator(NodeVisitor):
 	def visit_input(self, node):
 		var_ptr = self.alloc_and_store(self.stringz(node.value.value), ir.ArrayType(type_map[INT8], len(node.value.value) + 1))
 		var_ptr_gep = self.gep(var_ptr, [self.const(0), self.const(0)])
-		var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT32].as_pointer())
 		self.call('puts', [var_ptr_gep])
 		percent_d = self.stringz('%d')
 		percent_ptr = self.alloc_and_store(percent_d, ir.ArrayType(percent_d.type.element, percent_d.type.count))
@@ -526,7 +537,8 @@ class CodeGenerator(NodeVisitor):
 
 	# noinspection PyUnusedLocal
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
-		self.last_block = self.builder.block
+		self.function_stack.append(self.function)
+		self.block_stack.append(self.builder.block)
 		self.new_scope()
 		ret_type = type_map[return_type.value]
 		args = [type_map[param.value] for param in parameters.values()]
@@ -542,7 +554,7 @@ class CodeGenerator(NodeVisitor):
 		self.function = func
 		entry = self.add_block('entry')
 		self.exit_blocks.append(self.add_block('exit'))
-		self.position_at_start(entry)
+		self.position_at_end(entry)
 
 	def end_function(self, returned=False):
 		if not returned:
@@ -553,8 +565,10 @@ class CodeGenerator(NodeVisitor):
 			self.builder.ret(retval)
 		else:
 			self.builder.ret_void()
-		self.position_at_end(self.last_block)
-		self.function = self.main_function
+		back_block = self.block_stack.pop()
+		self.position_at_end(back_block)
+		last_function = self.function_stack.pop()
+		self.function = last_function
 		self.drop_top_scope()
 
 	def new_builder(self, block):
@@ -563,9 +577,6 @@ class CodeGenerator(NodeVisitor):
 
 	def add_block(self, name):
 		return self.function.append_basic_block(name)
-
-	def position_at_start(self, block):
-		self.builder.position_at_start(block)
 
 	def position_at_end(self, block):
 		self.builder.position_at_end(block)
@@ -582,7 +593,7 @@ class CodeGenerator(NodeVisitor):
 	def const(self, val, width=None):
 		if isinstance(val, int):
 			if width:
-				return ir.Constant(ir.IntType(width), val)
+				return ir.Constant(type_map[width], val)
 			else:
 				return ir.Constant(type_map[INT], val)
 		elif isinstance(val, (float, Decimal)):
@@ -594,23 +605,11 @@ class CodeGenerator(NodeVisitor):
 		else:
 			raise NotImplementedError
 
-	def const_as_pointer(self, val, width=None):
-		if isinstance(val, int):
-			if width:
-				return ir.Constant(ir.IntType(width).as_pointer(), val)
-			else:
-				return ir.Constant(type_map[INT].as_pointer(), val)
-		elif isinstance(val, float):
-			return ir.Constant(type_map[DEC].as_pointer(), val)
-		elif isinstance(val, bool):
-			return ir.Constant(type_map[BOOL].as_pointer(), bool(val))
-		elif isinstance(val, str):
-			return self.stringz_pntr(val)
-		else:
-			raise NotImplementedError
-
 	def allocate(self, typ, name=''):
-		return self.builder.alloca(typ, name=name)
+		saved_block = self.builder.block
+		var_addr = self.create_entry_block_alloca(name, typ)
+		self.builder.position_at_end(saved_block)
+		return var_addr
 
 	def alloc_and_store(self, val, typ, name=''):
 		var_addr = self.builder.alloca(typ, name=name)
@@ -630,6 +629,10 @@ class CodeGenerator(NodeVisitor):
 		self.builder.store(val, var_addr)
 		return var_addr
 
+	def create_entry_block_alloca(self, name, typ):
+		self.builder.position_at_start(self.builder.function.entry_basic_block)
+		return self.builder.alloca(typ, size=None, name=name)
+
 	def store(self, value, name):
 		if isinstance(name, str):
 			self.builder.store(value, self.search_scopes(name))
@@ -642,7 +645,8 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.load(name)
 
 	def call(self, name, args):
-		return self.builder.call(self.module.get_global(name), args)
+		func = self.module.get_global(name)
+		return self.builder.call(func, args)
 
 	def gep(self, ptr, indices, inbounds=False, name=''):
 		return self.builder.gep(ptr, indices, inbounds, name)
@@ -672,20 +676,12 @@ class CodeGenerator(NodeVisitor):
 		getchar_ty = ir.FunctionType(ir.IntType(4), [])
 		ir.Function(self.module, getchar_ty, 'getchar')
 
-		puts_ty = ir.FunctionType(type_map[INT32], [type_map[INT32].as_pointer()])
+		puts_ty = ir.FunctionType(type_map[INT], [type_map[INT].as_pointer()])
 		ir.Function(self.module, puts_ty, 'puts')
 
-		define_printd(self.module)
-		define_printb(self.module)
+		define_printd(self)
+		define_printb(self)
 		define_dynamic_array(self)
-
-	@staticmethod
-	def stringz_type(string):
-		return ir.ArrayType(type_map[INT8], len(string) + 1)
-
-	@staticmethod
-	def stringz_pntr_type(string):
-		return ir.ArrayType(type_map[INT8], len(string) + 1).as_pointer()
 
 	@staticmethod
 	def stringz(string):
@@ -695,20 +691,15 @@ class CodeGenerator(NodeVisitor):
 		buf[:-1] = string.encode('utf-8')
 		return ir.Constant(ir.ArrayType(type_map[INT8], n), buf)
 
-	@staticmethod
-	def stringz_pntr(string):
-		n = len(string) + 1
-		buf = bytearray((' ' * n).encode('ascii'))
-		buf[-1] = 0
-		buf[:-1] = string.encode('utf-8')
-		return ir.Constant(ir.ArrayType(type_map[INT8], n).as_pointer(), buf)
-
 	def generate_code(self, node):
 		return self.visit(node)
 
-	def evaluate(self, optimize=True, ir_dump=False):
+	def evaluate(self, optimize=True, ir_dump=False, only_main=False):
 		if ir_dump and not optimize:
-			print(str(self.module))
+			if only_main:
+				print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
+			else:
+				print(str(self.module))
 		llvmmod = llvm.parse_assembly(str(self.module))
 		if optimize:
 			pmb = llvm.create_pass_manager_builder()
@@ -718,7 +709,7 @@ class CodeGenerator(NodeVisitor):
 			pm.run(llvmmod)
 			if ir_dump:
 				print(str(llvmmod))
-		target_machine = self.target.create_target_machine()
+		target_machine = llvm.Target.from_default_triple().create_target_machine()
 		with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
 			ee.finalize_object()
 			fptr = CFUNCTYPE(c_void_p)(ee.get_function_address('main'))

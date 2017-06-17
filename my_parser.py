@@ -58,7 +58,7 @@ class Parser(object):
 			fields[field] = field_type
 			self.eat_type(NEWLINE)
 		self.indent_level -= 1
-		return StructDeclaration(name.value, fields, name.line_num)
+		return StructDeclaration(name.value, fields, self.line_num)
 
 	def class_declaration(self):
 		base = None
@@ -196,7 +196,7 @@ class Parser(object):
 
 	def function_call(self, token):
 		if token.value == INPUT:
-			return Input(self.expr(), token.line_num)
+			return Input(self.expr(), self.line_num)
 		self.eat_value(LPAREN)
 		args = []
 		named_args = {}
@@ -223,7 +223,7 @@ class Parser(object):
 		token = self.current_token
 		if token.value in self.user_types:
 			self.eat_type(NAME)
-			return Type(token.value, token.line_num)
+			return Type(token.value, self.line_num)
 		self.eat_type(TYPE)
 		type_spec = Type(token.value, self.line_num)
 		func_ret_type = None
@@ -406,16 +406,15 @@ class Parser(object):
 	def dot_access(self, token):
 		self.eat_value(DOT)
 		field = self.current_token.value
-		line_num = self.line_num
 		self.next_token()
-		return DotAccess(token.value, field, line_num)
+		return DotAccess(token.value, field, self.line_num)
 
 	def name_statement(self):
 		token = self.next_token()
 		if token.value == PRINT:
-			node = Print(self.expr(), token.line_num)
+			node = Print(self.expr(), self.line_num)
 		elif token.value == INPUT:
-			node = Input(self.expr(), token.line_num)
+			node = Input(self.expr(), self.line_num)
 		elif self.current_token.value == LPAREN:
 			node = self.function_call(token)
 		elif self.current_token.value == LSQUAREBRACKET:
@@ -576,9 +575,8 @@ class Parser(object):
 			raise SyntaxError('Unknown assignment operator: {}'.format(token.value))
 		return node
 
-	@staticmethod
-	def variable(token, read_only=False):
-		return Var(token.value, token.line_num, read_only)
+	def variable(self, token, read_only=False):
+		return Var(token.value, self.line_num, read_only)
 
 	def constant(self, token):
 		return Constant(token.value, self.line_num)
@@ -640,18 +638,18 @@ class Parser(object):
 		while self.current_token.value in ops:
 			token = self.next_token()
 			if token.value in COMPARISON_OP or token.value in LOGICAL_OP or token.value in BINARY_OP:
-				node = BinOp(left=node, op=token.value, right=self.expr(), line_num=self.line_num)
+				node = BinOp(node, token.value, self.expr(), self.line_num)
 			elif token.value == RANGE:
-				node = Range(left=node, right=self.expr(), line_num=self.line_num)
+				node = Range(node, self.expr(), self.line_num)
 			else:
-				node = BinOp(left=node, op=token.value, right=self.factor(), line_num=self.line_num)
+				node = BinOp(node, token.value, self.factor(), self.line_num)
 		return node
 
 	def expr(self):
 		node = self.term()
 		while self.current_token.value in (PLUS, MINUS):
 			token = self.next_token()
-			node = BinOp(left=node, op=token.value, right=self.term(), line_num=self.line_num)
+			node = BinOp(node, token.value, self.term(), self.line_num)
 		return node
 
 	def parse(self):

@@ -28,12 +28,13 @@ def warning_on_one_line(message, category, filename, lineno, file=None, line=Non
 warnings.formatwarning = warning_on_one_line
 
 
-class SymbolTableBuilder(NodeVisitor):
+class Preprocessor(NodeVisitor):
 	def __init__(self, file_name=None):
 		super().__init__()
 		self.file_name = file_name
 		self.warnings = False
 		self.num_types = (
+			self.search_scopes(BOOL),
 			self.search_scopes(INT),
 			self.search_scopes(INT8),
 			self.search_scopes(INT32),
@@ -141,7 +142,7 @@ class SymbolTableBuilder(NodeVisitor):
 		elif isinstance(node.left, CollectionAccess):
 			collection_assignment = True
 			var_name = node.left.collection.value
-			key = node.left.key.value
+			# key = node.left.key.value
 			value = self.visit(node.right)
 		else:
 			var_name = node.left.value
@@ -320,8 +321,8 @@ class SymbolTableBuilder(NodeVisitor):
 			if infered_type is not func_type:
 				warnings.warn('file={} line={}: The actual return type does not match the declared return type: {}'.format(self.file_name, node.line_num, func_name))
 				self.warnings = True
-		# func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
-		# self.define(func_name, func_symbol, 1)
+		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
+		self.define(func_name, func_symbol, 1)
 		self.drop_top_scope()
 
 	def visit_anonymousfunc(self, node):
@@ -371,7 +372,7 @@ class SymbolTableBuilder(NodeVisitor):
 			func.accessed = True
 			return func.type
 
-	def visit_methodcall(self, node):
+	def visit_methodcall(self, node):  # Not done here!
 		method_name = node.name
 		obj = self.search_scopes(node.obj)
 		method = self.search_scopes(method_name)
@@ -476,7 +477,7 @@ if __name__ == '__main__':
 	lexer = Lexer(code, f)
 	parser = Parser(lexer)
 	tree = parser.parse()
-	symtab_builder = SymbolTableBuilder(parser.file_name)
+	symtab_builder = Preprocessor(parser.file_name)
 	symtab_builder.check(tree)
 	if not symtab_builder.warnings:
 		print('Looks good!')

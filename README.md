@@ -37,6 +37,7 @@ That is where I have been placing bits of test code as I work on various feature
 * Multiple Dispatch
 
 ## TODO:
+- [ ] Refactor, refactor, refactor
 - [ ] Make a super cool logo
 - [x] Keyword arguments
 - [x] Parameter default values
