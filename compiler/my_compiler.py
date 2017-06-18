@@ -7,9 +7,9 @@ import llvmlite.binding as llvm
 from llvmlite import ir
 from compiler import RET_VAR
 from compiler import type_map
-from compiler.my_builtin_functions import define_dynamic_array
-from compiler.my_builtin_functions import define_printb
-from compiler.my_builtin_functions import define_printd
+from compiler.builtin_functions import define_dynamic_array
+from compiler.builtin_functions import define_printb
+from compiler.builtin_functions import define_printd
 from compiler.operations import operations
 from my_ast import DotAccess
 from my_ast import Input
@@ -58,6 +58,9 @@ class CodeGenerator(NodeVisitor):
 		return ir.Constant(type_map[node.val_type], node.value)
 
 	def visit_var(self, node):
+		var = self.search_scopes(node.value)
+		if isinstance(var, type_map[FUNC]):
+			return var
 		return self.load(node.value)
 
 	def visit_binop(self, node):
@@ -319,6 +322,9 @@ class CodeGenerator(NodeVisitor):
 				if node.left.type_node.value == FLOAT:
 					node.right.value = float(node.right.value)
 				self.alloc_define_store(var, var_name, var.type)
+			if isinstance(var, type_map[FUNC]):
+
+				self.define(node.left.value, var)
 			elif isinstance(node.left, DotAccess):
 				obj = self.search_scopes(node.left.obj)
 				obj_type = self.search_scopes(obj.struct_name)
@@ -550,7 +556,8 @@ class CodeGenerator(NodeVisitor):
 		if hasattr(return_type, 'func_ret_type') and return_type.func_ret_type:
 			func_type.return_type = func_type.return_type(type_map[return_type.func_ret_type.value], [return_type.func_ret_type.value]).as_pointer()
 		func = ir.Function(self.module, func_type, name)
-		self.define(name, func_type, 1)
+		func_ptr = self.allocate(func_type, name)
+		self.define(name, func_ptr, 1)
 		self.function = func
 		entry = self.add_block('entry')
 		self.exit_blocks.append(self.add_block('exit'))
@@ -646,6 +653,8 @@ class CodeGenerator(NodeVisitor):
 
 	def call(self, name, args):
 		func = self.module.get_global(name)
+		if func is None:
+			raise TypeError('Calling non existant function')
 		return self.builder.call(func, args)
 
 	def gep(self, ptr, indices, inbounds=False, name=''):

@@ -1,7 +1,18 @@
-def factorial(Int a) -> Int
-	if a <= 1
-		return 1
-	return a * factorial(a - 1)
+def bar(Int x) -> Int
+	return x * x
 
-for x in 0..11
-	print(factorial(x))
+#Func baz = bar
+baz = bar
+
+print(bar(2))
+print(baz(2))
+
+#def foo(Int x) -> Int
+#	return baz(x) + x
+#
+#print(foo(2))
+#
+#def bar(Int x) -> Int
+#	return x * 1000
+#
+#print(foo(2))

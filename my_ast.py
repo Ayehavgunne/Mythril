@@ -3,7 +3,7 @@ from my_grammar import *
 
 class AST(object):
 	def __str__(self):
-		return '(' + ' '.join(str(value) for key, value in self.__dict__.items() if not key.startswith("__")) + ')'
+		return '(' + ' '.join(str(value) for key, value in sorted(self.__dict__.items()) if not key.startswith("__") and key != 'read_only' and key != 'line_num') + ')'
 
 	__repr__ = __str__
 
@@ -11,6 +11,11 @@ class AST(object):
 class Program(AST):
 	def __init__(self, block):
 		self.block = block
+
+	def __str__(self):
+		return '\n'.join(str(child) for child in self.block.children)
+
+	__repr__ = __str__
 
 
 class VarDecl(AST):
@@ -25,10 +30,10 @@ class Compound(AST):
 	def __init__(self):
 		self.children = []
 
-	def __str__(self):
-		return '\n'.join(str(child) for child in self.children)
-
-	__repr__ = __str__
+	# def __str__(self):
+	# 	return '\n'.join(str(child) for child in self.children)
+	#
+	# __repr__ = __str__
 
 
 class FuncDecl(AST):
@@ -41,10 +46,10 @@ class FuncDecl(AST):
 		self.body = body
 		self.line_num = line_num
 
-	def __str__(self):
-		return '<{name}:{type} ({params})>'.format(name=self.name, type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
-
-	__repr__ = __str__
+	# def __str__(self):
+	# 	return '<{name}:{type} ({params})>'.format(name=self.name, type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+	#
+	# __repr__ = __str__
 
 
 class AnonymousFunc(AST):
@@ -56,10 +61,10 @@ class AnonymousFunc(AST):
 		self.body = body
 		self.line_num = line_num
 
-	def __str__(self):
-		return '<Anonymous:{type} ({params})>'.format(type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
-
-	__repr__ = __str__
+	# def __str__(self):
+	# 	return '<Anonymous:{type} ({params})>'.format(type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
+	#
+	# __repr__ = __str__
 
 
 class FuncCall(AST):

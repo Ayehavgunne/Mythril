@@ -21,10 +21,10 @@ def operations(compiler, node):
 	elif isinstance(left.type, ir.IntType) and isinstance(right.type, ir.IntType):
 		return int_ops(compiler, op, left, right, node)
 	elif type(left.type) in NUM_TYPES and type(right.type) in NUM_TYPES:
-		if isinstance(left.type, ir.IntType):
-			left = compiler.builder.uitofp(left, type_map[DEC])
-		if isinstance(right.type, ir.IntType):
-			right = compiler.builder.uitofp(right, type_map[DEC])
+		# if isinstance(left.type, ir.IntType):
+		# 	left = compiler.builder.uitofp(left, type_map[DEC])
+		# if isinstance(right.type, ir.IntType):
+		# 	right = compiler.builder.uitofp(right, type_map[DEC])
 		return float_ops(compiler, op, left, right, node)
 	elif isinstance(left, (ir.LoadInstr, ir.GEPInstr)) and isinstance(right, (ir.LoadInstr, ir.GEPInstr)):
 		new_left = compiler.search_scopes(node.left.value)
@@ -33,10 +33,10 @@ def operations(compiler, node):
 
 
 def int_ops(compiler, op, left, right, node):
-	if left.type.width == 1:
-		left = compiler.builder.zext(left, type_map[INT])
-	if right.type.width == 1:
-		right = compiler.builder.zext(right, type_map[INT])
+	# if left.type.width == 1:
+	# 	left = compiler.builder.zext(left, type_map[INT])
+	# if right.type.width == 1:
+	# 	right = compiler.builder.zext(right, type_map[INT])
 	if op == PLUS:
 		return compiler.builder.add(left, right, 'addtmp')
 	elif op == MINUS:

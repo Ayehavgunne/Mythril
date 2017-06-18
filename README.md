@@ -9,7 +9,7 @@ That is where I have been placing bits of test code as I work on various feature
 ## Goals:
 * Learn about compilers, LLVM, language design
 * Create a Python like syntax and mix in a whole lot of new language features and ideas
-* Use LLVM to make it more performant than Python but just as easy to use
+* Use LLVM to make it more performant than Python but make sure it is just as easy to use
 * Focus on designs that will reduce possible errors
 * Choose defaults that are simple, easy and work despite possible performance overhead but make optimization easy. Example: use dynamic arrays by default but allow creation of fixed size arrays with a bit more notation
 

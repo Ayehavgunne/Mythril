@@ -33,15 +33,16 @@ class Preprocessor(NodeVisitor):
 		super().__init__()
 		self.file_name = file_name
 		self.warnings = False
-		self.num_types = (
-			self.search_scopes(BOOL),
-			self.search_scopes(INT),
-			self.search_scopes(INT8),
-			self.search_scopes(INT32),
-			self.search_scopes(INT128),
-			self.search_scopes(DEC),
-			self.search_scopes(FLOAT)
-		)
+		self.return_flag = False
+		# self.num_types = (
+		# 	self.search_scopes(BOOL),
+		# 	self.search_scopes(INT),
+		# 	self.search_scopes(INT8),
+		# 	self.search_scopes(INT32),
+		# 	self.search_scopes(INT128),
+		# 	self.search_scopes(DEC),
+		# 	self.search_scopes(FLOAT)
+		# )
 
 	def check(self, node):
 		res = self.visit(node)
@@ -165,10 +166,14 @@ class Preprocessor(NodeVisitor):
 				value.name = var_name
 				self.define(var_name, value)
 			elif value.name == FUNC:
-				# noinspection PyUnresolvedReferences
-				val_info = self.search_scopes(node.right.name.value)
-				func_sym = FuncSymbol(var_name, val_info.type.return_type, val_info.parameters, val_info.body, val_info.parameter_defaults)
-				self.define(var_name, func_sym)
+				var = self.visit(node.right)
+				if isinstance(var, FuncSymbol):
+					self.define(var_name, var)
+				else:
+					# noinspection PyUnresolvedReferences
+					val_info = self.search_scopes(node.right.value)
+					func_sym = FuncSymbol(var_name, val_info.type.return_type, val_info.parameters, val_info.body, val_info.parameter_defaults)
+					self.define(var_name, func_sym)
 			else:
 				var_sym = VarSymbol(var_name, value, node.left.read_only)
 				var_sym.val_assigned = True
@@ -241,13 +246,13 @@ class Preprocessor(NodeVisitor):
 			left_type = self.infer_type(left)
 			right_type = self.infer_type(right)
 			any_type = self.search_scopes(ANY)
-			if left_type in self.num_types:
-				if right_type in self.num_types:
-					return left_type
+			# if left_type in self.num_types:
+			# 	if right_type in self.num_types:
+			# 		return left_type
 			if right_type is left_type or left_type is any_type or right_type is any_type:
 				return left_type
 			else:
-				warnings.warn('file={} line={}: Oh noez, it is bwoakn (fix this message)'.format(self.file_name, node.line_num))
+				warnings.warn('file={} line={}: types do not match for operation {}, got {} : {}'.format(self.file_name, node.line_num, node.op, left, right))
 				self.warnings = True
 
 	def visit_unaryop(self, node):
@@ -316,11 +321,16 @@ class Preprocessor(NodeVisitor):
 			self.define(sym.name, sym)
 		return_types = self.visit(node.body)
 		return_types = list(flatten(return_types))
-		for ret_type in return_types:
-			infered_type = self.infer_type(ret_type)
-			if infered_type is not func_type:
-				warnings.warn('file={} line={}: The actual return type does not match the declared return type: {}'.format(self.file_name, node.line_num, func_name))
-				self.warnings = True
+		if self.return_flag:
+			self.return_flag = False
+			for ret_type in return_types:
+				infered_type = self.infer_type(ret_type)
+				if infered_type is not func_type:
+					warnings.warn('file={} line={}: The actual return type does not match the declared return type: {}'.format(self.file_name, node.line_num, func_name))
+					self.warnings = True
+		elif func_type != VOID:
+			warnings.warn('file={} line={}: No return value was specified for function: {}'.format(self.file_name, node.line_num, func_name))
+			self.warnings = True
 		func_symbol = FuncSymbol(func_name, func_type, node.parameters, node.body, node.parameter_defaults)
 		self.define(func_name, func_symbol, 1)
 		self.drop_top_scope()
@@ -353,9 +363,9 @@ class Preprocessor(NodeVisitor):
 			if x < len(node.arguments):
 				var = self.visit(node.arguments[x])
 				param_ss = self.search_scopes(param.value)
-				if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
-					continue
-				elif param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
+				# if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
+				# 	continue
+				if param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
 					raise TypeError
 			else:
 				func_param_keys = list(func.parameters.keys())
@@ -380,9 +390,9 @@ class Preprocessor(NodeVisitor):
 			if x < len(node.arguments):
 				var = self.visit(node.arguments[x])
 				param_ss = self.search_scopes(param.value)
-				if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
-					continue
-				elif param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
+				# if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
+				# 	continue
+				if param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
 					raise TypeError
 			else:
 				method_param_keys = list(method.parameters.keys())
@@ -405,12 +415,10 @@ class Preprocessor(NodeVisitor):
 
 	def visit_return(self, node):
 		res = self.visit(node.value)
+		self.return_flag = True
 		return res
 
 	def visit_pass(self, node):
-		pass
-
-	def visit_noop(self, node):
 		pass
 
 	def visit_vardecl(self, node):
