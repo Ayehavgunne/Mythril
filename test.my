@@ -1,11 +1,10 @@
-def fib(Int n) -> Int
-	a = 0
-	b = 1
-	for _ in 0..n
-		prev_a = a
-		a = b
-		b = prev_a + b
-	return a
+def bar(Int x=4, Int y=5) -> Int
+	return x * y
 
-for x in 0..40
-	print(fib(x))
+baz = bar
+print(baz())
+
+def foo(Int x) -> Int
+	return baz(x) + x
+
+print(foo(2))

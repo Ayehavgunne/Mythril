@@ -25,7 +25,7 @@ class Int(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.IntType(64)
+		return ir.IntType(64)
 
 
 class Int8(AnyVal):
@@ -35,7 +35,7 @@ class Int8(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.IntType(8)
+		return ir.IntType(8)
 
 
 class Int32(AnyVal):
@@ -45,7 +45,7 @@ class Int32(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.IntType(32)
+		return ir.IntType(32)
 
 
 class Int64(AnyVal):
@@ -55,7 +55,7 @@ class Int64(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.IntType(64)
+		return ir.IntType(64)
 
 
 class Int128(AnyVal):
@@ -65,7 +65,7 @@ class Int128(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.IntType(128)
+		return ir.IntType(128)
 
 
 class Dec(AnyVal):
@@ -75,7 +75,7 @@ class Dec(AnyVal):
 
 	@staticmethod
 	def type():
-		return ir.DoubleType  # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
+		return ir.DoubleType()  # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
 
 
 class Float(AnyVal):
@@ -85,7 +85,7 @@ class Float(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.FloatType
+		return ir.FloatType()
 
 
 class Complex(AnyVal):
@@ -115,7 +115,7 @@ class Bool(AnyVal):
 
 	@staticmethod
 	def type():
-		return lambda: ir.IntType(1)
+		return ir.IntType(1)
 
 
 class Bytes(AnyVal):
@@ -148,16 +148,6 @@ class List(Collection):
 	def __init__(self):
 		super().__init__()
 		self.name = LIST
-
-	@staticmethod
-	def type():
-		raise NotImplementedError
-
-
-class Tuple(Collection):
-	def __init__(self):
-		super().__init__()
-		self.name = TUPLE
 
 	@staticmethod
 	def type():
@@ -220,9 +210,9 @@ class Func(AnyRef):
 		return ir.FunctionType
 
 
-def get_type_cls(cls):
-	import sys
-	import inspect
-	for name, obj in inspect.getmembers(sys.modules[__name__]):
-		if inspect.isclass(obj) and obj.__name__ == cls:
-			return obj()
+# def get_type_cls(cls):
+# 	import sys
+# 	import inspect
+# 	for name, obj in inspect.getmembers(sys.modules[__name__]):
+# 		if inspect.isclass(obj) and obj.__name__ == cls:
+# 			return obj()

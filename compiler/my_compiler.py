@@ -1,62 +1,67 @@
-from time import sleep
-from time import time
 from ctypes import CFUNCTYPE
 from ctypes import c_void_p
-
 from decimal import Decimal
-from llvmlite import ir
+from time import sleep
+from time import time
 import llvmlite.binding as llvm
-from my_builtin_functions import define_printd
-# from my_builtin_functions import define_print128
-from my_builtin_functions import define_printb
-# from my_custom_llvm_types import create_dynamic_array
-from my_visitor import NodeVisitor
-from my_ast import StructLiteral
+from llvmlite import ir
+from compiler import RET_VAR
+from compiler import type_map
+from compiler.builtin_functions import define_dynamic_array
+from compiler.builtin_functions import define_printb
+from compiler.builtin_functions import define_printd
+from compiler.operations import operations
 from my_ast import DotAccess
 from my_ast import Input
+from my_ast import StructLiteral
+from my_ast import CollectionAccess
 from my_ast import VarDecl
 from my_grammar import *
-from compiler import type_map
-from compiler import RET_VAR
-from compiler.operations import operations
+from my_visitor import NodeVisitor
 
 
 class CodeGenerator(NodeVisitor):
 	def __init__(self, file_name):
 		super().__init__()
 		self.file_name = file_name
-		self.module = ir.Module(name='main')
+		self.module = ir.Module()
+		self.builder = None
 		self._add_builtins()
 		func_ty = ir.FunctionType(ir.VoidType(), [])
 		func = ir.Function(self.module, func_ty, 'main')
 		entry_block = func.append_basic_block('entry')
-		self.function = func
-		self.main_function = func
+		exit_block = func.append_basic_block('exit')
+		# self.func_table = {'main': func}
+		self.current_function = func  # TODO: investigate to see if these function attributes are redundant, they might not be... who knows
+		self.function_stack = [func]
 		self.builder = ir.IRBuilder(entry_block)
-		self.main_builder = self.builder
-		self.exit_block = None
+		self.exit_blocks = [exit_block]
+		self.block_stack = [entry_block]
 		self.loop_test_blocks = []
 		self.loop_end_blocks = []
 		self.is_break = False
 		llvm.initialize()
 		llvm.initialize_native_target()
 		llvm.initialize_native_asmprinter()
-		self.target = llvm.Target.from_default_triple()
 		self.anon_counter = 0
-		# self._add_builtins()
 
 	def __str__(self):
 		return str(self.module)
 
 	def visit_program(self, node):
 		self.visit(node.block)
+		self.branch(self.exit_blocks[0])
+		self.position_at_end(self.exit_blocks[0])
 		self.builder.ret_void()
 
 	@staticmethod
 	def visit_num(node):
-		return ir.Constant(type_map[node.token.value_type], node.value)
+		return ir.Constant(type_map[node.val_type], node.value)
 
 	def visit_var(self, node):
+		var = self.search_scopes(node.value)
+		if isinstance(var, type_map[FUNC]):
+			return var
 		return self.load(node.value)
 
 	def visit_binop(self, node):
@@ -67,31 +72,34 @@ class CodeGenerator(NodeVisitor):
 		return self.funcdecl('anon{}'.format(self.anon_counter), node)
 
 	def visit_funcdecl(self, node):
-		return self.funcdecl(node.name.value, node)
+		self.funcdecl(node.name, node)
 
 	def funcdecl(self, name, node):
 		self.start_function(name, node.return_type, node.parameters, node.parameter_defaults, node.varargs)
-		for i, arg in enumerate(self.function.args):
+		for i, arg in enumerate(self.current_function.args):
 			arg.name = list(node.parameters.keys())[i]
-			var_addr = self.builder.alloca(arg.type, name=arg.name)
-			self.define(arg.name, var_addr)
-			self.builder.store(arg, var_addr)
-		if self.function.function_type.return_type != type_map[VOID]:
-			ret_var_addr = self.builder.alloca(self.function.function_type.return_type, name=RET_VAR)
-			self.define(RET_VAR, ret_var_addr)
+			self.alloc_define_store(arg, arg.name, arg.type)
+		if self.current_function.function_type.return_type != type_map[VOID]:
+			self.alloc_and_define(RET_VAR, self.current_function.function_type.return_type)
 		ret = self.visit(node.body)
-		func = self.function
 		self.end_function(ret)
-		return func
+
+	def visit_return(self, node):
+		val = self.visit(node.value)
+		if val.type != ir.VoidType():
+			self.store(val, RET_VAR)
+		self.branch(self.exit_blocks[-1])
+		return True
 
 	def visit_funccall(self, node):
-		func_type = self.search_scopes(node.name.value)
+		func_type = self.search_scopes(node.name)
+		# func_type = self.func_table[node.name]
 		if isinstance(func_type, ir.Function):
 			func_type = func_type.type.pointee
-			name = self.search_scopes(node.name.value)
+			name = self.search_scopes(node.name)
 			name = name.name
 		else:
-			name = node.name.value
+			name = node.name
 		if len(node.arguments) < len(func_type.args):
 			args = []
 			args_supplied = []
@@ -135,7 +143,7 @@ class CodeGenerator(NodeVisitor):
 		raise NotImplementedError
 
 	def visit_vardecl(self, node):
-		var_addr = self.builder.alloca(type_map[node.type_node.value], name=node.var_node.value)
+		var_addr = self.allocate(type_map[node.type_node.value], name=node.var_node.value)
 		self.define(node.var_node.value, var_addr)
 		self.store(self.visit(node.var_node), node.var_node.value)
 
@@ -143,14 +151,11 @@ class CodeGenerator(NodeVisitor):
 	def visit_type(node):
 		return type_map[node.value]
 
-	def visit_noop(self, node):
-		pass
-
 	def visit_if(self, node):
 		start_block = self.add_block('if.start')
 		end_block = self.add_block('if.end')
-		self.builder.branch(start_block)
-		self.builder.position_at_end(start_block)
+		self.branch(start_block)
+		self.position_at_end(start_block)
 		for x, comp in enumerate(node.comps):
 			if_true_block = self.add_block('if.true.{}'.format(x))
 			if x + 1 < len(node.comps):
@@ -158,31 +163,31 @@ class CodeGenerator(NodeVisitor):
 			else:
 				if_false_block = end_block
 			cond_val = self.visit(comp)
-			self.builder.cbranch(cond_val, if_true_block, if_false_block)
-			self.builder.position_at_end(if_true_block)
+			self.cbranch(cond_val, if_true_block, if_false_block)
+			self.position_at_end(if_true_block)
 			ret = self.visit(node.blocks[x])
 			if not ret:
 				self.branch(end_block)
-			self.builder.position_at_end(if_false_block)
+			self.position_at_end(if_false_block)
 		self.position_at_end(end_block)
 
 	def visit_else(self, _):
 		return self.builder.icmp_unsigned(EQUALS, self.const(1), self.const(1), 'cmptmp')
 
 	def visit_while(self, node):
-		test_block = self.add_block('while.cond')
+		cond_block = self.add_block('while.cond')
 		body_block = self.add_block('while.body')
 		end_block = self.add_block('while.end')
-		self.loop_test_blocks.append(test_block)
+		self.loop_test_blocks.append(cond_block)
 		self.loop_end_blocks.append(end_block)
-		self.branch(test_block)
-		self.position_at_end(test_block)
+		self.branch(cond_block)
+		self.position_at_end(cond_block)
 		cond = self.visit(node.comp)
 		self.cbranch(cond, body_block, end_block)
 		self.position_at_end(body_block)
 		self.visit(node.block)
 		if not self.is_break:
-			self.branch(test_block)
+			self.branch(cond_block)
 		else:
 			self.is_break = False
 		self.position_at_end(end_block)
@@ -191,31 +196,49 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_for(self, node):
 		init_block = self.add_block('for.init')
-		test_block = self.add_block('for.cond')
+		zero_length_block = self.add_block('for.zero_length')
+		non_zero_length_block = self.add_block('for.non_zero_length')
+		cond_block = self.add_block('for.cond')
 		body_block = self.add_block('for.body')
 		end_block = self.add_block('for.end')
-		self.loop_test_blocks.append(test_block)
+		self.loop_test_blocks.append(cond_block)
 		self.loop_end_blocks.append(end_block)
 		self.branch(init_block)
+
 		self.position_at_end(init_block)
-		loop_range = self.visit(node.iterator)
-		start = loop_range[0]
-		stop = loop_range[-1]
-		step = self.const(1)
+		zero = self.const(0)
+		one = self.const(1)
+		if node.iterator.value == RANGE:
+			iterator = self.visit(node.iterator)
+		else:
+			iterator = self.search_scopes(node.iterator.value)
+		stop = self.call('dyn_array_length', [iterator])
+		self.branch(zero_length_block)
+
+		self.position_at_end(zero_length_block)
+		cond = self.builder.icmp_unsigned(LESS_THAN, zero, stop)
+		self.cbranch(cond, non_zero_length_block, end_block)
+
+		self.position_at_end(non_zero_length_block)
 		varname = node.elements[0].value
-		self.allocate(start, varname, type_map[INT])
-		self.branch(test_block)
-		self.position_at_end(test_block)
-		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(varname), stop)
+		val = self.call('dyn_array_get', [iterator, zero])
+		self.alloc_define_store(val, varname, iterator.type.pointee.elements[2].pointee)
+		position = self.alloc_define_store(zero, 'position', type_map[INT])
+		self.branch(cond_block)
+
+		self.position_at_end(cond_block)
+		cond = self.builder.icmp_unsigned(LESS_THAN, self.load(position), stop)
 		self.cbranch(cond, body_block, end_block)
+
 		self.position_at_end(body_block)
+		self.store(self.call('dyn_array_get', [iterator, self.load(position)]), varname)
+		self.store(self.builder.add(one, self.load(position)), position)
 		self.visit(node.block)
-		succ = self.builder.add(step, self.load(varname))
-		self.store(varname, succ)
 		if not self.is_break:
-			self.branch(test_block)
+			self.branch(cond_block)
 		else:
 			self.is_break = False
+
 		self.position_at_end(end_block)
 		self.loop_test_blocks.pop()
 		self.loop_end_blocks.pop()
@@ -239,10 +262,10 @@ class CodeGenerator(NodeVisitor):
 			else:
 				cases.append(self.add_block('case'))
 		if not default_exists:
-			self.position_at_start(default_block)
+			self.position_at_end(default_block)
 			self.branch(switch_end_block)
 		for x, case in enumerate(node.cases):
-			self.position_at_start(cases[x])
+			self.position_at_end(cases[x])
 			break_ = self.visit(case.block)
 			if break_ == BREAK:
 				self.branch(switch_end_block)
@@ -260,10 +283,10 @@ class CodeGenerator(NodeVisitor):
 			return BREAK
 		else:
 			self.is_break = True
-			return self.builder.branch(self.loop_end_blocks[-1])
+			return self.branch(self.loop_end_blocks[-1])
 
 	def visit_continue(self, _):
-		return self.builder.branch(self.loop_test_blocks[-1])
+		return self.branch(self.loop_test_blocks[-1])
 
 	@staticmethod
 	def visit_pass(_):
@@ -280,41 +303,50 @@ class CodeGenerator(NodeVisitor):
 			return self.builder.not_(expr)
 
 	def visit_range(self, node):
-		left = self.visit(node.left)
-		right = self.visit(node.right)
-		return left, right
+		start = self.visit(node.left)
+		stop = self.visit(node.right)
+		array_ptr = self.create_array()
+		self.call('dyn_array_init', [array_ptr])
+		self.call('create_range', [array_ptr, start, stop])
+		return array_ptr
 
-	def visit_assign(self, node):
+	def visit_assign(self, node):  # TODO: Simplify this, it just keeps getting worse
 		if isinstance(node.right, StructLiteral):
 			self.struct_assign(node)
+		elif isinstance(self.search_scopes(node.right.value), ir.Function):
+			self.define(node.left.value, self.search_scopes(node.right.value))
 		else:
 			if isinstance(node.right, Input):
 				node.right.type = node.left.type_node.value
 			var = self.visit(node.right)
+			if not var:
+				return
 			if isinstance(node.left, VarDecl):
-				var_name = node.left.var_node.value
-				if node.left.type_node.value == FLOAT:
+				var_name = node.left.value.value
+				if node.left.type.value == FLOAT:
 					node.right.value = float(node.right.value)
-				self.allocate(var, var_name, var.type)
+				self.alloc_define_store(var, var_name, var.type)
 			elif isinstance(node.left, DotAccess):
 				obj = self.search_scopes(node.left.obj)
 				obj_type = self.search_scopes(obj.struct_name)
 				new_obj = self.builder.insert_value(self.load(obj.name), self.visit(node.right), obj_type.fields.index(node.left.field))
-				struct_ptr = self.builder.alloca(obj_type, name=obj.name)
-				self.builder.store(new_obj, struct_ptr)
+				struct_ptr = self.alloc_and_store(new_obj, obj_type, name=obj.name)
 				struct_ptr.struct_name = obj.struct_name
 				self.define(obj.name, struct_ptr)
+			elif isinstance(node.left, CollectionAccess):
+				right = self.visit(node.right)
+				self.call('dyn_array_set', [self.search_scopes(node.left.collection.value), self.const(node.left.key.value), right])
 			else:
 				var_name = node.left.value
 				var_value = self.top_scope.get(var_name)
 				if var_value:
 					if isinstance(var_value, float):
 						node.right.value = float(node.right.value)
-					self.store(var_name, var)
+					self.store(var, var_name)
 				elif isinstance(var, ir.Function):
 					self.define(var_name, var)
 				else:
-					self.allocate(var, var_name, var.type)
+					self.alloc_define_store(var, var_name, var.type)
 
 	def visit_fieldassignment(self, node):
 		obj = self.search_scopes(node.obj)
@@ -328,8 +360,7 @@ class CodeGenerator(NodeVisitor):
 		for field in node.right.fields.values():
 			fields.append(self.visit(field))
 		struct = struct_type(fields)
-		struct_ptr = self.builder.alloca(struct_type, name=name)
-		self.builder.store(struct, struct_ptr)
+		struct_ptr = self.alloc_and_store(struct, struct_type, name=name)
 		struct_ptr.struct_name = node.left.type_node.value
 		self.define(name, struct_ptr)
 
@@ -339,95 +370,97 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.extract_value(self.load(node.obj), obj_type.fields.index(node.field))
 
 	def visit_opassign(self, node):
-		var_name = node.left.value
-		op = node.op.value
 		right = self.visit(node.right)
-		if isinstance(self.search_scopes(var_name).type.pointee, ir.IntType):
+		collection_access = None
+		key = None
+		if isinstance(node.left, CollectionAccess):
+			collection_access = True
+			var_name = self.search_scopes(node.left.collection.value)
+			key = self.const(node.left.key.value)
+			var = self.call('dyn_array_get', [var_name, key])
+			pointee = var.type
+		else:
+			var_name = node.left.value
+			var = self.load(var_name)
+			pointee = self.search_scopes(var_name).type.pointee
+		op = node.op
+		if isinstance(pointee, ir.IntType):
 			if op == PLUS_ASSIGN:
-				res = self.builder.add(self.load(var_name), right)
+				res = self.builder.add(var, right)
 			elif op == MINUS_ASSIGN:
-				res = self.builder.sub(self.load(var_name), right)
+				res = self.builder.sub(var, right)
 			elif op == MUL_ASSIGN:
-				res = self.builder.mul(self.load(var_name), right)
+				res = self.builder.mul(var, right)
 			elif op == FLOORDIV_ASSIGN:
-				res = self.builder.sdiv(self.load(var_name), right)
+				res = self.builder.sdiv(var, right)
 			elif op == DIV_ASSIGN:
-				res = self.builder.fdiv(self.load(var_name), right)
+				res = self.builder.fdiv(var, right)
 			elif op == MOD_ASSIGN:
-				res = self.builder.srem(self.load(var_name), right)
+				res = self.builder.srem(var, right)
 			elif op == POWER_ASSIGN:
-				temp = self.builder.alloca(type_map[INT])
-				self.builder.store(self.load(var_name), temp)
+				temp = self.alloc_and_store(var, type_map[INT])
 				for _ in range(node.right.value - 1):
-					res = self.builder.mul(self.builder.load(temp), self.load(var_name))
-					self.builder.store(res, temp)
-				res = self.builder.load(temp)
+					res = self.builder.mul(self.load(temp), var)
+					self.store(res, temp)
+				res = self.load(temp)
 			else:
 				raise NotImplementedError()
 		else:
 			if op == PLUS_ASSIGN:
-				res = self.builder.fadd(self.load(var_name), right)
+				res = self.builder.fadd(var, right)
 			elif op == MINUS_ASSIGN:
-				res = self.builder.fsub(self.load(var_name), right)
+				res = self.builder.fsub(var, right)
 			elif op == MUL_ASSIGN:
-				res = self.builder.fmul(self.load(var_name), right)
+				res = self.builder.fmul(var, right)
 			elif op == FLOORDIV_ASSIGN:
-				res = self.builder.sdiv(self.builder.fptosi(self.load(var_name), ir.IntType(64)), self.builder.fptosi(right, ir.IntType(64)))
+				res = self.builder.sdiv(self.builder.fptosi(var, ir.IntType(64)), self.builder.fptosi(right, ir.IntType(64)))
 			elif op == DIV_ASSIGN:
-				res = self.builder.fdiv(self.load(var_name), right)
+				res = self.builder.fdiv(var, right)
 			elif op == MOD_ASSIGN:
-				res = self.builder.frem(self.load(var_name), right)
+				res = self.builder.frem(var, right)
 			elif op == POWER_ASSIGN:
-				temp = self.builder.alloca(type_map[DEC])
-				self.builder.store(self.load(var_name), temp)
+				temp = self.alloc_and_store(var, type_map[DEC])
 				for _ in range(node.right.value - 1):
-					res = self.builder.fmul(self.builder.load(temp), self.load(var_name))
-					self.builder.store(res, temp)
-				res = self.builder.load(temp)
+					res = self.builder.fmul(self.load(temp), var)
+					self.store(res, temp)
+				res = self.load(temp)
 			else:
 				raise NotImplementedError()
-		self.store(var_name, res)
-
-	def visit_return(self, node):
-		val = self.visit(node.value)
-		if val.type != ir.VoidType():
-			self.store(RET_VAR, val)
-		self.branch(self.exit_block)
-		return True
+		if collection_access:
+			self.call('dyn_array_set', [var_name, key, res])
+		else:
+			self.store(res, var_name)
 
 	def visit_constant(self, node):
 		if node.value == TRUE:
-			return self.const(1, 1)
+			return self.const(1, BOOL)
 		elif node.value == FALSE:
-			return self.const(0, 1)
+			return self.const(0, BOOL)
 		else:
 			raise NotImplementedError('file={} line={}'.format(self.file_name, node.line_num))
-
-	def visit_str(self, node):
-		string = self.stringz(node.value)
-		percent_ptr = self.builder.alloca(ir.ArrayType(string.type.element, string.type.count), name='var_ptr')
-		self.builder.store(string, percent_ptr)
-		percent_ptr_gep = self.builder.gep(percent_ptr, [self.const(0), self.const(0)])
-		return percent_ptr_gep
 
 	def visit_collection(self, node):
 		elements = []
 		for item in node.items:
 			elements.append(self.visit(item))
-		elem_types = [item.type for item in elements]
-		if node.type == LIST:
-			if elem_types[1:] == elem_types[:-1]:
-				return self.define_array(node, elements)
-			else:
-				return self.define_list(node, elements)
+		if node.type == ARRAY:
+			return self.define_array(node, elements)
+		elif node.type == LIST:
+			return self.define_list(node, elements)
 		else:
 			raise NotImplementedError
 
-	@staticmethod
-	def define_array(node, elements):
-		array_type = ir.ArrayType(elements[0].type, len(elements))
-		array = array_type(elements)
-		return array
+	def define_array(self, _, elements):
+		array_ptr = self.create_array()
+		self.call('dyn_array_init', [array_ptr])
+		for element in elements:
+			self.call('dyn_array_append', [array_ptr, element])
+		return self.load(array_ptr)
+
+	def create_array(self):
+		dyn_array_type = self.search_scopes('Dynamic_Array')
+		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
+		return self.alloc_and_store(array, dyn_array_type)
 
 	def define_list(self, node, elements):
 		raise NotImplementedError
@@ -436,9 +469,20 @@ class CodeGenerator(NodeVisitor):
 		raise NotImplementedError
 
 	def visit_collectionaccess(self, node):
-		key = node.key.value
+		key = self.visit(node.key)
 		collection = self.search_scopes(node.collection.value)
-		return self.builder.extract_value(self.load(collection.name), [key])
+		if collection.type.pointee == self.search_scopes('Dynamic_Array'):
+			return self.call('dyn_array_get', [collection, key])
+		else:
+			return self.builder.extract_value(self.load(collection.name), [key])
+
+	def visit_str(self, node):
+		array = self.create_array()
+		self.call('dyn_array_init', [array])
+		string = node.value.encode('utf-8')
+		for char in string:
+			self.call('dyn_array_append', [array, self.const(char)])
+		return array
 
 	def visit_print(self, node):
 		if node.value:
@@ -450,50 +494,62 @@ class CodeGenerator(NodeVisitor):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
 				self.call('printb', [val])
-			# elif val.type.width == 128:
-			# 	self.call('print128', [val])
+				self.call('putchar', [ir.Constant(type_map[INT], 10)])
+				return
+				# val = self.call('bool_to_str', [val])
 			else:
 				self.call('printd', [val])
+				self.call('putchar', [ir.Constant(type_map[INT], 10)])
+				return
+				# val = self.call('int_to_str', [val])
 		elif isinstance(val.type, (ir.FloatType, ir.DoubleType)):
-			percent_f = self.stringz('%f')
-			percent_f_ptr = self.builder.alloca(ir.ArrayType(percent_f.type.element, percent_f.type.count), name='var_ptr')
-			self.builder.store(percent_f, percent_f_ptr)
-			var_ptr_gep = self.builder.gep(percent_f_ptr, [self.const(0), self.const(0)])
-			var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT8].as_pointer())
-			self.call('printf', [var_ptr_gep, val])
-		elif isinstance(val.type, ir.ArrayType):  # TODO: This assumes an array of characters, make it not assume
-			val_ptr = self.builder.alloca(ir.ArrayType(val.type.element, val.type.count), name='var_ptr')
-			self.builder.store(val, val_ptr)
-			var_ptr_gep = self.builder.gep(val_ptr, [self.const(0), self.const(0)])
-			var_ptr_gep = self.builder.bitcast(var_ptr_gep, ir.IntType(32).as_pointer())
-			self.call('puts', [var_ptr_gep])
+			percent_g = self.stringz('%g')
+			percent_g = self.alloc_and_store(percent_g, ir.ArrayType(percent_g.type.element, percent_g.type.count))
+			percent_g = self.gep(percent_g, [self.const(0), self.const(0)])
+			percent_g = self.builder.bitcast(percent_g, type_map[INT8].as_pointer())
+			self.call('printf', [percent_g, val])
+			self.call('putchar', [ir.Constant(type_map[INT], 10)])
 			return
-		elif isinstance(val, (ir.LoadInstr, ir.GEPInstr)):
-			val = self.builder.bitcast(val, type_map[INT32].as_pointer())
-			self.call('puts', [val])
-			return
-		self.call('putchar', [ir.Constant(type_map[INT32], 10)])
+		# elif isinstance(val.type, ir.ArrayType):
+		# 	val = self.alloc_and_store(val, ir.ArrayType(val.type.element, val.type.count))
+		# 	val = self.gep(val, [self.const(0), self.const(0)])
+		# 	self.call('puts', [val])
+		# 	return
+		# elif isinstance(val, (ir.LoadInstr, ir.GEPInstr)):
+		# 	val = self.builder.bitcast(val, type_map[INT].as_pointer())
+		# 	self.call('puts', [val])
+		# 	return
+		self.call('print', [val])
+
+	def print_string(self, string):
+		stringz = self.stringz(string)
+		str_ptr = self.alloc_and_store(stringz, ir.ArrayType(stringz.type.element, stringz.type.count))
+		str_ptr = self.gep(str_ptr, [self.const(0), self.const(0)])
+		str_ptr = self.builder.bitcast(str_ptr, type_map[INT].as_pointer())
+		self.call('puts', [str_ptr])
+
+	def print_int(self, integer):
+		self.call('printd', [integer])
+		self.call('putchar', [ir.Constant(type_map[INT], 10)])
 
 	def visit_input(self, node):
-		var_ptr = self.builder.alloca(ir.ArrayType(type_map[INT8], len(node.value.value) + 1), name='var_ptr')
-		self.builder.store(self.stringz(node.value.value), var_ptr)
-		var_ptr_gep = self.builder.gep(var_ptr, [self.const(0), self.const(0)])
-		var_ptr_gep = self.builder.bitcast(var_ptr_gep, type_map[INT32].as_pointer())
+		var_ptr = self.alloc_and_store(self.stringz(node.value.value), ir.ArrayType(type_map[INT8], len(node.value.value) + 1))
+		var_ptr_gep = self.gep(var_ptr, [self.const(0), self.const(0)])
 		self.call('puts', [var_ptr_gep])
 		percent_d = self.stringz('%d')
-		int_ptr = self.builder.alloca(type_map[INT], name='var_ptr')
-		percent_ptr = self.builder.alloca(ir.ArrayType(percent_d.type.element, percent_d.type.count), name='var_ptr')
-		self.builder.store(percent_d, percent_ptr)
-		percent_ptr_gep = self.builder.gep(percent_ptr, [self.const(0), self.const(0)])
+		percent_ptr = self.alloc_and_store(percent_d, ir.ArrayType(percent_d.type.element, percent_d.type.count))
+		percent_ptr_gep = self.gep(percent_ptr, [self.const(0), self.const(0)])
 		percent_ptr_gep = self.builder.bitcast(percent_ptr_gep, type_map[INT8].as_pointer())
-		return self.call('scanf', [percent_ptr_gep, int_ptr])
+		return self.call('scanf', [percent_ptr_gep, self.allocate(type_map[INT])])
 
 	# noinspection PyUnusedLocal
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
+		self.function_stack.append(self.current_function)
+		self.block_stack.append(self.builder.block)
 		self.new_scope()
 		ret_type = type_map[return_type.value]
 		args = [type_map[param.value] for param in parameters.values()]
-		arg_keys = [key for key in parameters.keys()]
+		arg_keys = parameters.keys()
 		func_type = ir.FunctionType(ret_type, args)
 		if parameter_defaults:
 			func_type.parameter_defaults = parameter_defaults
@@ -501,23 +557,25 @@ class CodeGenerator(NodeVisitor):
 		if hasattr(return_type, 'func_ret_type') and return_type.func_ret_type:
 			func_type.return_type = func_type.return_type(type_map[return_type.func_ret_type.value], [return_type.func_ret_type.value]).as_pointer()
 		func = ir.Function(self.module, func_type, name)
-		self.define(name, func_type, 1)
-		self.function = func
+		self.define(name, func, 1)
+		self.current_function = func
 		entry = self.add_block('entry')
-		self.exit_block = self.add_block('exit')
-		self.builder.position_at_start(entry)
+		self.exit_blocks.append(self.add_block('exit'))
+		self.position_at_end(entry)
 
 	def end_function(self, returned=False):
 		if not returned:
-			self.branch(self.exit_block)
-		self.position_at_end(self.exit_block)
-		if self.function.function_type.return_type != type_map[VOID]:
-			retval = self.builder.load(self.search_scopes(RET_VAR))
+			self.branch(self.exit_blocks[-1])
+		self.position_at_end(self.exit_blocks.pop())
+		if self.current_function.function_type.return_type != type_map[VOID]:
+			retval = self.load(self.search_scopes(RET_VAR))
 			self.builder.ret(retval)
 		else:
 			self.builder.ret_void()
-		self.builder.position_at_end(self.main_function.entry_basic_block)
-		self.function = self.main_function
+		back_block = self.block_stack.pop()
+		self.position_at_end(back_block)
+		last_function = self.function_stack.pop()
+		self.current_function = last_function
 		self.drop_top_scope()
 
 	def new_builder(self, block):
@@ -525,10 +583,7 @@ class CodeGenerator(NodeVisitor):
 		return self.builder
 
 	def add_block(self, name):
-		return self.function.append_basic_block(name)
-
-	def position_at_start(self, block):
-		self.builder.position_at_start(block)
+		return self.current_function.append_basic_block(name)
 
 	def position_at_end(self, block):
 		self.builder.position_at_end(block)
@@ -545,7 +600,7 @@ class CodeGenerator(NodeVisitor):
 	def const(self, val, width=None):
 		if isinstance(val, int):
 			if width:
-				return ir.Constant(ir.IntType(width), val)
+				return ir.Constant(type_map[width], val)
 			else:
 				return ir.Constant(type_map[INT], val)
 		elif isinstance(val, (float, Decimal)):
@@ -557,49 +612,71 @@ class CodeGenerator(NodeVisitor):
 		else:
 			raise NotImplementedError
 
-	def const_as_pointer(self, val, width=None):
-		if isinstance(val, int):
-			if width:
-				return ir.Constant(ir.IntType(width).as_pointer(), val)
-			else:
-				return ir.Constant(type_map[INT].as_pointer(), val)
-		elif isinstance(val, float):
-			return ir.Constant(type_map[DEC].as_pointer(), val)
-		elif isinstance(val, bool):
-			return ir.Constant(type_map[BOOL].as_pointer(), bool(val))
-		elif isinstance(val, str):
-			return self.stringz_pntr(val)
-		else:
-			raise NotImplementedError
-
-	def allocate(self, val, name, typ):
+	def allocate(self, typ, name=''):
 		saved_block = self.builder.block
 		var_addr = self.create_entry_block_alloca(name, typ)
+		self.builder.position_at_end(saved_block)
+		return var_addr
+
+	def alloc_and_store(self, val, typ, name=''):
+		var_addr = self.builder.alloca(typ, name=name)
+		self.builder.store(val, var_addr)
+		return var_addr
+
+	def alloc_and_define(self, name, typ):
+		var_addr = self.builder.alloca(typ, name=name)
+		self.define(name, var_addr)
+		return var_addr
+
+	def alloc_define_store(self, val, name, typ):
+		saved_block = self.builder.block
+		var_addr = self.builder.alloca(typ, name=name)
 		self.define(name, var_addr)
 		self.builder.position_at_end(saved_block)
 		self.builder.store(val, var_addr)
-
-	def store(self, name, value):
-		self.builder.store(value, self.search_scopes(name))
-
-	def load(self, name):
-		return self.builder.load(self.search_scopes(name))
-
-	def call(self, name, args):
-		return self.builder.call(self.module.get_global(name), args)
+		return var_addr
 
 	def create_entry_block_alloca(self, name, typ):
 		self.builder.position_at_start(self.builder.function.entry_basic_block)
 		return self.builder.alloca(typ, size=None, name=name)
 
+	def store(self, value, name):
+		if isinstance(name, str):
+			self.builder.store(value, self.search_scopes(name))
+		else:
+			self.builder.store(value, name)
+
+	def load(self, name):
+		if isinstance(name, str):
+			return self.builder.load(self.search_scopes(name))
+		return self.builder.load(name)
+
+	def call(self, name, args):
+		if isinstance(name, str):
+			func = self.module.get_global(name)
+		else:
+			func = self.module.get_global(name.name)
+		if func is None:
+			raise TypeError('Calling non existant function')
+		return self.builder.call(func, args)
+
+	def gep(self, ptr, indices, inbounds=False, name=''):
+		return self.builder.gep(ptr, indices, inbounds, name)
+
 	def _add_builtins(self):
 		malloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT]])
 		ir.Function(self.module, malloc_ty, 'malloc')
 
+		realloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT8].as_pointer(), type_map[INT]])
+		ir.Function(self.module, realloc_ty, 'realloc')
+
 		free_ty = ir.FunctionType(type_map[VOID], [type_map[INT8].as_pointer()])
 		ir.Function(self.module, free_ty, 'free')
 
-		putchar_ty = ir.FunctionType(type_map[INT32], [type_map[INT32]])
+		exit_ty = ir.FunctionType(type_map[VOID], [type_map[INT32]])
+		ir.Function(self.module, exit_ty, 'exit')
+
+		putchar_ty = ir.FunctionType(type_map[INT], [type_map[INT]])
 		ir.Function(self.module, putchar_ty, 'putchar')
 
 		printf_ty = ir.FunctionType(type_map[INT32], [type_map[INT8].as_pointer()], var_arg=True)
@@ -611,20 +688,12 @@ class CodeGenerator(NodeVisitor):
 		getchar_ty = ir.FunctionType(ir.IntType(4), [])
 		ir.Function(self.module, getchar_ty, 'getchar')
 
-		puts_ty = ir.FunctionType(type_map[INT32], [type_map[INT32].as_pointer()])
+		puts_ty = ir.FunctionType(type_map[INT], [type_map[INT].as_pointer()])
 		ir.Function(self.module, puts_ty, 'puts')
 
-		define_printd(self.module)
-		# define_print128(self.module)
-		define_printb(self.module)
-
-	@staticmethod
-	def stringz_type(string):
-		return ir.ArrayType(type_map[INT8], len(string) + 1)
-
-	@staticmethod
-	def stringz_pntr_type(string):
-		return ir.ArrayType(type_map[INT8], len(string) + 1).as_pointer()
+		define_printd(self)
+		define_printb(self)
+		define_dynamic_array(self)
 
 	@staticmethod
 	def stringz(string):
@@ -634,21 +703,15 @@ class CodeGenerator(NodeVisitor):
 		buf[:-1] = string.encode('utf-8')
 		return ir.Constant(ir.ArrayType(type_map[INT8], n), buf)
 
-	@staticmethod
-	def stringz_pntr(string):
-		n = len(string) + 1
-		buf = bytearray((' ' * n).encode('ascii'))
-		buf[-1] = 0
-		buf[:-1] = string.encode('utf-8')
-		return ir.Constant(ir.ArrayType(type_map[INT8], n).as_pointer(), buf)
-
 	def generate_code(self, node):
 		return self.visit(node)
 
-	def evaluate(self, optimize=True, llvmdump=False):
-		if llvmdump:
-			# print('======== Unoptimized LLVM IR')
-			print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
+	def evaluate(self, optimize=True, ir_dump=False, only_main=False):
+		if ir_dump and not optimize:
+			if only_main:
+				print('define void @"main"(){}'.format(str(self.module).split('define void @"main"()')[1]))
+			else:
+				print(str(self.module))
 		llvmmod = llvm.parse_assembly(str(self.module))
 		if optimize:
 			pmb = llvm.create_pass_manager_builder()
@@ -656,11 +719,9 @@ class CodeGenerator(NodeVisitor):
 			pm = llvm.create_module_pass_manager()
 			pmb.populate(pm)
 			pm.run(llvmmod)
-			# if llvmdump:
-			# 	print('======== Optimized LLVM IR')
-			# 	# print(str(llvmmod))
-			# 	print('define void @main(){}'.format(str(llvmmod).split('define void @main()')[1]))
-		target_machine = self.target.create_target_machine()
+			if ir_dump:
+				print(str(llvmmod))
+		target_machine = llvm.Target.from_default_triple().create_target_machine()
 		with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
 			ee.finalize_object()
 			fptr = CFUNCTYPE(c_void_p)(ee.get_function_address('main'))
@@ -683,6 +744,7 @@ class CodeGenerator(NodeVisitor):
 		program_string = str(program_string).replace('source_filename = "<string>"\n', '')
 		program_string = program_string.replace('target triple = "unknown-unknown-unknown"\n', '')
 		program_string = program_string.replace('local_unnamed_addr', '')
+		program_string = program_string.replace('@llvm.memset.p0i8.i64(i8* nocapture writeonly', '@llvm.memset.p0i8.i64(i8* nocapture')
 		with open(cwd + '/out/' + filename + '.ll', 'w') as output:
 			output.write(program_string)
 		if os.name != 'nt':
@@ -696,26 +758,5 @@ class CodeGenerator(NodeVisitor):
 				end_time = time()
 				print(output.stdout.decode('utf-8'))
 				print('{:f} sec'.format(end_time - start_time))
-
-# if __name__ == '__main__':
-# 	from my_lexer import Lexer
-# 	from my_parser import Parser
-# 	from my_symbol_table_builder import SymbolTableBuilder
-# 	file = 'test.my'
-# 	code = open(file).read()
-# 	lexer = Lexer(code, file)
-# 	parser = Parser(lexer)
-# 	t = parser.parse()
-# 	symtab_builder = SymbolTableBuilder(parser.file_name)
-# 	symtab_builder.build(t)
-# 	if not symtab_builder.warnings:
-# 		generator = CodeGenerator(parser.file_name)
-# 		generator.generate_code(t)
-# 		# generator.evaluate(True, True)
-# 		# generator.evaluate(True, False)
-# 		generator.evaluate(False, True)
-# 		# generator.evaluate(False, False)
-# 		#
-# 		# generator.compile(file[:-3], True, True)
-# 	else:
-# 		print('Did not run')
+				# os.remove('out/{}.bin'.format(filename))
+				# os.remove('out/{}.o'.format(filename))

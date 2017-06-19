@@ -9,6 +9,8 @@ from my_ast import VarDecl
 from my_ast import Else
 from my_grammar import *
 
+# The Interpreter has been abandoned for now. Maybe I'll get back to it if I see a use for it
+
 
 class Interpreter(NodeVisitor):
 	def __init__(self, file_name=None):
@@ -28,7 +30,7 @@ class Interpreter(NodeVisitor):
 		pass
 
 	def visit_vardecl(self, node):
-		self.define(node.var_node.value, Null())
+		self.define(node.var_node.value, None)
 
 	def visit_type(self, node):
 		return self.search_scopes(node.value)
@@ -154,13 +156,11 @@ class Interpreter(NodeVisitor):
 				return bytes(left)
 			elif cast_type == LIST:
 				return list(left)
-			elif cast_type == TUPLE:
-				return tuple(left)
 			elif cast_type == DICT:
 				return dict(left)
 			elif cast_type == ENUM:
 				return Enum(left.value)
-			elif cast_type in (ANY, FUNC, NULL):
+			elif cast_type in (ANY, FUNC):
 				raise TypeError('file={} line={}: Cannot cast to type {}'.format(self.file_name, node.line_num, cast_type))
 
 	def visit_unaryop(self, node):
@@ -179,8 +179,8 @@ class Interpreter(NodeVisitor):
 
 	def visit_assign(self, node):
 		if isinstance(node.left, VarDecl):
-			var_name = node.left.var_node.value
-			if node.left.type_node.value == FLOAT:
+			var_name = node.left.value.value
+			if node.left.type.value == FLOAT:
 				node.right.value = float(node.right.value)
 		else:
 			var_name = node.left.value
@@ -298,14 +298,14 @@ class Interpreter(NodeVisitor):
 if __name__ == '__main__':
 	from my_lexer import Lexer
 	from my_parser import Parser
-	from my_symbol_table_builder import SymbolTableBuilder
+	from my_preprocessor import Preprocessor
 	file = 'test.my'
 	code = open(file).read()
 	lexer = Lexer(code, file)
 	parser = Parser(lexer)
 	t = parser.parse()
-	symtab_builder = SymbolTableBuilder(parser.file_name)
-	symtab_builder.build(t)
+	symtab_builder = Preprocessor(parser.file_name)
+	symtab_builder.check(t)
 	if not symtab_builder.warnings:
 		interpreter = Interpreter(parser.file_name)
 		interpreter.interpret(t)

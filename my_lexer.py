@@ -3,22 +3,12 @@ from decimal import Decimal
 
 
 class Token(object):
-	def __init__(self, token_type, value, line_num, indent_level):
+	def __init__(self, token_type, value, line_num, indent_level, value_type=None):
 		self.type = token_type
 		self.value = value
-		self.value_type = None
-		self.cast()
+		self.value_type = value_type
 		self.line_num = line_num
 		self.indent_level = indent_level
-
-	def cast(self):
-		if self.type == NUMBER:
-			if self.value.isdecimal():
-				self.value = int(self.value)
-				self.value_type = INT
-			else:
-				self.value = Decimal(self.value)
-				self.value_type = DEC
 
 	def __str__(self):
 		return 'Token(type={type}, value={value}, line_num={line_num}, indent_level={indent_level})'.format(
@@ -213,6 +203,7 @@ class Lexer(object):
 			while self.char_type == ALPHANUMERIC or self.char_type == NUMERIC:
 				self.word += self.current_char
 				self.next_char()
+
 			if self.word in OPERATORS:
 				if self.word in MULTI_WORD_OPERATORS and self.preview_token(1).value in MULTI_WORD_OPERATORS:
 					self.next_char()
@@ -223,6 +214,7 @@ class Lexer(object):
 					return Token(OP, self.reset_word(), self.line_num, self.indent_level)
 				else:
 					return Token(OP, self.reset_word(), self.line_num, self.indent_level)
+
 			if self.word in KEYWORDS:
 				if self.word in MULTI_WORD_KEYWORDS and self.preview_token(1).value in MULTI_WORD_KEYWORDS:
 					self.next_char()
@@ -246,7 +238,14 @@ class Lexer(object):
 				self.next_char()
 				if self.char_type == ALPHANUMERIC:
 					raise SyntaxError('Variables cannot start with numbers')
-			return Token(NUMBER, self.reset_word(), self.line_num, self.indent_level)
+			value = self.reset_word()
+			if '.' in value:
+				value = Decimal(value)
+				value_type = DEC
+			else:
+				value = int(value)
+				value_type = INT
+			return Token(NUMBER, value, self.line_num, self.indent_level, value_type=value_type)
 
 		if self.char_type == ESCAPE:
 			self.reset_word()
