@@ -1,5 +1,7 @@
 # line comment
 
+# The syntax is still in flux be here is what I have so far
+
 # Hello World example
 print('Hello World')
 
@@ -7,11 +9,13 @@ Int moogles # Initialize an Integer, must be assigned a value before it can be u
 
 number = 23 # Type Inference
 
-float_number=number+1.2 # Spaces are generally insignificant, but encouraged for readability
+# Decimal will be used by default (as soon as a decimal standard is implimented)
+decimal_number=1.2+2.4 # Spaces are generally insignificant, but encouraged for readability
+# If a floating point number is desired then one could include the Float type identifier
 
 question = 'what\'s going on' # Escaping
 
-Str something # Initialize a String
+Str something # Initialize a String, a value must be assigned before the valiable can be used
 
 things = [1, 2, 3] # Array, homogeneous
 other_things = (1, 'Hello') # List, non-homogeneous
