@@ -23,11 +23,11 @@ stuff = {first_name: 'Samus', 'last_name': 'Aran'} # Dictionary, key strings don
 Int[] other_stuff = [] # Empty Array of Ints
 
 if number > 23
-	print('number greater than 23')
+	print('greater than 23')
 else if number == 23
-	print('number equals 23')
+	print('equals 23')
 else
-	print('number less than or equal to 23')
+	print('less than 23')
 
 if something is not number \ # Continuing statement onto next line
 		and true # Indentaion is with tabs only
