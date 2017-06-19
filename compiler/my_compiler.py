@@ -8,8 +8,6 @@ from llvmlite import ir
 from compiler import RET_VAR
 from compiler import type_map
 from compiler.builtin_functions import define_dynamic_array
-from compiler.builtin_functions import define_printb
-from compiler.builtin_functions import define_printd
 from compiler.operations import operations
 from my_ast import DotAccess
 from my_ast import Input
@@ -306,7 +304,6 @@ class CodeGenerator(NodeVisitor):
 		start = self.visit(node.left)
 		stop = self.visit(node.right)
 		array_ptr = self.create_array()
-		self.call('dyn_array_init', [array_ptr])
 		self.call('create_range', [array_ptr, start, stop])
 		return array_ptr
 
@@ -452,7 +449,6 @@ class CodeGenerator(NodeVisitor):
 
 	def define_array(self, _, elements):
 		array_ptr = self.create_array()
-		self.call('dyn_array_init', [array_ptr])
 		for element in elements:
 			self.call('dyn_array_append', [array_ptr, element])
 		return self.load(array_ptr)
@@ -460,7 +456,9 @@ class CodeGenerator(NodeVisitor):
 	def create_array(self):
 		dyn_array_type = self.search_scopes('Dynamic_Array')
 		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
-		return self.alloc_and_store(array, dyn_array_type)
+		array = self.alloc_and_store(array, dyn_array_type)
+		self.call('dyn_array_init', [array])
+		return array
 
 	def define_list(self, node, elements):
 		raise NotImplementedError
@@ -478,7 +476,6 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_str(self, node):
 		array = self.create_array()
-		self.call('dyn_array_init', [array])
 		string = node.value.encode('utf-8')
 		for char in string:
 			self.call('dyn_array_append', [array, self.const(char)])
@@ -493,15 +490,13 @@ class CodeGenerator(NodeVisitor):
 		if isinstance(val.type, ir.IntType):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
-				self.call('printb', [val])
-				self.call('putchar', [ir.Constant(type_map[INT], 10)])
-				return
-				# val = self.call('bool_to_str', [val])
+				array = self.create_array()
+				self.call('bool_to_str', [array, val])
+				val = array
 			else:
-				self.call('printd', [val])
-				self.call('putchar', [ir.Constant(type_map[INT], 10)])
-				return
-				# val = self.call('int_to_str', [val])
+				array = self.create_array()
+				self.call('int_to_str', [array, val])
+				val = array
 		elif isinstance(val.type, (ir.FloatType, ir.DoubleType)):
 			percent_g = self.stringz('%g')
 			percent_g = self.alloc_and_store(percent_g, ir.ArrayType(percent_g.type.element, percent_g.type.count))
@@ -510,15 +505,6 @@ class CodeGenerator(NodeVisitor):
 			self.call('printf', [percent_g, val])
 			self.call('putchar', [ir.Constant(type_map[INT], 10)])
 			return
-		# elif isinstance(val.type, ir.ArrayType):
-		# 	val = self.alloc_and_store(val, ir.ArrayType(val.type.element, val.type.count))
-		# 	val = self.gep(val, [self.const(0), self.const(0)])
-		# 	self.call('puts', [val])
-		# 	return
-		# elif isinstance(val, (ir.LoadInstr, ir.GEPInstr)):
-		# 	val = self.builder.bitcast(val, type_map[INT].as_pointer())
-		# 	self.call('puts', [val])
-		# 	return
 		self.call('print', [val])
 
 	def print_string(self, string):
@@ -529,8 +515,9 @@ class CodeGenerator(NodeVisitor):
 		self.call('puts', [str_ptr])
 
 	def print_int(self, integer):
-		self.call('printd', [integer])
-		self.call('putchar', [ir.Constant(type_map[INT], 10)])
+		array = self.create_array()
+		self.call('int_to_str', [array, integer])
+		self.call('print', [array])
 
 	def visit_input(self, node):
 		var_ptr = self.alloc_and_store(self.stringz(node.value.value), ir.ArrayType(type_map[INT8], len(node.value.value) + 1))
@@ -691,8 +678,6 @@ class CodeGenerator(NodeVisitor):
 		puts_ty = ir.FunctionType(type_map[INT], [type_map[INT].as_pointer()])
 		ir.Function(self.module, puts_ty, 'puts')
 
-		define_printd(self)
-		define_printb(self)
 		define_dynamic_array(self)
 
 	@staticmethod

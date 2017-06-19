@@ -2,7 +2,8 @@ from llvmlite import ir
 from compiler import type_map
 from my_grammar import *
 
-ARRAY_INITIAL_CAPACITY = 100
+ARRAY_INITIAL_CAPACITY = ir.Constant(type_map[INT], 100)
+
 zero = ir.Constant(type_map[INT], 0)
 one = ir.Constant(type_map[INT], 1)
 two = ir.Constant(type_map[INT], 2)
@@ -29,7 +30,6 @@ def define_dynamic_array(compiler):
 	dynamic_array_set(compiler, dyn_array_struct_ptr)
 	dynamic_array_length(compiler, dyn_array_struct_ptr)
 	define_create_range(compiler, dyn_array_struct_ptr)
-	define_int_to_char(compiler, dyn_array_struct_ptr)
 	define_int_to_str(compiler, dyn_array_struct_ptr)
 	define_bool_to_str(compiler, dyn_array_struct_ptr)
 	define_print(compiler, dyn_array_struct_ptr)
@@ -83,14 +83,12 @@ def dynamic_array_init(compiler, dyn_array_struct_ptr):
 	array_ptr = builder.alloca(dyn_array_struct_ptr)
 	builder.store(dyn_array_init.args[0], array_ptr)
 
-	array_init_capacity = ir.Constant(type_map[INT], ARRAY_INITIAL_CAPACITY)
-
 	# BODY
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	builder.store(zero, size_ptr)
 
 	capacity_ptr = builder.gep(builder.load(array_ptr), [zero_32, one_32], inbounds=True)
-	builder.store(array_init_capacity, capacity_ptr)
+	builder.store(ARRAY_INITIAL_CAPACITY, capacity_ptr)
 
 	data_ptr = builder.gep(builder.load(array_ptr), [zero_32, two_32], inbounds=True)
 	size_of = builder.mul(builder.load(capacity_ptr), eight)
@@ -206,9 +204,6 @@ def dynamic_array_get(compiler, dyn_array_struct_ptr):
 
 	# BODY
 	index_val = builder.load(index_ptr)
-
-	# compiler.print_int(builder.load(index_ptr))
-
 	size_ptr = builder.gep(builder.load(array_ptr), [zero_32, zero_32], inbounds=True)
 	size_val = builder.load(size_ptr)
 
@@ -240,9 +235,6 @@ def dynamic_array_get(compiler, dyn_array_struct_ptr):
 	add_1 = builder.add(one, index_val)
 	builder.store(add_1, index_ptr)
 	index_val = builder.load(index_ptr)
-
-	# compiler.print_int(builder.load(index_ptr))
-
 	data_element_ptr = builder.gep(builder.load(data_ptr), [index_val], inbounds=True)
 
 	builder.branch(dyn_array_get_exit)
@@ -393,43 +385,10 @@ def define_print(compiler, dyn_array_struct_ptr):
 	builder.ret_void()
 
 
-def define_printd(compiler):
-	# START
-	func_type = ir.FunctionType(type_map[VOID], [type_map[INT]])
-	func = ir.Function(compiler.module, func_type, 'printd')
-	entry_block = func.append_basic_block('entry')
-	builder = ir.IRBuilder(entry_block)
-	compiler.builder = builder
-	builder.position_at_end(entry_block)
-	exit_block = func.append_basic_block('exit')
-	n_addr = builder.alloca(type_map[INT])
-	builder.store(func.args[0], n_addr)
-	x_addr = builder.alloca(type_map[INT])
-
-	# BODY
-
-	fourtyeight = ir.Constant(type_map[INT], 48)
-
-	div_ten = builder.udiv(builder.load(n_addr), ten)
-	greater_than_zero = builder.icmp_unsigned(GREATER_THAN, div_ten, zero)
-	mod_ten = builder.urem(builder.trunc(builder.load(n_addr), type_map[INT]), ten)
-	builder.store(mod_ten, x_addr)
-
-	with builder.if_then(greater_than_zero):
-		builder.call(compiler.module.get_global('printd'), [div_ten])
-
-	builder.call(compiler.module.get_global('putchar'), [builder.add(fourtyeight, builder.load(x_addr))])
-	builder.branch(exit_block)
-
-	# CLOSE
-	builder.position_at_end(exit_block)
-	builder.ret_void()
-
-
-def define_int_to_char(compiler, dyn_array_struct_ptr):
+def define_int_to_str(compiler, dyn_array_struct_ptr):
 	# START
 	func_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr, type_map[INT]])
-	func = ir.Function(compiler.module, func_type, 'int_to_char')
+	func = ir.Function(compiler.module, func_type, 'int_to_str')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	compiler.builder = builder
@@ -450,70 +409,10 @@ def define_int_to_char(compiler, dyn_array_struct_ptr):
 	builder.store(mod_ten, x_addr)
 
 	with builder.if_then(greater_than_zero):
-		builder.call(compiler.module.get_global('int_to_char'), [builder.load(array_ptr), div_ten])
+		builder.call(compiler.module.get_global('int_to_str'), [builder.load(array_ptr), div_ten])
 
 	char = builder.add(fourtyeight, builder.load(x_addr))
-
-	# compiler.print_int(char)
-
 	builder.call(compiler.module.get_global('dyn_array_append'), [builder.load(array_ptr), char])
-	builder.branch(exit_block)
-
-	# CLOSE
-	builder.position_at_end(exit_block)
-	builder.ret_void()
-
-
-def define_int_to_str(compiler, dyn_array_struct_ptr):
-	# START
-	func_type = ir.FunctionType(dyn_array_struct_ptr, [type_map[INT]])
-	func = ir.Function(compiler.module, func_type, 'int_to_str')
-	entry_block = func.append_basic_block('entry')
-	builder = ir.IRBuilder(entry_block)
-	compiler.builder = builder
-	builder.position_at_end(entry_block)
-	exit_block = func.append_basic_block('exit')
-	n_addr = builder.alloca(type_map[INT])
-	builder.store(func.args[0], n_addr)
-
-	# BODY
-	array_ptr = compiler.create_array()
-	builder.call(compiler.module.get_global('dyn_array_init'), [array_ptr])
-
-	builder.call(compiler.module.get_global('int_to_char'), [array_ptr, builder.load(n_addr)])
-
-	builder.branch(exit_block)
-
-	# CLOSE
-	builder.position_at_end(exit_block)
-	builder.ret(array_ptr)
-
-
-def define_printb(compiler):
-	# START
-	func_type = ir.FunctionType(type_map[VOID], [type_map[BOOL]])
-	func = ir.Function(compiler.module, func_type, 'printb')
-	entry_block = func.append_basic_block('entry')
-	builder = ir.IRBuilder(entry_block)
-	compiler.builder = builder
-	exit_block = func.append_basic_block('exit')
-
-	# BODY
-	equalszero = builder.icmp_unsigned(EQUALS, func.args[0], ir.Constant(type_map[BOOL], 0))
-
-	with builder.if_else(equalszero) as (then, otherwise):
-		with then:
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 102)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 97)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 108)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 115)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 101)])
-		with otherwise:
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 116)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 114)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 117)])
-			builder.call(compiler.module.get_global('putchar'), [ir.Constant(type_map[INT], 101)])
-
 	builder.branch(exit_block)
 
 	# CLOSE
@@ -523,33 +422,34 @@ def define_printb(compiler):
 
 def define_bool_to_str(compiler, dyn_array_struct_ptr):
 	# START
-	func_type = ir.FunctionType(dyn_array_struct_ptr, [type_map[BOOL]])
+	func_type = ir.FunctionType(type_map[VOID], [dyn_array_struct_ptr, type_map[BOOL]])
 	func = ir.Function(compiler.module, func_type, 'bool_to_str')
 	entry_block = func.append_basic_block('entry')
 	builder = ir.IRBuilder(entry_block)
 	compiler.builder = builder
 	exit_block = func.append_basic_block('exit')
+	array_ptr = builder.alloca(dyn_array_struct_ptr)
+	builder.store(func.args[0], array_ptr)
 
 	# BODY
-	equalszero = builder.icmp_unsigned(EQUALS, func.args[0], ir.Constant(type_map[BOOL], 0))
-	array_ptr = compiler.create_array()
-	builder.call(compiler.module.get_global('dyn_array_init'), [array_ptr])
+	equalszero = builder.icmp_unsigned(EQUALS, func.args[1], ir.Constant(type_map[BOOL], 0))
+	dyn_array_append = compiler.module.get_global('dyn_array_append')
 
 	with builder.if_else(equalszero) as (then, otherwise):
 		with then:
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 102)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 97)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 108)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 115)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 101)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 102)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 97)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 108)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 115)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 101)])
 		with otherwise:
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 116)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 114)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 117)])
-			builder.call(compiler.module.get_global('dyn_array_append'), [array_ptr, ir.Constant(type_map[INT], 101)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 116)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 114)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 117)])
+			builder.call(dyn_array_append, [builder.load(array_ptr), ir.Constant(type_map[INT], 101)])
 
 	builder.branch(exit_block)
 
 	# CLOSE
 	builder.position_at_end(exit_block)
-	builder.ret(array_ptr)
+	builder.ret_void()

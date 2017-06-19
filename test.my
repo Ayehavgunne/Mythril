@@ -8,3 +8,8 @@ def foo(Int x) -> Int
 	return baz(x) + x
 
 print(foo(2))
+
+print(true)
+
+print('αγρω')
+print('夜のコンサートは最高でした。')

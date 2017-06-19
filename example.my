@@ -111,6 +111,9 @@ def foo(Int x) -> Int
 
 print(foo(2))
 
+print('🍌')
+print('夜のコンサートは最高でした。') # I have no idea what this says
+
 # Type Aliasing
 type FInt = Func[Int] -> Int
 # All types (including structs and classes) should start with a capital
