@@ -135,7 +135,7 @@ class CodeGenerator(NodeVisitor):
 				fields.append(type_map[field.value])
 		struct = ir.LiteralStructType(fields)
 		struct.fields = [field for field in node.fields.keys()]
-		self.define(node.name.value, struct)
+		self.define(node.name, struct)
 
 	def visit_typedeclaration(self, node):
 		raise NotImplementedError
@@ -310,7 +310,7 @@ class CodeGenerator(NodeVisitor):
 	def visit_assign(self, node):  # TODO: Simplify this, it just keeps getting worse
 		if isinstance(node.right, StructLiteral):
 			self.struct_assign(node)
-		elif isinstance(self.search_scopes(node.right.value), ir.Function):
+		elif hasattr(node.right, 'value') and isinstance(self.search_scopes(node.right.value), ir.Function):
 			self.define(node.left.value, self.search_scopes(node.right.value))
 		else:
 			if isinstance(node.right, Input):
@@ -351,14 +351,14 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.extract_value(self.load(node.obj), obj_type.fields.index(node.field))
 
 	def struct_assign(self, node):
-		struct_type = self.search_scopes(node.left.type_node.value)
-		name = node.left.var_node.value
+		struct_type = self.search_scopes(node.left.type.value)
+		name = node.left.value.value
 		fields = []
 		for field in node.right.fields.values():
 			fields.append(self.visit(field))
 		struct = struct_type(fields)
 		struct_ptr = self.alloc_and_store(struct, struct_type, name=name)
-		struct_ptr.struct_name = node.left.type_node.value
+		struct_ptr.struct_name = node.left.type.value
 		self.define(name, struct_ptr)
 
 	def visit_dotaccess(self, node):

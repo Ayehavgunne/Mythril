@@ -411,7 +411,7 @@ class Preprocessor(NodeVisitor):
 			return method.type
 
 	def visit_structdeclaration(self, node):
-		sym = StructSymbol(node.name.value, node.fields)
+		sym = StructSymbol(node.name, node.fields)
 		self.define(sym.name, sym)
 
 	def visit_return(self, node):
