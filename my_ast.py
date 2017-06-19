@@ -3,7 +3,7 @@ from my_grammar import *
 
 class AST(object):
 	def __str__(self):
-		return '(' + ' '.join(str(value) for key, value in sorted(self.__dict__.items()) if not key.startswith("__") and key != 'read_only' and key != 'line_num') + ')'
+		return '(' + ' '.join(str(value) for key, value in sorted(self.__dict__.items()) if not key.startswith("__") and key != 'read_only' and key != 'line_num' and value is not None) + ')'
 
 	__repr__ = __str__
 
@@ -19,11 +19,23 @@ class Program(AST):
 
 
 class VarDecl(AST):
-	def __init__(self, var_node, type_node, line_num):
-		self.var_node = var_node
-		self.type_node = type_node
-		self.read_only = False
+	def __init__(self, value, type_node, line_num, read_only=False):
+		self.value = value
+		self.type = type_node
+		self.read_only = read_only
 		self.line_num = line_num
+
+
+class Var(AST):
+	def __init__(self, value, line_num, read_only=False):
+		self.value = value
+		self.read_only = read_only
+		self.line_num = line_num
+
+	def __str__(self):
+		return ' '.join(str(value) for key, value in sorted(self.__dict__.items()) if not key.startswith("__") and key != 'read_only' and key != 'line_num')
+
+	__repr__ = __str__
 
 
 class Compound(AST):
@@ -265,13 +277,6 @@ class AliasDeclaration(AST):
 
 class Void(AST):
 	value = VOID
-
-
-class Var(AST):
-	def __init__(self, value, line_num, read_only=False):
-		self.value = value
-		self.read_only = read_only
-		self.line_num = line_num
 
 
 class Constant(AST):

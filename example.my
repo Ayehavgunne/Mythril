@@ -3,7 +3,7 @@
 # Hello World example
 print('Hello World')
 
-Int nums # Initialize an Integer, must be assigned a value before it can be used
+Int moogles # Initialize an Integer, must be assigned a value before it can be used
 
 number = 23 # Type Inference
 
@@ -45,19 +45,19 @@ if 2 in things
 if 2 not in things
 	print('no')
 
-num = 1
+moogles = 1
 
-switch num # Switch soon to be replaced with Pattern Matching
+switch moogles # Switch soon to be replaced with Pattern Matching
 	case 1
-		print('I am One')
+		print('One Moogle')
 	case 2
-		print('I am Two')
+		print('Two Moogles')
 		break
 	default
-		print(num)
-		print('I know not what I am')
+		print(moogles)
+		print("Lots of Moogles")
 	case 3
-		print('I am Three')
+		print('Three Moogles')
 
 # Pattern matching
 s = 'hello world'
@@ -69,7 +69,7 @@ match s.contains
 | _
 	print('Nothing')
 
-		# Function Return notation
+				# Function Return notation
 def fib(Int n) -> Int
 	a = 0
 	b = 1
@@ -99,6 +99,17 @@ myfunc = def (Int x, Int y) -> Int
 		return x * y
 
 print(myfunc(2, 3))
+
+def bar(Int x=4, Int y=5) -> Int
+	return x * y
+
+baz = bar
+print(baz())
+
+def foo(Int x) -> Int
+	return baz(x) + x
+
+print(foo(2))
 
 # Type Aliasing
 type FInt = Func[Int] -> Int
@@ -141,10 +152,11 @@ Int age = input('How old are you?')
 # String Interpolation
 print('Wow! You are {age} years old?!')
 
-Enum Genders(
-	MALE,
-	FEMALE,
-	OTHER
+Enum Colors(
+	GREEN,
+	RED,
+	BLUE,
+	YELLOW
 )
 
 Struct Circle
@@ -251,43 +263,43 @@ print(things[1 + 1])
 Dec a
 b = 3
 
-def bar() -> Int
+def four() -> Int
 	return 2 + 2
 
-Bool larry = true
-f = bar()
+Bool yes = true
+f = four()
 Float g = 7.5
 h = 5
-garry = false
+no = false
 
-if garry
+if no
 	g = 2.6
-	if larry and garry
+	if yes and no
 		h += h
-else if larry
+else if yes
 	g = 3.6
 else
 	g = 7.6
 
-if larry
+if yes
 	g += 7
-first_name = 'Anthony'
-last_name = 'Post\'s'
+first_name = 'Cid'
+last_name = 'Fabool'
 full_name = first_name + ' ' + last_name
 a = 2 * g
 d = 0
 c = a::Int ** b
 
-def foo(Int first, Int second) -> Int
+def kupo(Int first, Int second) -> Int
 	# Nested function
-	def baz() -> Int
+	def mog() -> Int
 		return 54
 	if first < second
 		return first + second
 	else
-		return baz()
+		return mog()
 
-e = foo(c, b)
+e = kupo(c, b)
 
 while b < 30
 	b += c + 1
@@ -314,10 +326,10 @@ print('g')
 print(g)
 print('h')
 print(h)
-print('larry')
-print(larry)
-print('garry')
-print(garry)
+print('yes')
+print(yes)
+print('no')
+print(no)
 print('first_name')
 print(first_name)
 print('last_name')

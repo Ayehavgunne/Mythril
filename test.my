@@ -1,18 +1,10 @@
-def bar(Int x) -> Int
-	return x * x
+def bar(Int x=4, Int y=5) -> Int
+	return x * y
 
-#Func baz = bar
 baz = bar
+print(baz())
 
-print(bar(2))
-print(baz(2))
+def foo(Int x) -> Int
+	return baz(x) + x
 
-#def foo(Int x) -> Int
-#	return baz(x) + x
-#
-#print(foo(2))
-#
-#def bar(Int x) -> Int
-#	return x * 1000
-#
-#print(foo(2))
+print(foo(2))

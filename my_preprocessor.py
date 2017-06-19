@@ -130,8 +130,8 @@ class Preprocessor(NodeVisitor):
 		field_assignment = None
 		collection_assignment = None
 		if isinstance(node.left, VarDecl):
-			var_name = node.left.var_node.value
-			value = self.infer_type(node.left.type_node)
+			var_name = node.left.value.value
+			value = self.infer_type(node.left.type)
 			value.accessed = True
 		elif isinstance(node.right, Collection):
 			var_name = node.left.value
@@ -370,7 +370,8 @@ class Preprocessor(NodeVisitor):
 			else:
 				func_param_keys = list(func.parameters.keys())
 				if func_param_keys[x] not in node.named_arguments.keys() and func_param_keys[x] not in func.parameter_defaults.keys():
-					raise TypeError('Missing arguments to function')
+					warnings.warn('file={} line={}: Missing arguments to function: {}'.format(self.file_name, node.line_num, repr(func_name)))
+					self.warnings = True
 				else:
 					if func_param_keys[x] in node.named_arguments.keys():
 						if param.value != self.visit(node.named_arguments[func_param_keys[x]]).name:

@@ -179,8 +179,8 @@ class Interpreter(NodeVisitor):
 
 	def visit_assign(self, node):
 		if isinstance(node.left, VarDecl):
-			var_name = node.left.var_node.value
-			if node.left.type_node.value == FLOAT:
+			var_name = node.left.value.value
+			if node.left.type.value == FLOAT:
 				node.right.value = float(node.right.value)
 		else:
 			var_name = node.left.value

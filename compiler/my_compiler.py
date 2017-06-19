@@ -31,7 +31,8 @@ class CodeGenerator(NodeVisitor):
 		func = ir.Function(self.module, func_ty, 'main')
 		entry_block = func.append_basic_block('entry')
 		exit_block = func.append_basic_block('exit')
-		self.function = func
+		# self.func_table = {'main': func}
+		self.current_function = func  # TODO: investigate to see if these function attributes are redundant, they might not be... who knows
 		self.function_stack = [func]
 		self.builder = ir.IRBuilder(entry_block)
 		self.exit_blocks = [exit_block]
@@ -75,11 +76,11 @@ class CodeGenerator(NodeVisitor):
 
 	def funcdecl(self, name, node):
 		self.start_function(name, node.return_type, node.parameters, node.parameter_defaults, node.varargs)
-		for i, arg in enumerate(self.function.args):
+		for i, arg in enumerate(self.current_function.args):
 			arg.name = list(node.parameters.keys())[i]
 			self.alloc_define_store(arg, arg.name, arg.type)
-		if self.function.function_type.return_type != type_map[VOID]:
-			self.alloc_and_define(RET_VAR, self.function.function_type.return_type)
+		if self.current_function.function_type.return_type != type_map[VOID]:
+			self.alloc_and_define(RET_VAR, self.current_function.function_type.return_type)
 		ret = self.visit(node.body)
 		self.end_function(ret)
 
@@ -92,9 +93,10 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_funccall(self, node):
 		func_type = self.search_scopes(node.name)
+		# func_type = self.func_table[node.name]
 		if isinstance(func_type, ir.Function):
 			func_type = func_type.type.pointee
-			name = self.search_scopes(node.name.value)
+			name = self.search_scopes(node.name)
 			name = name.name
 		else:
 			name = node.name
@@ -308,9 +310,11 @@ class CodeGenerator(NodeVisitor):
 		self.call('create_range', [array_ptr, start, stop])
 		return array_ptr
 
-	def visit_assign(self, node):
+	def visit_assign(self, node):  # TODO: Simplify this, it just keeps getting worse
 		if isinstance(node.right, StructLiteral):
 			self.struct_assign(node)
+		elif isinstance(self.search_scopes(node.right.value), ir.Function):
+			self.define(node.left.value, self.search_scopes(node.right.value))
 		else:
 			if isinstance(node.right, Input):
 				node.right.type = node.left.type_node.value
@@ -318,13 +322,10 @@ class CodeGenerator(NodeVisitor):
 			if not var:
 				return
 			if isinstance(node.left, VarDecl):
-				var_name = node.left.var_node.value
-				if node.left.type_node.value == FLOAT:
+				var_name = node.left.value.value
+				if node.left.type.value == FLOAT:
 					node.right.value = float(node.right.value)
 				self.alloc_define_store(var, var_name, var.type)
-			if isinstance(var, type_map[FUNC]):
-
-				self.define(node.left.value, var)
 			elif isinstance(node.left, DotAccess):
 				obj = self.search_scopes(node.left.obj)
 				obj_type = self.search_scopes(obj.struct_name)
@@ -543,12 +544,12 @@ class CodeGenerator(NodeVisitor):
 
 	# noinspection PyUnusedLocal
 	def start_function(self, name, return_type, parameters, parameter_defaults=None, varargs=None):
-		self.function_stack.append(self.function)
+		self.function_stack.append(self.current_function)
 		self.block_stack.append(self.builder.block)
 		self.new_scope()
 		ret_type = type_map[return_type.value]
 		args = [type_map[param.value] for param in parameters.values()]
-		arg_keys = [key for key in parameters.keys()]
+		arg_keys = parameters.keys()
 		func_type = ir.FunctionType(ret_type, args)
 		if parameter_defaults:
 			func_type.parameter_defaults = parameter_defaults
@@ -556,9 +557,8 @@ class CodeGenerator(NodeVisitor):
 		if hasattr(return_type, 'func_ret_type') and return_type.func_ret_type:
 			func_type.return_type = func_type.return_type(type_map[return_type.func_ret_type.value], [return_type.func_ret_type.value]).as_pointer()
 		func = ir.Function(self.module, func_type, name)
-		func_ptr = self.allocate(func_type, name)
-		self.define(name, func_ptr, 1)
-		self.function = func
+		self.define(name, func, 1)
+		self.current_function = func
 		entry = self.add_block('entry')
 		self.exit_blocks.append(self.add_block('exit'))
 		self.position_at_end(entry)
@@ -567,7 +567,7 @@ class CodeGenerator(NodeVisitor):
 		if not returned:
 			self.branch(self.exit_blocks[-1])
 		self.position_at_end(self.exit_blocks.pop())
-		if self.function.function_type.return_type != type_map[VOID]:
+		if self.current_function.function_type.return_type != type_map[VOID]:
 			retval = self.load(self.search_scopes(RET_VAR))
 			self.builder.ret(retval)
 		else:
@@ -575,7 +575,7 @@ class CodeGenerator(NodeVisitor):
 		back_block = self.block_stack.pop()
 		self.position_at_end(back_block)
 		last_function = self.function_stack.pop()
-		self.function = last_function
+		self.current_function = last_function
 		self.drop_top_scope()
 
 	def new_builder(self, block):
@@ -583,7 +583,7 @@ class CodeGenerator(NodeVisitor):
 		return self.builder
 
 	def add_block(self, name):
-		return self.function.append_basic_block(name)
+		return self.current_function.append_basic_block(name)
 
 	def position_at_end(self, block):
 		self.builder.position_at_end(block)
@@ -652,7 +652,10 @@ class CodeGenerator(NodeVisitor):
 		return self.builder.load(name)
 
 	def call(self, name, args):
-		func = self.module.get_global(name)
+		if isinstance(name, str):
+			func = self.module.get_global(name)
+		else:
+			func = self.module.get_global(name.name)
 		if func is None:
 			raise TypeError('Calling non existant function')
 		return self.builder.call(func, args)
