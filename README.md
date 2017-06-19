@@ -1,4 +1,4 @@
-# Mythril <img src="https://github.com/Ayehavgunne/Mythril/blob/gh-pages/Mythril.png" width=40 />
+# Mythril
 A new multi-paradigm programming language. Right now it is being coded in Python using llvmlite.
 
 This project is super early in development.
@@ -72,7 +72,6 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Lists
 - [ ] Slices
 - [ ] Iterator unpacking
-- [ ] Allow for double calling as in immediatly calling a function returned by a function ex: returns_function()()
 - [ ] More Collection types (set, hashmap, linked list, trees, etc.)
 - [ ] Pattern matching ('match')
 - [ ] Throw away variable using a single underscore character (be able to use it multiple times)
