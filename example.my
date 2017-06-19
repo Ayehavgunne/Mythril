@@ -15,7 +15,7 @@ decimal_number=1.2+2.4 # Spaces are generally insignificant, but encouraged for 
 
 question = 'what\'s going on' # Escaping
 
-Str something # Initialize a String, a value must be assigned before the valiable can be used
+Str something # Initialize a String
 
 things = [1, 2, 3] # Array, homogeneous
 other_things = (1, 'Hello') # List, non-homogeneous
