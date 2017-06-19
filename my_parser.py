@@ -27,7 +27,7 @@ class Parser(object):
 		if self.current_token.type in token_type:
 			self.next_token()
 		else:
-			raise SyntaxError
+			raise SyntaxError('Line {}'.format(self.line_num))
 
 	def eat_value(self, *token_value):
 		if self.current_token.value in token_value:
@@ -423,7 +423,7 @@ class Parser(object):
 		elif self.current_token.value in ASSIGNMENT_OP:
 			node = self.assignment_statement(token)
 		else:
-			raise SyntaxError
+			raise SyntaxError('Line {}'.format(self.line_num))
 		return node
 
 	def property_or_method(self, token):

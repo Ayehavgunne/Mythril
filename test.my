@@ -1,10 +1,5 @@
-def bar(Int x=4, Int y=5) -> Int
-	return x * y
+num = 1
 
-baz = bar
-print(baz())
+num_str = num::Str
 
-def foo(Int x) -> Int
-	return baz(x) + x
-
-print(foo(2))
+print(num_str)

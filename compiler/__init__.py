@@ -13,6 +13,7 @@ type_map = {
 	INT: ir.IntType(64),
 	INT8: ir.IntType(8),
 	INT32: ir.IntType(32),
+	INT64: ir.IntType(64),
 	INT128: ir.IntType(128),
 	DEC: ir.DoubleType(),
 	FLOAT: ir.FloatType(),
