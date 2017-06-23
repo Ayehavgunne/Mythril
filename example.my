@@ -241,7 +241,7 @@ print(square(5))
 def greet_name(Str name) -> void
 	print('Hello ' + name)
 
-greet_name('Anthony')
+greet_name('Stiltzkin')
 
 x = 0
 while x < 10
