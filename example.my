@@ -175,7 +175,7 @@ Circle cir = {radius=5, x=2, y=4}
 
 print(cir.radius)
 
-abstract class Vehicle
+abstract Class Vehicle
 	# Constructor
 	new(Str make, Int year, Str color)
 		this.year = year
@@ -184,7 +184,7 @@ abstract class Vehicle
 		Str this._fav_color
 
 # Inheritance
-class Car(Vehicle)
+Class Car(Vehicle)
 	new(Str make, Int year, color='green', hatchback=false)
 		# Design by Contract
 		require year < 10
@@ -194,10 +194,10 @@ class Car(Vehicle)
 	void print_year()
 		print('This car was made in {this.year}')
 
-class Person
+Class Person
 	new(Str name, Int age)
 		this.name
-		this.age
+		..age # This might be a more terse way of accessing members of a class
 
 frank = Person('Frank', 30)
 

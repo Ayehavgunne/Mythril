@@ -73,7 +73,7 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Slices
 - [ ] Iterator unpacking
 - [ ] Allow for double calling as in immediatly calling a function returned by a function ex: returns_function()()
-- [ ] More Collection types (set, hashmap, linked list, trees, etc.)
+- [ ] More Collection types (set, linked list, trees, etc.)
 - [ ] Pattern matching ('match')
 - [ ] Throw away variable using a single underscore character (be able to use it multiple times)
 - [ ] Call C and/or Python functions from within Mythril [Example](http://eli.thegreenplace.net/2015/calling-back-into-python-from-llvmlite-jited-code/)

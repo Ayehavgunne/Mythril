@@ -54,10 +54,16 @@ DECORATOR = '@'  # TODO
 # Types
 ANY = 'Any'
 INT = 'Int'
-INT8 = 'Int8'
-INT32 = 'Int32'
-INT64 = 'Int64'  # same as int but doesn't automatically promote to larger integer type upon overflow
-INT128 = 'Int128'
+INT8 = 'Int8'  # TODO
+INT16 = 'Int16'  # TODO
+INT32 = 'Int32'  # TODO
+INT64 = 'Int64'  # TODO same as int but doesn't automatically promote to larger integer type upon overflow
+INT128 = 'Int128'  # TODO
+UINT8 = 'UInt8'  # TODO
+UINT16 = 'UInt16'  # TODO
+UINT32 = 'UInt32'  # TODO
+UINT64 = 'UInt64'  # TODO
+UINT128 = 'UInt128'  # TODO
 DEC = 'Dec'
 FLOAT = 'Float'
 COMPLEX = 'Complex'  # TODO
@@ -65,12 +71,13 @@ STR = 'Str'
 BOOL = 'Bool'
 BYTES = 'Bytes'  # TODO
 ARRAY = 'Array'
-LIST = 'List'
+LIST = 'List'  # TODO
 SET = 'Set'  # TODO
-DICT = 'Dict'
+DICT = 'Dict'  # TODO
 ENUM = 'Enum'  # TODO
 FUNC = 'Func'
 STRUCT = 'Struct'
+CLASS = 'Class'
 
 # Contstants
 TRUE = 'true'
@@ -89,7 +96,6 @@ SWITCH = 'switch'
 CASE = 'case'
 DEFAULT = 'default'
 DEF = 'def'
-CLASS = 'class'  # TODO
 ACTOR = 'actor'  # TODO
 CONST = 'const'
 NEW = 'new'  # TODO
@@ -155,14 +161,14 @@ SINGLE_OPERATORS = (
 )
 
 KEYWORDS = (
-	IF, ELSE, WHILE, FOR, SWITCH, CASE, DEF, CLASS, SUPER, THIS, RETURN, TEST, TRY, CATCH,
+	IF, ELSE, WHILE, FOR, SWITCH, CASE, DEF, SUPER, THIS, RETURN, TEST, TRY, CATCH,
 	FINALLY, THEN, YIELD, BREAK, CONTINUE, DEL, IMPORT, FROM, WITH, AS, PASS, VOID, RAISE, ACTOR,
 	CONST, REQUIRE, ENSURE, OVERRIDE, DOC, ABSTRACT, GETTER, SETTER, ASSERT, DEFAULT, NEW, ALIAS
 )
 
 MULTI_WORD_KEYWORDS = (IF, ELSE, ELSE_IF)
 
-TYPES = (ANY, INT, INT8, INT32, INT64, INT128, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES, ARRAY, LIST, DICT, ENUM, FUNC, STRUCT)
+TYPES = (ANY, INT, INT8, INT32, INT64, INT128, UINT8, UINT16, UINT32, UINT64, UINT128, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES, ARRAY, LIST, DICT, ENUM, FUNC, STRUCT, CLASS)
 
 CONSTANTS = (TRUE, FALSE, NAN, INF, NEGATIVE_INF)
 

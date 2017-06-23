@@ -15,13 +15,14 @@ two_32 = ir.Constant(type_map[INT32], 2)
 
 
 def define_dynamic_array(compiler):
-	# define a struct dynamic_array
 	# 0: int size
 	# 1: int capacity
-	# 2: int *data  TODO: maybe make this a void pointer to allow any kind of data
-	dyn_array_struct = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[INT].as_pointer()])
+	# 2: int *data
+	# 3: int type
+	dyn_array_struct = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[INT].as_pointer(), type_map[INT]])
 	compiler.define('Dynamic_Array', dyn_array_struct)
 	dyn_array_struct_ptr = dyn_array_struct.as_pointer()
+	compiler.define('Dynamic_Array_Ptr', dyn_array_struct_ptr)
 
 	dynamic_array_init(compiler, dyn_array_struct_ptr)
 	dynamic_array_double_if_full(compiler, dyn_array_struct_ptr)
@@ -399,6 +400,9 @@ def define_int_to_str(compiler, dyn_array_struct_ptr):
 	n_addr = builder.alloca(type_map[INT])
 	builder.store(func.args[1], n_addr)
 	x_addr = builder.alloca(type_map[INT])
+
+	msb = builder.call(compiler.module.get_global('__builtin_clz'), [func.args[1]])
+	compiler.print_int(msb)
 
 	# BODY
 	fourtyeight = ir.Constant(type_map[INT], 48)

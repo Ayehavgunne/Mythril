@@ -91,7 +91,6 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_funccall(self, node):
 		func_type = self.search_scopes(node.name)
-		# func_type = self.func_table[node.name]
 		if isinstance(func_type, ir.Function):
 			func_type = func_type.type.pointee
 			name = self.search_scopes(node.name)
@@ -291,14 +290,18 @@ class CodeGenerator(NodeVisitor):
 		return
 
 	def visit_unaryop(self, node):
-		op = node.op.value
+		op = node.op
 		expr = self.visit(node.expr)
-		if op == PLUS:
-			return expr
-		elif op == MINUS:
-			return self.builder.neg(expr)
+		res = expr
+		if op == MINUS:
+			if isinstance(expr.type, ir.IntType):
+				res = self.builder.neg(expr)
+			elif isinstance(expr.type, (ir.FloatType, ir.DoubleType)):
+				res = self.builder.fsub(ir.Constant(ir.DoubleType(), 0), expr)
 		elif op == NOT:
-			return self.builder.not_(expr)
+			if isinstance(expr.type, ir.IntType):
+				res = self.builder.not_(expr)
+		return res
 
 	def visit_range(self, node):
 		start = self.visit(node.left)
@@ -455,7 +458,7 @@ class CodeGenerator(NodeVisitor):
 
 	def create_array(self):
 		dyn_array_type = self.search_scopes('Dynamic_Array')
-		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
+		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer()), self.const(0)])
 		array = self.alloc_and_store(array, dyn_array_type)
 		self.call('dyn_array_init', [array])
 		return array
@@ -515,9 +518,12 @@ class CodeGenerator(NodeVisitor):
 		self.call('puts', [str_ptr])
 
 	def print_int(self, integer):
-		array = self.create_array()
-		self.call('int_to_str', [array, integer])
-		self.call('print', [array])
+		percent_d = self.stringz('%d')
+		percent_d = self.alloc_and_store(percent_d, ir.ArrayType(percent_d.type.element, percent_d.type.count))
+		percent_d = self.gep(percent_d, [self.const(0), self.const(0)])
+		percent_d = self.builder.bitcast(percent_d, type_map[INT8].as_pointer())
+		self.call('printf', [percent_d, integer])
+		self.call('putchar', [ir.Constant(type_map[INT], 10)])
 
 	def visit_input(self, node):
 		var_ptr = self.alloc_and_store(self.stringz(node.value.value), ir.ArrayType(type_map[INT8], len(node.value.value) + 1))
@@ -657,8 +663,14 @@ class CodeGenerator(NodeVisitor):
 		realloc_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT8].as_pointer(), type_map[INT]])
 		ir.Function(self.module, realloc_ty, 'realloc')
 
+		memcpy_ty = ir.FunctionType(type_map[INT8].as_pointer(), [type_map[INT8].as_pointer(), type_map[INT8].as_pointer(), type_map[INT]])
+		ir.Function(self.module, memcpy_ty, 'memcpy')
+
 		free_ty = ir.FunctionType(type_map[VOID], [type_map[INT8].as_pointer()])
 		ir.Function(self.module, free_ty, 'free')
+
+		__builtin_clz_ty = ir.FunctionType(type_map[INT], [type_map[INT]])
+		ir.Function(self.module, __builtin_clz_ty, '__builtin_clz')
 
 		exit_ty = ir.FunctionType(type_map[VOID], [type_map[INT32]])
 		ir.Function(self.module, exit_ty, 'exit')

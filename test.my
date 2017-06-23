@@ -1,5 +1,9 @@
 num = 1
 
-num_str = num::Str
+num2 = -1
 
-print(num_str)
+num3 = -1.2
+
+print(num)
+print(num2)
+print(num3)
