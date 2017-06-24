@@ -5,17 +5,17 @@ from time import sleep
 from time import time
 import llvmlite.binding as llvm
 from llvmlite import ir
-from compiler import RET_VAR
-from compiler import type_map
-from compiler.builtin_functions import define_dynamic_array
-from compiler.operations import operations
-from my_ast import DotAccess
-from my_ast import Input
-from my_ast import StructLiteral
-from my_ast import CollectionAccess
-from my_ast import VarDecl
-from my_grammar import *
-from my_visitor import NodeVisitor
+from mythril.grammar import *
+from mythril.ast import CollectionAccess
+from mythril.ast import DotAccess
+from mythril.ast import Input
+from mythril.ast import StructLiteral
+from mythril.ast import VarDecl
+from mythril.compiler import RET_VAR
+from mythril.compiler.operations import operations
+from mythril.compiler import type_map
+from mythril.compiler.builtins import define_builtins
+from mythril.visitor import NodeVisitor
 
 
 class CodeGenerator(NodeVisitor):
@@ -29,8 +29,7 @@ class CodeGenerator(NodeVisitor):
 		func = ir.Function(self.module, func_ty, 'main')
 		entry_block = func.append_basic_block('entry')
 		exit_block = func.append_basic_block('exit')
-		# self.func_table = {'main': func}
-		self.current_function = func  # TODO: investigate to see if these function attributes are redundant, they might not be... who knows
+		self.current_function = func
 		self.function_stack = [func]
 		self.builder = ir.IRBuilder(entry_block)
 		self.exit_blocks = [exit_block]
@@ -91,7 +90,6 @@ class CodeGenerator(NodeVisitor):
 
 	def visit_funccall(self, node):
 		func_type = self.search_scopes(node.name)
-		# func_type = self.func_table[node.name]
 		if isinstance(func_type, ir.Function):
 			func_type = func_type.type.pointee
 			name = self.search_scopes(node.name)
@@ -303,7 +301,7 @@ class CodeGenerator(NodeVisitor):
 	def visit_range(self, node):
 		start = self.visit(node.left)
 		stop = self.visit(node.right)
-		array_ptr = self.create_array()
+		array_ptr = self.create_array(INT)  # TODO: This should be changed to allow for ranges of Decimals, Floating-Points, Characters...
 		self.call('create_range', [array_ptr, start, stop])
 		return array_ptr
 
@@ -447,16 +445,22 @@ class CodeGenerator(NodeVisitor):
 		else:
 			raise NotImplementedError
 
-	def define_array(self, _, elements):
-		array_ptr = self.create_array()
+	def define_array(self, node, elements):
+		array_ptr = self.create_array(node.items[0].val_type)
 		for element in elements:
 			self.call('dyn_array_append', [array_ptr, element])
 		return self.load(array_ptr)
 
-	def create_array(self):
+	def create_array(self, array_type):
 		dyn_array_type = self.search_scopes('Dynamic_Array')
 		array = dyn_array_type([self.const(0), self.const(0), self.const(0).inttoptr(type_map[INT].as_pointer())])
+		# ptr = self.const(0).inttoptr(type_map[INT].as_pointer())
+		# ptr = self.builder.bitcast(ptr, type_map[array_type].as_pointer())
+		# dyn_array_type = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[array_type].as_pointer()])
+		# self.define('{}_Array'.format(array_type), dyn_array_type)
+		# array = dyn_array_type([self.const(0), self.const(0), ptr])
 		array = self.alloc_and_store(array, dyn_array_type)
+		# self.call('{}_array_init'.format(array_type), [array])
 		self.call('dyn_array_init', [array])
 		return array
 
@@ -475,7 +479,7 @@ class CodeGenerator(NodeVisitor):
 			return self.builder.extract_value(self.load(collection.name), [key])
 
 	def visit_str(self, node):
-		array = self.create_array()
+		array = self.create_array(INT)
 		string = node.value.encode('utf-8')
 		for char in string:
 			self.call('dyn_array_append', [array, self.const(char)])
@@ -490,11 +494,11 @@ class CodeGenerator(NodeVisitor):
 		if isinstance(val.type, ir.IntType):
 			# noinspection PyUnresolvedReferences
 			if val.type.width == 1:
-				array = self.create_array()
+				array = self.create_array(BOOL)
 				self.call('bool_to_str', [array, val])
 				val = array
 			else:
-				array = self.create_array()
+				array = self.create_array(INT)
 				self.call('int_to_str', [array, val])
 				val = array
 		elif isinstance(val.type, (ir.FloatType, ir.DoubleType)):
@@ -515,7 +519,7 @@ class CodeGenerator(NodeVisitor):
 		self.call('puts', [str_ptr])
 
 	def print_int(self, integer):
-		array = self.create_array()
+		array = self.create_array(INT)
 		self.call('int_to_str', [array, integer])
 		self.call('print', [array])
 
@@ -555,8 +559,8 @@ class CodeGenerator(NodeVisitor):
 			self.branch(self.exit_blocks[-1])
 		self.position_at_end(self.exit_blocks.pop())
 		if self.current_function.function_type.return_type != type_map[VOID]:
-			retval = self.load(self.search_scopes(RET_VAR))
-			self.builder.ret(retval)
+			retvar = self.load(self.search_scopes(RET_VAR))
+			self.builder.ret(retvar)
 		else:
 			self.builder.ret_void()
 		back_block = self.block_stack.pop()
@@ -678,7 +682,7 @@ class CodeGenerator(NodeVisitor):
 		puts_ty = ir.FunctionType(type_map[INT], [type_map[INT].as_pointer()])
 		ir.Function(self.module, puts_ty, 'puts')
 
-		define_dynamic_array(self)
+		define_builtins(self)
 
 	@staticmethod
 	def stringz(string):

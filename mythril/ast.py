@@ -1,4 +1,4 @@
-from my_grammar import *
+from mythril.grammar import *
 
 
 class AST(object):

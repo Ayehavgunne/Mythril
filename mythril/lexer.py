@@ -1,5 +1,6 @@
-from my_grammar import *
 from decimal import Decimal
+
+from mythril.grammar import *
 
 
 class Token(object):

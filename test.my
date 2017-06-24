@@ -1,5 +1,6 @@
-num = 1
+primes = [1, 3, 5, 7]
 
-num_str = num::Str
+#primes.append(11)
 
-print(num_str)
+for prime in primes
+	print(prime)

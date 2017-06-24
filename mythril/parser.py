@@ -1,6 +1,6 @@
 from collections import OrderedDict
-from my_ast import *
-from my_grammar import *
+from mythril.ast import *
+from mythril.grammar import *
 
 
 class Parser(object):
@@ -437,7 +437,7 @@ class Parser(object):
 		else:
 			return self.method_call(token, left)
 
-	def method_call(self, token, left):
+	def method_call(self, _, left):
 		args = []
 		named_args = {}
 		while self.current_token.value != RPAREN:
@@ -659,7 +659,7 @@ class Parser(object):
 		return node
 
 if __name__ == '__main__':
-	from my_lexer import Lexer
+	from mythril.lexer import Lexer
 	file = 'test.my'
 	l = Lexer(open(file).read(), file)
 	parser = Parser(l)

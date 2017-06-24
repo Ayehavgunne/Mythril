@@ -1,7 +1,7 @@
 from decimal import Decimal
 from enum import Enum
-from my_ast import Type
-from my_types import *
+from mythril.ast import Type
+from mythril.compiler import *
 
 
 class Symbol(object):
@@ -28,7 +28,9 @@ class BuiltinTypeSymbol(Symbol):
 ANY_BUILTIN = BuiltinTypeSymbol(ANY)
 INT_BUILTIN = BuiltinTypeSymbol(INT, Int)
 INT8_BUILTIN = BuiltinTypeSymbol(INT8, Int8)
+INT16_BUILTIN = BuiltinTypeSymbol(INT16, Int16)
 INT32_BUILTIN = BuiltinTypeSymbol(INT32, Int32)
+INT64_BUILTIN = BuiltinTypeSymbol(INT64, Int64)
 INT128_BUILTIN = BuiltinTypeSymbol(INT128, Int128)
 DEC_BUILTIN = BuiltinTypeSymbol(DEC, Dec)
 FLOAT_BUILTIN = BuiltinTypeSymbol(FLOAT, Float)
@@ -42,6 +44,7 @@ LIST_BUILTIN = BuiltinTypeSymbol(LIST, List)
 DICT_BUILTIN = BuiltinTypeSymbol(DICT, Dict)
 ENUM_BUILTIN = BuiltinTypeSymbol(ENUM, Enum)
 FUNC_BUILTIN = BuiltinTypeSymbol(FUNC, Func)
+CLASS_BUILTIN = BuiltinTypeSymbol(CLASS, Class)
 
 
 class VarSymbol(Symbol):
@@ -122,7 +125,9 @@ class NodeVisitor(object):
 		self.define(ANY, ANY_BUILTIN)
 		self.define(INT, INT_BUILTIN)
 		self.define(INT8, INT8_BUILTIN)
+		self.define(INT16, INT16_BUILTIN)
 		self.define(INT32, INT32_BUILTIN)
+		self.define(INT64, INT64_BUILTIN)
 		self.define(INT128, INT128_BUILTIN)
 		self.define(DEC, DEC_BUILTIN)
 		self.define(FLOAT, FLOAT_BUILTIN)
@@ -136,6 +141,7 @@ class NodeVisitor(object):
 		self.define(DICT, DICT_BUILTIN)
 		self.define(ENUM, ENUM_BUILTIN)
 		self.define(FUNC, FUNC_BUILTIN)
+		self.define(CLASS, CLASS_BUILTIN)
 
 	def visit(self, node):
 		method_name = 'visit_' + type(node).__name__.lower()
@@ -195,32 +201,30 @@ class NodeVisitor(object):
 			return value
 		if isinstance(value, FuncSymbol):
 			return self.search_scopes(FUNC)
-		elif isinstance(value, VarSymbol):
+		if isinstance(value, VarSymbol):
 			return value.type
-		elif isinstance(value, Type):
+		if isinstance(value, Type):
 			return self.search_scopes(value.value)
-		else:
-			if isinstance(value, int):
-				return self.search_scopes(INT)
-			elif isinstance(value, Decimal):
-				return self.search_scopes(DEC)
-			elif isinstance(value, float):
-				return self.search_scopes(FLOAT)
-			elif isinstance(value, complex):
-				return self.search_scopes(COMPLEX)
-			elif isinstance(value, str):
-				return self.search_scopes(STR)
-			elif isinstance(value, bool):
-				return self.search_scopes(BOOL)
-			elif isinstance(value, bytes):
-				return self.search_scopes(BYTES)
-			elif isinstance(value, list):
-				return self.search_scopes(LIST)
-			elif isinstance(value, dict):
-				return self.search_scopes(DICT)
-			elif isinstance(value, Enum):
-				return self.search_scopes(ENUM)
-			elif callable(value):
-				return self.search_scopes(FUNC)
-			else:
-				raise TypeError('Type not recognized: {}'.format(value))
+		if isinstance(value, int):
+			return self.search_scopes(INT)
+		if isinstance(value, Decimal):
+			return self.search_scopes(DEC)
+		if isinstance(value, float):
+			return self.search_scopes(FLOAT)
+		if isinstance(value, complex):
+			return self.search_scopes(COMPLEX)
+		if isinstance(value, str):
+			return self.search_scopes(STR)
+		if isinstance(value, bool):
+			return self.search_scopes(BOOL)
+		if isinstance(value, bytes):
+			return self.search_scopes(BYTES)
+		if isinstance(value, list):
+			return self.search_scopes(LIST)
+		if isinstance(value, dict):
+			return self.search_scopes(DICT)
+		if isinstance(value, Enum):
+			return self.search_scopes(ENUM)
+		if callable(value):
+			return self.search_scopes(FUNC)
+		raise TypeError('Type not recognized: {}'.format(value))

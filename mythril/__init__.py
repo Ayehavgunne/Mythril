@@ -1,8 +1,8 @@
 if __name__ == '__main__':
-	from my_lexer import Lexer
-	from my_parser import Parser
-	from my_preprocessor import Preprocessor
-	from compiler.my_compiler import CodeGenerator
+	from mythril.lexer import Lexer
+	from mythril.parser import Parser
+	from mythril.type_checker import Preprocessor
+	from mythril.compiler.code_generator import CodeGenerator
 	file = 'test.my'
 	code = open(file).read()
 	lexer = Lexer(code, file)

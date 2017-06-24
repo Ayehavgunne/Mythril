@@ -1,5 +1,5 @@
 from llvmlite import ir
-from my_grammar import *
+from mythril.grammar import *
 
 
 class Any:
@@ -12,103 +12,13 @@ class Any:
 	__repr__ = __str__
 
 
-class AnyVal(Any):
+class Number(Any):
 	def __init__(self):
 		super().__init__()
 		self.name = None
 
 
-class Int(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = INT
-
-	@staticmethod
-	def type():
-		return ir.IntType(64)
-
-
-class Int8(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = INT8
-
-	@staticmethod
-	def type():
-		return ir.IntType(8)
-
-
-class Int32(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = INT32
-
-	@staticmethod
-	def type():
-		return ir.IntType(32)
-
-
-class Int64(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = INT64
-
-	@staticmethod
-	def type():
-		return ir.IntType(64)
-
-
-class Int128(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = INT128
-
-	@staticmethod
-	def type():
-		return ir.IntType(128)
-
-
-class Dec(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = DEC
-
-	@staticmethod
-	def type():
-		return ir.DoubleType()  # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
-
-
-class Float(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = FLOAT
-
-	@staticmethod
-	def type():
-		return ir.FloatType()
-
-
-class Complex(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = COMPLEX
-
-	@staticmethod
-	def type():
-		raise NotImplementedError
-
-
-class Str(AnyVal):
-	def __init__(self):
-		super().__init__()
-		self.name = STR
-
-	@staticmethod
-	def type():
-		raise NotImplementedError
-
-
-class Bool(AnyVal):
+class Bool(Number):
 	def __init__(self):
 		super().__init__()
 		self.name = BOOL
@@ -118,7 +28,97 @@ class Bool(AnyVal):
 		return ir.IntType(1)
 
 
-class Bytes(AnyVal):
+class Int(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = INT
+
+	@staticmethod
+	def type():
+		return ir.IntType(64)
+
+
+class Int8(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = INT8
+
+	@staticmethod
+	def type():
+		return ir.IntType(8)
+
+
+class Int16(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = INT16
+
+	@staticmethod
+	def type():
+		return ir.IntType(16)
+
+
+class Int32(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = INT32
+
+	@staticmethod
+	def type():
+		return ir.IntType(32)
+
+
+class Int64(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = INT64
+
+	@staticmethod
+	def type():
+		return ir.IntType(64)
+
+
+class Int128(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = INT128
+
+	@staticmethod
+	def type():
+		return ir.IntType(128)
+
+
+class Dec(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = DEC
+
+	@staticmethod
+	def type():
+		return ir.DoubleType()  # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
+
+
+class Float(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = FLOAT
+
+	@staticmethod
+	def type():
+		return ir.FloatType()
+
+
+class Complex(Number):
+	def __init__(self):
+		super().__init__()
+		self.name = COMPLEX
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
+
+
+class Bytes(Any):
 	def __init__(self):
 		super().__init__()
 		self.name = BYTES
@@ -142,6 +142,12 @@ class Array(Collection):
 	@staticmethod
 	def type(element_type, count):
 		return ir.ArrayType(element_type, count)
+
+
+class Str(Array):
+	def __init__(self):
+		super().__init__()
+		self.name = STR
 
 
 class List(Collection):
@@ -194,13 +200,7 @@ class Struct(Collection):
 		raise NotImplementedError
 
 
-class AnyRef(Any):
-	def __init__(self):
-		super().__init__()
-		self.name = None
-
-
-class Func(AnyRef):
+class Func(Any):
 	def __init__(self):
 		super().__init__()
 		self.name = FUNC
@@ -209,6 +209,15 @@ class Func(AnyRef):
 	def type():
 		return ir.FunctionType
 
+
+class Class(Struct):
+	def __init__(self):
+		super().__init__()
+		self.name = CLASS
+
+	@staticmethod
+	def type():
+		raise NotImplementedError
 
 # def get_type_cls(cls):
 # 	import sys

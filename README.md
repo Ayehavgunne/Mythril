@@ -44,7 +44,7 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Variable number of arguments (varargs) {Partialy done}
 - [ ] Variable number of keyword arguments
 - [ ] Signed Integers
-- [ ] Nested Functions
+- [x] Nested Functions
 - [x] Structs
 - [ ] Classes
 - [ ] Multiple Inheritance (for both classes and structs! Considering alternatives) 
@@ -69,6 +69,7 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Binary operators
 - [ ] Complex number type
 - [ ] Arrays {working in basic form}
+- [ ] Fixed Sized Arrays
 - [ ] Lists
 - [ ] Slices
 - [ ] Iterator unpacking

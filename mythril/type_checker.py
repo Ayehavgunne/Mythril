@@ -1,13 +1,15 @@
 import warnings
-from my_visitor import NodeVisitor, StructSymbol
-from my_visitor import VarSymbol
-from my_visitor import CollectionSymbol
-from my_visitor import FuncSymbol
-from my_visitor import AliasSymbol
-from my_ast import VarDecl, DotAccess, CollectionAccess
-from my_ast import Var
-from my_ast import Collection
-from my_grammar import *
+from mythril.ast import Collection
+from mythril.ast import Var
+from mythril.ast import VarDecl
+from mythril.ast import DotAccess
+from mythril.ast import CollectionAccess
+from mythril.grammar import *
+from mythril.visitor import AliasSymbol
+from mythril.visitor import CollectionSymbol
+from mythril.visitor import FuncSymbol
+from mythril.visitor import NodeVisitor, StructSymbol
+from mythril.visitor import VarSymbol
 
 
 def flatten(container):
@@ -34,15 +36,6 @@ class Preprocessor(NodeVisitor):
 		self.file_name = file_name
 		self.warnings = False
 		self.return_flag = False
-		# self.num_types = (
-		# 	self.search_scopes(BOOL),
-		# 	self.search_scopes(INT),
-		# 	self.search_scopes(INT8),
-		# 	self.search_scopes(INT32),
-		# 	self.search_scopes(INT128),
-		# 	self.search_scopes(DEC),
-		# 	self.search_scopes(FLOAT)
-		# )
 
 	def check(self, node):
 		res = self.visit(node)
@@ -143,7 +136,6 @@ class Preprocessor(NodeVisitor):
 		elif isinstance(node.left, CollectionAccess):
 			collection_assignment = True
 			var_name = node.left.collection.value
-			# key = node.left.key.value
 			value = self.visit(node.right)
 		else:
 			var_name = node.left.value
@@ -210,9 +202,9 @@ class Preprocessor(NodeVisitor):
 		left_type = self.infer_type(left)
 		right_type = self.infer_type(right)
 		any_type = self.search_scopes(ANY)
-		if left_type in (self.search_scopes(DEC), self.search_scopes(FLOAT)):  # TODO: implicit type conversion needs an expanded official solution
-			if right_type in (self.search_scopes(INT), self.search_scopes(DEC), self.search_scopes(FLOAT)):
-				return left_type
+		# if left_type in (self.search_scopes(DEC), self.search_scopes(FLOAT)):
+		# 	if right_type in (self.search_scopes(INT), self.search_scopes(DEC), self.search_scopes(FLOAT)):
+		# 		return left_type
 		if right_type is left_type or left_type is any_type or right_type is any_type:
 			return left_type
 		else:
@@ -246,9 +238,6 @@ class Preprocessor(NodeVisitor):
 			left_type = self.infer_type(left)
 			right_type = self.infer_type(right)
 			any_type = self.search_scopes(ANY)
-			# if left_type in self.num_types:
-			# 	if right_type in self.num_types:
-			# 		return left_type
 			if right_type is left_type or left_type is any_type or right_type is any_type:
 				return left_type
 			else:
@@ -363,8 +352,6 @@ class Preprocessor(NodeVisitor):
 			if x < len(node.arguments):
 				var = self.visit(node.arguments[x])
 				param_ss = self.search_scopes(param.value)
-				# if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
-				# 	continue
 				if param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
 					raise TypeError
 			else:
@@ -391,8 +378,6 @@ class Preprocessor(NodeVisitor):
 			if x < len(node.arguments):
 				var = self.visit(node.arguments[x])
 				param_ss = self.search_scopes(param.value)
-				# if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
-				# 	continue
 				if param_ss != self.search_scopes(ANY) and param.value != var.name and param.value != var.type.name:
 					raise TypeError
 			else:
@@ -434,7 +419,10 @@ class Preprocessor(NodeVisitor):
 		for item in node.items:
 			types.append(self.visit(item))
 		if types[1:] == types[:-1]:
-			return self.search_scopes(ARRAY), types[0]
+			if len(types) == 0:
+				return self.search_scopes(ARRAY), self.search_scopes(ANY)
+			else:
+				return self.search_scopes(ARRAY), types[0]
 		else:
 			return self.search_scopes(LIST), self.search_scopes(ANY)
 
@@ -479,8 +467,8 @@ class Preprocessor(NodeVisitor):
 		self.visit(node.value)
 
 if __name__ == '__main__':
-	from my_lexer import Lexer
-	from my_parser import Parser
+	from mythril.lexer import Lexer
+	from mythril.parser import Parser
 	f = 'test.my'
 	code = open(f).read()
 	lexer = Lexer(code, f)

@@ -1,7 +1,8 @@
 from llvmlite import ir
-from compiler import type_map
-from compiler import NUM_TYPES
-from my_grammar import *
+
+from mythril.compiler import NUM_TYPES
+from mythril.compiler import type_map
+from mythril.grammar import *
 
 I1 = 'i1'
 I8 = 'i8'

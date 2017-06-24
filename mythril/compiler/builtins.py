@@ -1,8 +1,8 @@
 from llvmlite import ir
-from compiler import type_map
-from my_grammar import *
+from mythril.compiler import type_map
+from mythril.grammar import *
 
-ARRAY_INITIAL_CAPACITY = ir.Constant(type_map[INT], 100)
+ARRAY_INITIAL_CAPACITY = ir.Constant(type_map[INT], 16)
 
 zero = ir.Constant(type_map[INT], 0)
 one = ir.Constant(type_map[INT], 1)
@@ -14,25 +14,39 @@ one_32 = ir.Constant(type_map[INT32], 1)
 two_32 = ir.Constant(type_map[INT32], 2)
 
 
-def define_dynamic_array(compiler):
-	# define a struct dynamic_array
+def define_builtins(compiler):
 	# 0: int size
 	# 1: int capacity
-	# 2: int *data  TODO: maybe make this a void pointer to allow any kind of data
-	dyn_array_struct = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[INT].as_pointer()])
-	compiler.define('Dynamic_Array', dyn_array_struct)
-	dyn_array_struct_ptr = dyn_array_struct.as_pointer()
+	# 2: int *data
+	str_struct = ir.LiteralStructType([type_map[INT], type_map[INT], type_map[INT].as_pointer()])
+	compiler.define('Dynamic_Array', str_struct)
+	# compiler.define('Str', str_struct)
+	str_struct_ptr = str_struct.as_pointer()
+	compiler.define('Str_ptr', str_struct_ptr)
+	type_map[STR] = str_struct
 
-	dynamic_array_init(compiler, dyn_array_struct_ptr)
-	dynamic_array_double_if_full(compiler, dyn_array_struct_ptr)
-	dynamic_array_append(compiler, dyn_array_struct_ptr)
-	dynamic_array_get(compiler, dyn_array_struct_ptr)
-	dynamic_array_set(compiler, dyn_array_struct_ptr)
-	dynamic_array_length(compiler, dyn_array_struct_ptr)
-	define_create_range(compiler, dyn_array_struct_ptr)
-	define_int_to_str(compiler, dyn_array_struct_ptr)
-	define_bool_to_str(compiler, dyn_array_struct_ptr)
-	define_print(compiler, dyn_array_struct_ptr)
+	dynamic_array_init(compiler, str_struct_ptr)
+	dynamic_array_double_if_full(compiler, str_struct_ptr)
+	dynamic_array_append(compiler, str_struct_ptr)
+	dynamic_array_get(compiler, str_struct_ptr)
+	dynamic_array_set(compiler, str_struct_ptr)
+	dynamic_array_length(compiler, str_struct_ptr)
+	define_create_range(compiler, str_struct_ptr)
+	define_int_to_str(compiler, str_struct_ptr)
+	define_bool_to_str(compiler, str_struct_ptr)
+	define_print(compiler, str_struct_ptr)
+
+
+def create_dynamic_array_methods(compiler, array_type):
+	array_ptr = compiler.search_scopes('{}_Array'.format(array_type))
+
+	dynamic_array_init(compiler, array_ptr)
+	dynamic_array_double_if_full(compiler, array_ptr)
+	dynamic_array_append(compiler, array_ptr)
+	dynamic_array_get(compiler, array_ptr)
+	dynamic_array_set(compiler, array_ptr)
+	dynamic_array_length(compiler, array_ptr)
+	define_create_range(compiler, array_ptr)
 
 
 def define_create_range(compiler, dyn_array_struct_ptr):
