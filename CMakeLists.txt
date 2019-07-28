@@ -3,4 +3,4 @@ project(Mythril)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(mythril mythril/main.cpp mythril/lexer.cpp mythril/lexer.h mythril/my_types.cpp mythril/my_types.h)
+add_executable(mythril mythril/main.cpp mythril/lexer/lexer.cpp mythril/lexer/lexer.h mythril/my_types.cpp mythril/my_types.h mythril/exceptions.h mythril/lexer/my_grammar.h mythril/util.cpp mythril/util.h)

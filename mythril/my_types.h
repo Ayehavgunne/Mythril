@@ -1,9 +1,12 @@
-#pragma once
+#ifndef MYTHRIL_MY_TYPES_H
+#define MYTHRIL_MY_TYPES_H
 #include <iosfwd>
 #include <string>
 
-enum BasicTypes {
-    MY_INT,
-    MY_DEC,
-    MY_STR,
+enum class MythrilType {
+	INT,
+	DEC,
+	STR,
 };
+
+#endif

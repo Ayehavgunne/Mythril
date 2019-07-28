@@ -1,30 +1,41 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include "lexer.h"
+#include "lexer/lexer.h"
+#include "exceptions.h"
+
 using namespace std;
 
 int main(int arg_count, char **args) {
-    string file_name = args[1];
-    cout << "Reading File " << file_name << endl;
-    ifstream in_file;
-    in_file.open(file_name);
+	string file_name = args[1];
+	ifstream in_file;
+	in_file.open(file_name);
 
-    string file_contents;
+	string file_contents;
 
-    if (!in_file) {
-        cerr << "Unable to open file " << file_name;
-        exit(1);
-    }
+	if (!in_file) {
+		cerr << "Unable to open file " << file_name;
+		exit(1);
+	}
 
-    char character;
+	char character;
 
-    while (in_file >> character) {
-        file_contents += character;
-    }
+	while ((character = in_file.get()) != EOF) {
+		file_contents += character;
+	}
 
-    Lexer lexer(file_contents);
-    lexer.get_next_token();
+	Lexer lexer(file_contents);
+	try {
+		lexer.analyze();
+	}
+	catch (SyntaxError& err) {
+		cerr << err.what() << "\n";
+		return 1;
+	}
 
-    return 0;
+	for (Token& token: lexer.tokens) {
+		cout << token << '\n';
+	}
+
+	return 0;
 }
