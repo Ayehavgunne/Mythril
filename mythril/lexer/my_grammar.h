@@ -1,3 +1,4 @@
+#pragma ide diagnostic ignored "cert-err58-cpp"
 #ifndef MYTHRIL_MY_GRAMMAR_H
 #define MYTHRIL_MY_GRAMMAR_H
 

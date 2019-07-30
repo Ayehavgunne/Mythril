@@ -59,7 +59,7 @@ public:
 	string word;
 	CharType word_type;
 	vector<Token> tokens;
-	char *char_word;
+	char char_word[50] = {};
 
 	explicit Lexer(string &);
 	vector<Token> analyze();
@@ -72,6 +72,10 @@ public:
 	static CharType get_type(string);
 	Token eat_newline();
 	Token eat_string();
+	Token eat_operator();
+	Token eat_keyword();
+	Token eat_alphanumeric();
+	Token eat_number();
 	void skip_indent();
 	void skip_comment();
 	Token preview_token(int);

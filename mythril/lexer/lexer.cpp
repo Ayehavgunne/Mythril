@@ -2,10 +2,10 @@
 #include "../exceptions.h"
 #include "my_grammar.h"
 #include "../util.h"
-#include <algorithm>
 #include <bits/stdc++.h>
 #include <iostream>
 #include <string>
+
 using namespace std;
 
 ostream &operator<<(ostream &out_stream, const Token &token) {
@@ -24,6 +24,7 @@ ostream &operator<<(ostream &out_stream, const Token &token) {
 	};
 
 	map<char, string> whitespace_map = {
+		{' ', " "},
 		{'\t', "\\t"},
 		{'\n', "\\n"},
 		{'\v', "\\v"},
@@ -34,7 +35,7 @@ ostream &operator<<(ostream &out_stream, const Token &token) {
 	string value = token.value;
 
 	if (isspace((int) value[0])) {
-		value = '\'' + whitespace_map[(int) value[0]] + '\'';
+		value = '\'' + whitespace_map[value[0]] + '\'';
 	}
 	else if (token.type != TokenType::NUMBER) {
 		if (value.find('\'') != string::npos) {
@@ -65,7 +66,6 @@ Lexer::Lexer(string &text) {
 }
 
 void Lexer::word_to_char() {
-	char_word = new char[word.length() + 1];
 	strcpy(char_word, word.c_str());
 }
 
@@ -188,6 +188,112 @@ Token Lexer::eat_string() {
 	return make_token(TokenType::STRING);
 }
 
+Token Lexer::eat_operator() {
+	if (
+		in(grammar::MULTI_WORD_OPERATORS, word)
+		&& in(grammar::MULTI_WORD_OPERATORS, preview_token(1).value)
+	) {
+		next_char();
+		word += ' ';
+		while (
+			char_type == CharType::ALPHANUMERIC
+			|| char_type == CharType::NUMERIC
+		) {
+			word += current_char;
+			next_char();
+		}
+		return make_token(TokenType::OP);
+	}
+
+	while (char_type == CharType::OPERATIC) {
+		word += current_char;
+		next_char();
+
+		if (
+			in(grammar::SINGLE_OPERATORS, current_char)
+			|| in(grammar::SINGLE_OPERATORS, word)
+		) {
+			word_type = CharType::NONE;
+			break;
+		}
+	}
+	return make_token(TokenType::OP);
+}
+
+Token Lexer::eat_keyword() {
+	if (
+		in(grammar::MULTI_WORD_KEYWORDS, word)
+		&& in(grammar::MULTI_WORD_KEYWORDS, preview_token(1).value)
+	) {
+		next_char();
+		word += ' ';
+		while (
+			char_type == CharType::ALPHANUMERIC
+			|| char_type == CharType::NUMERIC
+		) {
+			word += current_char;
+			next_char();
+		}
+	}
+	return make_token(TokenType::KEYWORD);
+}
+
+Token Lexer::eat_alphanumeric() {
+	while (char_type == CharType::ALPHANUMERIC || char_type == CharType::NUMERIC) {
+		word += current_char;
+		next_char();
+	}
+
+	if (in(grammar::OPERATORS, word)) {
+		return eat_operator();
+	}
+	else if (in(grammar::KEYWORDS, word)) {
+		return eat_keyword();
+	}
+	else if (in(grammar::TYPES, word)) {
+		return make_token(TokenType::TYPE);
+	}
+	else if (in(grammar::CONSTANTS, word)) {
+		return make_token(TokenType::CONSTANT);
+	}
+	else {
+		return make_token(TokenType::NAME);
+	}
+}
+
+Token Lexer::eat_number() {
+	while (
+		char_type == CharType::NUMERIC || (current_char == "." && peek(1) != ".")
+		) {
+		word += current_char;
+		next_char();
+		if (char_type == CharType::ALPHANUMERIC) {
+			throw SyntaxError(
+				"Variables cannot start with numbers",
+				_line_num,
+				current_char
+			);
+		}
+	}
+	string value = reset_word();
+	MythrilType value_type;
+	if (value.find('.') != string::npos) {
+		value_type = MythrilType::DEC;
+	}
+	else {
+		value_type = MythrilType::INT;
+	}
+	Token token = Token {
+		.type=TokenType::NUMBER,
+		.value=value,
+		.line_num=_line_num,
+		.indent_level=_indent_level,
+		.value_type=value_type,
+	};
+	strcpy(token.char_value, value.c_str());
+	return token;
+}
+
 void Lexer::skip_indent() {
 	while (current_char[0] != EOF && current_char == "\t") {
 		reset_word();
@@ -273,104 +379,15 @@ Token Lexer::get_next_token() {
 	}
 
 	if (word_type == CharType::OPERATIC) {
-		while (char_type == CharType::OPERATIC) {
-			word += current_char;
-			next_char();
-
-			if (
-				in(grammar::SINGLE_OPERATORS, current_char)
-				|| in(grammar::SINGLE_OPERATORS, word)
-			) {
-				word_type = CharType::NONE;
-				break;
-			}
-		}
-		return make_token(TokenType::OP);
+		return eat_operator();
 	}
 
 	if (word_type == CharType::ALPHANUMERIC) {
-		while (char_type == CharType::ALPHANUMERIC || char_type == CharType::NUMERIC) {
-			word += current_char;
-			next_char();
-		}
-
-		if (in(grammar::OPERATORS, word)) {
-			if (
-				in(grammar::MULTI_WORD_OPERATORS, word)
-				&& in(grammar::MULTI_WORD_OPERATORS, preview_token(1).value)
-			) {
-				next_char();
-				word += ' ';
-				while (
-					char_type == CharType::ALPHANUMERIC
-					|| char_type == CharType::NUMERIC
-				) {
-					word += current_char;
-					next_char();
-				}
-			}
-			return make_token(TokenType::OP);
-		}
-
-		if (in(grammar::KEYWORDS, word)) {
-			if (
-				in(grammar::MULTI_WORD_KEYWORDS, word)
-				&& in(grammar::MULTI_WORD_KEYWORDS, preview_token(1).value)
-			) {
-				next_char();
-				word += ' ';
-				while (
-					char_type == CharType::ALPHANUMERIC
-					|| char_type == CharType::NUMERIC
-				) {
-					word += current_char;
-					next_char();
-				}
-			}
-			return make_token(TokenType::KEYWORD);
-		}
-		else if (in(grammar::TYPES, word)) {
-			return make_token(TokenType::TYPE);
-		}
-		else if (in(grammar::CONSTANTS, word)) {
-			return make_token(TokenType::CONSTANT);
-		}
-		else {
-			return make_token(TokenType::NAME);
-		}
+		return eat_alphanumeric();
 	}
 
 	if (word_type == CharType::NUMERIC) {
-		while (
-			char_type == CharType::NUMERIC || (current_char == "." && peek(1) != ".")
-		) {
-			word += current_char;
-			next_char();
-			if (char_type == CharType::ALPHANUMERIC) {
-				throw SyntaxError(
-					"Variables cannot start with numbers",
-					_line_num,
-					current_char
-				);
-			}
-		}
-		string value = reset_word();
-		MythrilType value_type;
-		if (value.find('.') != string::npos) {
-			value_type = MythrilType::DEC;
-		}
-		else {
-			value_type = MythrilType::INT;
-		}
-		Token token = Token {
-			.type=TokenType::NUMBER,
-			.value=value,
-			.line_num=_line_num,
-			.indent_level=_indent_level,
-			.value_type=value_type,
-		};
-		strcpy(token.char_value, value.c_str());
-		return token;
+		return eat_number();
 	}
 
 	throw SyntaxError("Unknown Character", _line_num, current_char);
