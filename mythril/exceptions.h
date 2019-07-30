@@ -10,9 +10,9 @@ struct SyntaxError : public exception {
 private:
 	string _message;
 	int _line_num;
-	char _character;
+	string _character;
 public:
-	explicit SyntaxError(const string &message, int line_num, char character) {
+	explicit SyntaxError(const string &message, int line_num, string &character) {
 		_message = message;
 		_line_num = line_num;
 		_character = character;

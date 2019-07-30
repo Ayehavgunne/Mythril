@@ -53,11 +53,12 @@ private:
 
 public:
 	int pos = 0;
-	char current_char;
+	string current_char;
 	CharType char_type;
 	string word;
 	CharType word_type;
 	vector<Token> tokens;
+	char *char_word;
 
 	explicit Lexer(string &);
 	vector<Token> analyze();
@@ -65,15 +66,16 @@ public:
 	void next_char();
 	string reset_word();
 	Token eof();
-	char peek(int);
+	string peek(int);
 	void skip_whitespace();
-	static CharType get_type(char);
+	static CharType get_type(string);
 	Token eat_newline();
 	Token eat_string();
 	void skip_indent();
 	void skip_comment();
 	Token preview_token(int);
 	Token make_token(TokenType);
+	void word_to_char();
 };
 
 #endif

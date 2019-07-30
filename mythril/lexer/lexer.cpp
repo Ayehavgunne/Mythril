@@ -2,6 +2,7 @@
 #include "../exceptions.h"
 #include "my_grammar.h"
 #include <algorithm>
+#include <bits/stdc++.h>
 #include <iostream>
 #include <string>
 using namespace std;
@@ -34,9 +35,6 @@ ostream &operator<<(ostream &out_stream, const Token &token) {
 	if (isspace((int) value[0])) {
 		value = '\'' + whitespace_map[(int) value[0]] + '\'';
 	}
-	else if (token.type == TokenType::END_OF_FILE) {
-		value = "'EOF'";
-	}
 	else if (token.type != TokenType::NUMBER) {
 		bool in_str = value.find('\'') != string::npos;
 		if (in_str) {
@@ -66,12 +64,17 @@ Lexer::Lexer(string &text) {
 	word_type = CharType::NONE;
 }
 
+void Lexer::word_to_char() {
+	char_word = new char[word.length() + 1];
+	strcpy(char_word, word.c_str());
+}
+
 Token Lexer::eof() {
 	return Token{
 		.indent_level=_indent_level,
 		.line_num=_line_num,
 		.type=TokenType::END_OF_FILE,
-		.value=word,
+		.value="EOF",
 	};
 }
 
@@ -85,6 +88,7 @@ void Lexer::next_char() {
 		current_char = _text[pos];
 		char_type = get_type(current_char);
 	}
+	word_to_char();
 }
 
 string Lexer::reset_word() {
@@ -94,49 +98,54 @@ string Lexer::reset_word() {
 	return old_word;
 }
 
-char Lexer::peek(int num) {
+string Lexer::peek(int num) {
 	int peek_pos = pos + num;
 	if (peek_pos > _text.length() - 1 && peek_pos < 0) {
-		return '\0';
+		string peek_char(1, '\0');
+		return peek_char;
 	}
 	else {
-		return _text[peek_pos];
+		string peek_char(1, _text[peek_pos]);
+		return peek_char;
 	}
 }
 
 void Lexer::skip_whitespace() {
-	if (peek(-1) == '\n') {
+	if (peek(-1)[0] == '\n') {
 		throw SyntaxError(
 			"Only tab characters can indent",
 			_line_num,
 			current_char
 		);
 	}
-	while (current_char != EOF && current_char == ' ') {
+	while (current_char[0] != EOF && current_char == " ") {
 		next_char();
 		reset_word();
 	}
 }
 
-CharType Lexer::get_type(char a_char) {
-	string a_str(1, a_char);
-	if (a_char == ' ') {
+CharType Lexer::get_type(string a_char) {
+	if (a_char[0] == ' ') {
 		return CharType::WHITEPSACE;
 	}
-	if (a_char == '\n') {
+	if (a_char[0] == '\n') {
 		return CharType::NEW_LINE;
 	}
-	if (a_char == '#') {
+	if (a_char[0] == '#') {
 		return CharType::COMMENT;
 	}
-	if (a_char == '\\') {
+	if (a_char[0] == '\\') {
 		return CharType::ESCAPE;
 	}
-	bool in_ops = find(begin(OPERATORS), end(OPERATORS), a_str) != end(OPERATORS);
+	bool in_ops = find(
+		begin(grammar::OPERATORS),
+		end(grammar::OPERATORS),
+		a_char
+	) != end(grammar::OPERATORS);
 	if (in_ops) {
 		return CharType::OPERATIC;
 	}
-	if (isdigit(a_char)) {
+	if (isdigit(a_char[0])) {
 		return CharType::NUMERIC;
 	}
 	return CharType::ALPHANUMERIC;
@@ -157,10 +166,10 @@ Token Lexer::eat_newline() {
 }
 
 Token Lexer::eat_string() {
-	char quote_char = current_char;
+	string quote_char = current_char;
 	next_char();
 	while (current_char != quote_char) {
-		if (current_char == '\\' && peek(1) == quote_char) {
+		if (current_char == "\\" && peek(1) == quote_char) {
 			next_char();
 		}
 		word += current_char;
@@ -171,7 +180,7 @@ Token Lexer::eat_string() {
 }
 
 void Lexer::skip_indent() {
-	while (current_char != EOF && current_char == '\t') {
+	while (current_char[0] != EOF && current_char == "\t") {
 		reset_word();
 		_indent_level += 1;
 		next_char();
@@ -179,14 +188,14 @@ void Lexer::skip_indent() {
 }
 
 void Lexer::skip_comment() {
-	while (current_char != '\n') {
+	while (current_char != "\n") {
 		next_char();
-		if (current_char == EOF) {
+		if (current_char[0] == EOF) {
 			return;
 		}
 	}
 	eat_newline();
-	if (current_char == '#') {
+	if (current_char == "#") {
 		skip_comment();
 	}
 }
@@ -198,7 +207,7 @@ Token Lexer::preview_token(int num) {
 
 	Token next_token = {};
 	int _pos = pos;
-	char _current_char = current_char;
+	string _current_char = current_char;
 	CharType _char_type = char_type;
 	string _word = word;
 	CharType _word_type = word_type;
@@ -223,41 +232,40 @@ Token Lexer::preview_token(int num) {
 
 Token Lexer::make_token(TokenType type) {
 	return Token{
-		.type = type,
-		.value = reset_word(),
-		.line_num = _line_num,
-		.indent_level = _indent_level,
+		.type=type,
+		.value=reset_word(),
+		.line_num=_line_num,
+		.indent_level=_indent_level,
 	};
 }
 
 Token Lexer::get_next_token() {
-	if (current_char == EOF || current_char == '\0') {
+	if (current_char[0] == EOF || current_char[0] == '\0') {
 		return eof();
 	}
 
-	if (current_char == '\n') {
+	if (current_char == "\n") {
 		return eat_newline();
 	}
 
-	if (current_char == '\t') {
+	if (current_char == "\t") {
 		skip_indent();
 	}
 
-	if (current_char == ' ') {
+	if (current_char == " ") {
 		skip_whitespace();
 	}
 
-	if (current_char == '#') {
+	if (current_char == "#") {
 		skip_comment();
 		return get_next_token();
 	}
 
-	string current_char_str(1, current_char);
 	bool is_quote_char = find(
-		begin(QUOTES),
-		end(QUOTES),
-		current_char_str
-	) != end(QUOTES);
+		begin(grammar::QUOTES),
+		end(grammar::QUOTES),
+		current_char
+	) != end(grammar::QUOTES);
 
 	if (is_quote_char) {
 		return eat_string();
@@ -275,17 +283,16 @@ Token Lexer::get_next_token() {
 			word += current_char;
 			next_char();
 
-			string current_char_str(1, current_char);
 			bool cc_in_single_op = find(
-				begin(SINGLE_OPERATORS),
-				end(SINGLE_OPERATORS),
-				current_char_str
-			) != end(SINGLE_OPERATORS);
+				begin(grammar::SINGLE_OPERATORS),
+				end(grammar::SINGLE_OPERATORS),
+				current_char
+			) != end(grammar::SINGLE_OPERATORS);
 			bool word_in_single_op = find(
-				begin(SINGLE_OPERATORS),
-				end(SINGLE_OPERATORS),
+				begin(grammar::SINGLE_OPERATORS),
+				end(grammar::SINGLE_OPERATORS),
 				word
-			) != end(SINGLE_OPERATORS);
+			) != end(grammar::SINGLE_OPERATORS);
 
 			if (cc_in_single_op || word_in_single_op) {
 				word_type = CharType::NONE;
@@ -301,20 +308,24 @@ Token Lexer::get_next_token() {
 			next_char();
 		}
 
-		bool in_op = find(begin(OPERATORS), end(OPERATORS), word) != end(OPERATORS);
+		bool in_op = find(
+			begin(grammar::OPERATORS),
+			end(grammar::OPERATORS),
+			word
+		) != end(grammar::OPERATORS);
 
 		if (in_op) {
 			string pt = preview_token(1).value;
 			bool word_in_mw_op = find(
-				begin(MULTI_WORD_OPERATORS),
-				end(MULTI_WORD_OPERATORS),
+				begin(grammar::MULTI_WORD_OPERATORS),
+				end(grammar::MULTI_WORD_OPERATORS),
 				word
-			) != end(MULTI_WORD_OPERATORS);
+			) != end(grammar::MULTI_WORD_OPERATORS);
 			bool pt_in_mw_op = find(
-				begin(MULTI_WORD_OPERATORS),
-				end(MULTI_WORD_OPERATORS),
+				begin(grammar::MULTI_WORD_OPERATORS),
+				end(grammar::MULTI_WORD_OPERATORS),
 				pt
-			) != end(MULTI_WORD_OPERATORS);
+			) != end(grammar::MULTI_WORD_OPERATORS);
 
 			if (word_in_mw_op && pt_in_mw_op) {
 				next_char();
@@ -330,26 +341,34 @@ Token Lexer::get_next_token() {
 			return make_token(TokenType::OP);
 		}
 
-		bool in_keywords = find(begin(KEYWORDS), end(KEYWORDS), word) != end(KEYWORDS);
-		bool in_types = find(begin(TYPES), end(TYPES), word) != end(TYPES);
-		bool in_constants = find(
-			begin(CONSTANTS),
-			end(CONSTANTS),
+		bool in_keywords = find(
+			begin(grammar::KEYWORDS),
+			end(grammar::KEYWORDS),
 			word
-		) != end(CONSTANTS);
+		) != end(grammar::KEYWORDS);
+		bool in_types = find(
+			begin(grammar::TYPES),
+			end(grammar::TYPES),
+			word
+		) != end(grammar::TYPES);
+		bool in_constants = find(
+			begin(grammar::CONSTANTS),
+			end(grammar::CONSTANTS),
+			word
+		) != end(grammar::CONSTANTS);
 
 		if (in_keywords) {
 			string pt = preview_token(1).value;
 			bool word_in_mw_keywords = find(
-				begin(MULTI_WORD_KEYWORDS),
-				end(MULTI_WORD_KEYWORDS),
+				begin(grammar::MULTI_WORD_KEYWORDS),
+				end(grammar::MULTI_WORD_KEYWORDS),
 				word
-			) != end(MULTI_WORD_KEYWORDS);
+			) != end(grammar::MULTI_WORD_KEYWORDS);
 			bool pt_in_mw_keywords = find(
-				begin(MULTI_WORD_KEYWORDS),
-				end(MULTI_WORD_KEYWORDS),
+				begin(grammar::MULTI_WORD_KEYWORDS),
+				end(grammar::MULTI_WORD_KEYWORDS),
 				pt
-			) != end(MULTI_WORD_KEYWORDS);
+			) != end(grammar::MULTI_WORD_KEYWORDS);
 
 			if (word_in_mw_keywords && pt_in_mw_keywords) {
 				next_char();
@@ -377,7 +396,7 @@ Token Lexer::get_next_token() {
 
 	if (word_type == CharType::NUMERIC) {
 		while (
-			char_type == CharType::NUMERIC || (current_char == '.' && peek(1) != '.')
+			char_type == CharType::NUMERIC || (current_char == "." && peek(1) != ".")
 		) {
 			word += current_char;
 			next_char();
@@ -398,8 +417,13 @@ Token Lexer::get_next_token() {
 		else {
 			value_type = MythrilType::INT;
 		}
-		Token token = make_token(TokenType::NUMBER);
-		token.value_type = value_type;
+		Token token = Token {
+			.type=TokenType::NUMBER,
+			.value=value,
+			.line_num=_line_num,
+			.indent_level=_indent_level,
+			.value_type=value_type
+		};
 		return token;
 	}
 
