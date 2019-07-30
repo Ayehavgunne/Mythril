@@ -1,6 +1,7 @@
 #ifndef MYTHRIL_MY_GRAMMAR_H
 #define MYTHRIL_MY_GRAMMAR_H
 
+#include <vector>
 #include <string>
 
 using namespace std;
@@ -11,7 +12,7 @@ namespace grammar {
 	const string DOUBLE_QUOTE = "\"";
 	const string BACKTICK = "`";
 
-	const string QUOTES[2] = {SINGLE_QUOTE, DOUBLE_QUOTE};
+	const vector<string> QUOTES = {SINGLE_QUOTE, DOUBLE_QUOTE};
 
 	// Operators
 	const string PLUS = "+";
@@ -66,7 +67,7 @@ namespace grammar {
 	const string GREATER_THAN_OR_EQUAL_TO = ">=";
 	const string DECORATOR = "@";
 
-	const string OPERATORS[51] = {
+	const vector<string> OPERATORS = {
 		PLUS, MINUS, MUL, DIV, FLOORDIV, MOD, POWER, ARITHMATIC_LEFT_SHIFT,
 		ARITHMATIC_RIGHT_SHIFT, XOR, BINARY_ONES_COMPLIMENT, BINARY_LEFT_SHIFT,
 		BINARY_RIGHT_SHIFT, AND, OR, NOT, IN, NOT_IN, IS, IS_NOT, AMPERSAND, PIPE,
@@ -77,52 +78,52 @@ namespace grammar {
 		GREATER_THAN_OR_EQUAL_TO, DECORATOR,
 	};
 
-	const string SINGLE_OPERATORS[11] = {
+	const vector<string> SINGLE_OPERATORS = {
 		LPAREN, RPAREN, LSQUAREBRACKET, RSQUAREBRACKET, LCURLYBRACKET, RCURLYBRACKET,
 		BINARY_ONES_COMPLIMENT, COMMA, DECORATOR, AMPERSAND, PIPE,
 	};
 
-	const string MULTI_WORD_OPERATORS[5] = {
+	const vector<string> MULTI_WORD_OPERATORS = {
 		IS, IS_NOT, IN, NOT_IN, NOT,
 	};
 
-	const string ARITHMATIC_OP[9] = {
+	const vector<string> ARITHMATIC_OP = {
 		PLUS, MINUS, MUL, DIV, MOD, FLOORDIV, POWER, ARITHMATIC_LEFT_SHIFT,
 		ARITHMATIC_RIGHT_SHIFT,
 	};
 
-	const string ASSIGNMENT_OP[8] = {
+	const vector<string> ASSIGNMENT_OP = {
 		ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN,
 		MOD_ASSIGN, POWER_ASSIGN,
 	};
 
-	const string ARITHMETIC_ASSIGNMENT_OP[7] = {
+	const vector<string> ARITHMETIC_ASSIGNMENT_OP = {
 		PLUS_ASSIGN, MINUS_ASSIGN, MUL_ASSIGN, DIV_ASSIGN, FLOORDIV_ASSIGN, MOD_ASSIGN,
 		POWER_ASSIGN,
 	};
 
-	const string COMPARISON_OP[7] = {
+	const vector<string> COMPARISON_OP = {
 		EQUALS, NOT_BANG, NOT_EQUALS, LESS_THAN, GREATER_THAN, GREATER_THAN_OR_EQUAL_TO,
 		LESS_THAN_OR_EQUAL_TO,
 	};
 
-	const string LOGICAL_OP[3] = {
+	const vector<string> LOGICAL_OP = {
 		AND, OR, NOT,
 	};
 
-	const string BINARY_OP[4] = {
+	const vector<string> BINARY_OP = {
 		XOR, BINARY_ONES_COMPLIMENT, BINARY_LEFT_SHIFT, BINARY_RIGHT_SHIFT,
 	};
 
-	const string MEMBERSHIP_OP[2] = {
+	const vector<string> MEMBERSHIP_OP = {
 		IN, NOT_IN,
 	};
 
-	const string IDENTITY_OP[2] = {
+	const vector<string> IDENTITY_OP = {
 		IS, IS_NOT,
 	};
 
-	const string TYPE_OP[3] = {
+	const vector<string> TYPE_OP = {
 		AMPERSAND, PIPE, COMMA
 	};
 
@@ -171,14 +172,14 @@ namespace grammar {
 	const string SETTER = "setter";
 	const string ASSERT = "assert";
 
-	const string KEYWORDS[43] = {
+	const vector<string> KEYWORDS = {
 		IF, ELSE_IF, ELSE, WHILE, FOR, SWITCH, CASE, DEF, CLASS, SUPER, THIS, RETURN,
 		TEST, TRY, CATCH, FINALLY, THEN, YIELD, BREAK, CONTINUE, DEL, MATCH, IMPORT,
 		WILDCARD, FROM, WITH, AS, PASS, VOID, RAISE, ACTOR, CONST, REQUIRE, ENSURE,
 		OVERRIDE, DOC, ABSTRACT, GETTER, SETTER, ASSERT, DEFAULT, NEW, ALIAS,
 	};
 
-	const string MULTI_WORD_KEYWORDS[3] = {
+	const vector<string> MULTI_WORD_KEYWORDS = {
 		IF, ELSE_IF, ELSE,
 	};
 
@@ -189,7 +190,7 @@ namespace grammar {
 	const string INF = "inf";
 	const string NEGATIVE_INF = "-inf";
 
-	const string CONSTANTS[18] = {
+	const vector<string> CONSTANTS = {
 		TRUE, FALSE, NAN, INF, NEGATIVE_INF
 	};
 
@@ -214,7 +215,7 @@ namespace grammar {
 	const string FUNC = "Func";
 	const string STRUCT = "Struct";
 
-	const string TYPES[19] = {
+	const vector<string> TYPES = {
 		ANY, INT, INT8, INT32, INT64, INT128, DEC, FLOAT, COMPLEX, STR, BOOL, BYTES,
 		ARRAY, LIST, SET, DICT, ENUM, FUNC, STRUCT
 	};

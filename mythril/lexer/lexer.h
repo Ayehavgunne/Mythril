@@ -41,6 +41,7 @@ struct Token {
 	int line_num;
 	int indent_level;
 	MythrilType value_type;
+	char char_value[50];
 };
 
 ostream &operator<<(ostream &out_stream, const Token &token);

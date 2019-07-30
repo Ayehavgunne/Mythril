@@ -3,8 +3,6 @@
 #include <algorithm>
 using namespace std;
 
-//template<class Container, class Element>
-//bool in(const Container &container, const Element &element);
-//bool in(const string &str, char a_char);
+bool in(const vector<string> &container, const string &element);
 
 #endif
