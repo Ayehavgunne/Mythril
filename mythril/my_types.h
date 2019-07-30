@@ -4,6 +4,7 @@
 #include <string>
 
 enum class MythrilType {
+	NONE,
 	INT,
 	DEC,
 	STR,

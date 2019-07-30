@@ -59,6 +59,44 @@ ostream &operator<<(ostream &out_stream, const Token &token) {
 	return out_stream;
 }
 
+Token::Token() {
+	type = TokenType::END_OF_FILE;
+	value = "EOF";
+	line_num = 1;
+	indent_level = 0;
+	value_type = MythrilType::NONE;
+	strcpy(char_value, value.c_str());
+}
+
+Token::Token(
+	TokenType token_type,
+	string &token_value,
+	int token_line_num,
+	int token_indent_level
+) {
+	type = token_type;
+	value = token_value;
+	line_num = token_line_num;
+	indent_level = token_indent_level;
+	value_type = MythrilType::NONE;
+	strcpy(char_value, token_value.c_str());
+}
+
+Token::Token(
+	TokenType token_type,
+	string &token_value,
+	int token_line_num,
+	int token_indent_level,
+	MythrilType token_value_type
+) {
+	type = token_type;
+	value = token_value;
+	line_num = token_line_num;
+	indent_level = token_indent_level;
+	value_type = token_value_type;
+	strcpy(char_value, token_value.c_str());
+}
+
 Lexer::Lexer(string &text) {
 	_text = text;
 	current_char = _text[pos];
@@ -71,25 +109,13 @@ void Lexer::word_to_char() {
 }
 
 Token Lexer::eof() {
-	return Token {
-		.indent_level=_indent_level,
-		.line_num=_line_num,
-		.type=TokenType::END_OF_FILE,
-		.value="EOF",
-		.char_value={'E', 'O', 'F'},
-	};
+	string end_of_file = "EOF";
+	return Token(TokenType::END_OF_FILE, end_of_file, _line_num, _indent_level);
 }
 
 Token Lexer::make_token(TokenType type) {
 	string old_word = reset_word();
-	Token token = {
-		.type=type,
-		.value=old_word,
-		.line_num=_line_num,
-		.indent_level=_indent_level,
-	};
-	strcpy(token.char_value, old_word.c_str());
-	return token;
+	return Token(type, old_word, _line_num, _indent_level);
 }
 
 void Lexer::next_char() {
@@ -162,13 +188,13 @@ CharType Lexer::get_type(string a_char) {
 
 Token Lexer::eat_newline() {
 	reset_word();
-	Token token = {
-		.type=TokenType::NEWLINE,
-		.value="\n",
-		.line_num=_line_num,
-		.indent_level=_indent_level,
-		.char_value={'\n'},
-	};
+	string new_line = "\n";
+	Token token = Token(
+		TokenType::NEWLINE,
+		new_line,
+		_line_num,
+		_indent_level
+	);
 	_indent_level = 0;
 	_line_num += 1;
 	next_char();
@@ -284,15 +310,7 @@ Token Lexer::eat_number() {
 	else {
 		value_type = MythrilType::INT;
 	}
-	Token token = Token {
-		.type=TokenType::NUMBER,
-		.value=value,
-		.line_num=_line_num,
-		.indent_level=_indent_level,
-		.value_type=value_type,
-	};
-	strcpy(token.char_value, value.c_str());
-	return token;
+	return Token(TokenType::NUMBER, value, _line_num, _indent_level, value_type);
 }
 
 Token Lexer::eat_escape() {
@@ -303,12 +321,8 @@ Token Lexer::eat_escape() {
 		_line_num += 1;
 	}
 	next_char();
-	return Token {
-		.type=TokenType::ESCAPE,
-		.value="\\\\",
-		.line_num=__line_num,
-		.indent_level=_indent_level,
-	};
+	string escape_slash = "\\\\";
+	return Token(TokenType::ESCAPE, escape_slash, __line_num, _indent_level);
 }
 
 void Lexer::skip_indent() {
@@ -337,7 +351,7 @@ Token Lexer::preview_token(int num) {
 		throw invalid_argument("num argument must be 1 or greater");
 	}
 
-	Token next_token = {};
+	Token next_token;
 	int _pos = pos;
 	string _current_char = current_char;
 	CharType _char_type = char_type;
