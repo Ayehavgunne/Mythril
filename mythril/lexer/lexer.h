@@ -1,11 +1,13 @@
 #ifndef MYTHRIL_LEXER_H
 #define MYTHRIL_LEXER_H
-#include <iostream>
+
+#include "../my_types.h"
 #include <iosfwd>
+#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
-#include "../my_types.h"
+
 using namespace std;
 
 enum class CharType {
@@ -41,13 +43,14 @@ struct Token {
 	MythrilType value_type;
 };
 
-ostream& operator<<(ostream& out_stream, const Token& token);
+ostream &operator<<(ostream &out_stream, const Token &token);
 
 class Lexer {
 private:
 	string _text;
 	int _line_num = 1;
 	int _indent_level = 0;
+
 public:
 	int pos = 0;
 	char current_char;
@@ -66,6 +69,7 @@ public:
 	void skip_whitespace();
 	static CharType get_type(char);
 	Token eat_newline();
+	Token eat_string();
 	void skip_indent();
 	void skip_comment();
 	Token preview_token(int);

@@ -1,8 +1,8 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include "lexer/lexer.h"
 #include "exceptions.h"
+#include "lexer/lexer.h"
+#include <fstream>
+#include <iostream>
+#include <string>
 
 using namespace std;
 
@@ -28,13 +28,18 @@ int main(int arg_count, char **args) {
 	try {
 		lexer.analyze();
 	}
-	catch (SyntaxError& err) {
+	catch (SyntaxError &err) {
 		cerr << err.what() << "\n";
 		return 1;
 	}
 
-	for (Token& token: lexer.tokens) {
-		cout << token << '\n';
+	for (Token &token : lexer.tokens) {
+		if (token.type == TokenType::NEWLINE) {
+			cout << token << '\n';
+		}
+		else {
+			cout << token << ' ';
+		}
 	}
 
 	return 0;
