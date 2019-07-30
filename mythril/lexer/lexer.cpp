@@ -20,6 +20,7 @@ ostream &operator<<(ostream &out_stream, const Token &token) {
 		{TokenType::KEYWORD, "KEYWORD"},
 		{TokenType::ANON, "ANON"},
 		{TokenType::NAME, "NAME"},
+		{TokenType::ESCAPE, "ESCAPE"},
 		{TokenType::END_OF_FILE, "EOF"},
 	};
 
@@ -294,6 +295,22 @@ Token Lexer::eat_number() {
 	return token;
 }
 
+Token Lexer::eat_escape() {
+	reset_word();
+	next_char();
+	int __line_num = _line_num;
+	if (current_char == "\n") {
+		_line_num += 1;
+	}
+	next_char();
+	return Token {
+		.type=TokenType::ESCAPE,
+		.value="\\\\",
+		.line_num=__line_num,
+		.indent_level=_indent_level,
+	};
+}
+
 void Lexer::skip_indent() {
 	while (current_char[0] != EOF && current_char == "\t") {
 		reset_word();
@@ -388,6 +405,10 @@ Token Lexer::get_next_token() {
 
 	if (word_type == CharType::NUMERIC) {
 		return eat_number();
+	}
+
+	if (char_type == CharType::ESCAPE) {
+		return eat_escape();
 	}
 
 	throw SyntaxError("Unknown Character", _line_num, current_char);

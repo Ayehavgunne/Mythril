@@ -32,6 +32,7 @@ enum class TokenType {
 	KEYWORD,
 	ANON,
 	NAME,
+	ESCAPE,
 	END_OF_FILE,
 };
 
@@ -76,6 +77,7 @@ public:
 	Token eat_keyword();
 	Token eat_alphanumeric();
 	Token eat_number();
+	Token eat_escape();
 	void skip_indent();
 	void skip_comment();
 	Token preview_token(int);
