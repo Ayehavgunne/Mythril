@@ -1,5 +1,6 @@
 #include "exceptions.h"
 #include "lexer/lexer.h"
+#include "parser/parser.h"
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -33,14 +34,17 @@ int main(int arg_count, char **args) {
 		return 1;
 	}
 
-	for (Token &token : lexer.tokens) {
-		if (token.type == TokenType::NEWLINE) {
-			cout << token << '\n';
-		}
-		else {
-			cout << token << ' ';
-		}
-	}
+//	for (Token &token : lexer.tokens) {
+//		if (token.type == TokenType::NEWLINE) {
+//			cout << token << '\n';
+//		}
+//		else {
+//			cout << token << ' ';
+//		}
+//	}
+
+	Parser parser(lexer.tokens);
+	ProgramNode root = parser.parse();
 
 	return 0;
 }

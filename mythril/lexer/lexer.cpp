@@ -1,6 +1,6 @@
 #include "lexer.h"
 #include "../exceptions.h"
-#include "my_grammar.h"
+#include "../my_grammar.h"
 #include "../util.h"
 #include <bits/stdc++.h>
 #include <iostream>

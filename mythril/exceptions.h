@@ -19,7 +19,13 @@ public:
 	}
 
 	string what() {
-		return "Syntax Error: " + _message + " Line: " + to_string(_line_num) + " -> " + _character;
+		return
+			"Syntax Error: "
+			+ _message
+			+ " Line: "
+			+ to_string(_line_num)
+			+ " -> "
+			+ _character;
 	}
 };
 
