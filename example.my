@@ -1,117 +1,131 @@
-# line comment
+# comment starts with a hash #
 
 # The syntax is still in flux be here is what I have so far
 
 # Hello World example
 print('Hello World')
 
-Int moogles # Initialize an Integer, must be assigned a value before it can be used
+moogles: Int # Initialize an Integer, must be assigned a value before it can be used
 
 number = 23 # Type Inference
 
-# Decimal will be used by default (as soon as a decimal standard is implimented)
+# Decimal will be used by default
 decimal_number=1.2+2.4 # Spaces are generally insignificant, but encouraged for readability
 # If a floating point number is desired then one could include the Float type identifier
+float_number: Float = 1.2 + 2.4
 
 question = 'what\'s going on' # Escaping
 
-Str something # Initialize a String
+something: Str # Initialize a String
 
-things = [1, 2, 3] # Array, homogeneous
-other_things = (1, 'Hello') # List, non-homogeneous
-stuff = {first_name: 'Samus', 'last_name': 'Aran'} # Dictionary, key strings don't have to be in quotes
-Int[] other_stuff = [] # Empty Array of Ints
+things = [1, 2, 3] # List, homogeneous, mutable
+other_things = (1, 'Hello') # Tuple, non-homogeneous, immutable
+stuff = {first_name: 'Samus', 'last_name': 'Aran'} # Dictionary, key strings don't have to be in quotes, mutable
+other_stuff: List[Int] = [] # Empty List of Ints
 
-if number > 23
+if number > 23 {
 	print('greater than 23')
-else if number == 23
+} elif number == 23 {
 	print('equals 23')
-else
+} else {
 	print('less than 23')
+}
 
 if something is not number \ # Continuing statement onto next line
-		and true # Indentaion is with tabs only
+		and true {
 	print('They are not the same')
+}
 
-for x in 0..40 # For loop using a range
+for x in 0..40 { # For loop using a range
 	print(x * 2)
+}
 
-for item in things # Iterate over objects
+for item in things { # Iterate over objects
 	print(item)
+}
 
-while number > 1
+while number > 1 {
 	number -= 1
 	print(number)
+}
 
-if 2 in things
+if 2 in things {
 	print('yes')
+}
 
-if 2 not in things
+if 2 not in things {
 	print('no')
+}
 
 moogles = 1
 
-switch moogles # Switch soon to be replaced with Pattern Matching
-	case 1
-		print('One Moogle')
-	case 2
-		print('Two Moogles')
-		break
-	default
-		print(moogles)
-		print("Lots of Moogles")
-	case 3
-		print('Three Moogles')
-
-# Pattern matching
-s = 'hello world'
-match s.contains
-| 'hello'
-	print('Greating')
-| 'goodby'
-	print('Farewell')
-| _
-	print('Nothing')
+match moogles {
+    1 {
+        print('One Moogle')
+    }
+    2 {
+        print('Two Moogles')
+        break
+    }
+    3 {
+        print('Three Moogles')
+    }
+    _ {
+        print(moogles)
+    	print("Lots of Moogles")
+    }
+}
 
 				# Function Return notation
-def fib(Int n) -> Int
+def fib(n: Int) > Int {
 	a = 0
 	b = 1
-	for _ in 0..n
+	for _ in 0..n {
 		prev_a = a
 		a = b
 		b = prev_a + b
+    }
 	return a
+}
 
-def fib_rec(Int n) -> Int
-	if n == 0
+def fib_rec(n: Int) > Int {
+	if n == 0 {
 		return 0
-	if n == 1
+    }
+	if n == 1 {
 		return 1
+    }
 	return fib_rec(n - 1) + fib_rec(n - 2)
+}
 
-def factorial(Int n) -> Int
-	if n <= 1
+def factorial(n: Int) > Int {
+	if n <= 1 {
 		return 1
+    }
 	return n * factorial(n - 1)
+}
 
 # Assign anonymous function to a variable
-myfunc = def (Int x, Int y) -> Int
-	if x > y
+myfunc = (x: Int, y: Int) > Int {
+	if x > y {
 		return x + y
-	else
+    } else {
 		return x * y
+    }
+}
 
 print(myfunc(2, 3))
 
-def bar(Int x=4, Int y=5) -> Int
+def bar(x: Int = 4, y: Int = 5) > Int {
 	return x * y
+}
 
 baz = bar
 print(baz())
 
-def foo(Int x) -> Int
+def foo(x: Int) > Int {
 	return baz(x) + x
+}
 
 print(foo(2))
 
@@ -119,18 +133,19 @@ print('🍌')
 print('夜のコンサートは最高でした。') # I have no idea what this says
 
 # Type Aliasing
-type FInt = Func[Int] -> Int
+type FInt = Func[Int] > Int
 # All types (including structs and classes) should start with a capital
 
-def do_stuff(Int x, FInt callback) -> Int
+def do_stuff(x: Int, callback: FInt) > Int {
 	x **= 2
 	x = callback(x)
 	return x
+}
 
-num = do_stuff(3,
-	def (Int y) -> Int
-		y += 7
-		return y
+num = do_stuff(3, (y: Int) > Int {
+        y += 7
+        return y
+    }
 )
 
 print(
@@ -138,10 +153,12 @@ print(
 )
 
 # Closure
-def start_at(Int x) -> FInt
-	def increment_by(Int y) -> Int
+def start_at(x: Int) > FInt {
+	def increment_by(y: Int) > Int {
 		return x + y
+    }
 	return increment_by
+}
 
 start_at_5 = start_at(5)
 start_at_27 = start_at(27)
@@ -149,55 +166,63 @@ start_at_27 = start_at(27)
 print(start_at_5(4))
 print(start_at_27(15))
 
-Int num = 1.0::Int # Casting a Decimal to Int
+num: Int = 1.0::Int # Casting a Decimal to Int
 
 print(num)
 
 # User input
-Int age = input('How old are you?')
+age: Int = input('How old are you?')
 
 # String Interpolation
 print('Wow! You are {age} years old?!')
 
-Enum Colors(
+enum Color[Str] {
 	GREEN,
 	RED,
 	BLUE,
 	YELLOW
-)
+}
 
-Struct Circle
-	Int radius
-	Int x
-	Int y
+struct Circle {
+	radius: Int
+	x: Int
+	y: Int
+}
 
-Circle cir = {radius=5, x=2, y=4}
+cir: Circle = {radius=5, x=2, y=4}
 
 print(cir.radius)
 
-abstract class Vehicle
+abstract class Vehicle{
 	# Constructor
-	new(Str make, Int year, Str color)
-		this.year = year
-		this.make # Automtically assigns make from argument if they have the same name
-		this._color = color
-		Str this._fav_color
+	new(make: Str, year: Int, color: Color) {
+		self.year = year
+		self.make # Automtically assigns make from argument if they have the same name
+		self._color = color
+		self._fav_color: Color
+    }
+}
 
-# Inheritance
-class Car(Vehicle)
-	new(Str make, Int year, color='green', hatchback=false)
+# Inheritance. Only single inheritance allowed
+class Car(Vehicle) {
+	new(make: Str, year: Int, color='green', hatchback=false) {
 		# Design by Contract
 		require year < 10
-		this.hatchback
-		super.Vehicle(make, year, color)
+		self.hatchback
+		super(make, year, color)
+    }
 
-	void print_year()
-		print('This car was made in {this.year}')
+	print_year() {
+		print('This car was made in {self.year}')
+    }
+}
 
-class Person
-	new(Str name, Int age)
-		this.name
-		this.age
+class Person {
+	new(name: Str, age: Int) {
+		self.name
+		self.age
+    }
+}
 
 frank = Person('Frank', 30)
 
@@ -207,89 +232,91 @@ garry = true
 larry = false
 num = 8
 
-if not num == 7
+if not num == 7 {
 	num += 2
-else if garry
+} elif garry {
 	num -= 1
-else
+} else {
 	num *= 4
+}
 
 print(num)
 print(garry)
 print(larry)
 
-def is_less_than_5(Int x) -> Bool
-	if x >= 5
+def is_less_than_5(x: Int) > Bool {
+	if x >= 5 {
 		return false
-	else
+    } else {
 		return true
+    }
+}
 
 print(is_less_than_5(3))
 print(is_less_than_5(5))
 print(is_less_than_5(7))
 
 # Testing scope
-def do_stuff(Int y) -> void
+def do_stuff(y: Int) {
 	print(y)
+}
 
-def square(Int x) -> Int
+def square(x: Int) > Int {
 	do_stuff(x)
 	return x ** 2
+}
 
 print(square(5))
 
-def greet_name(Str name) -> void
+def greet_name(name: Str) {
 	print('Hello ' + name)
+}
 
 greet_name('Anthony')
 
 x = 0
-while x < 10
-	if x == 1
+while x < 10 {
+	if x == 1 {
 		break
+    }
 	x += 1
-
-switch x
-	case 2
-		print('x is Two')
-		break
-
-	case 1
-		print('x is One')
-
-	default
-		print("Sorry, wasn't paying attention")
+}
 
 y = 10
-for x in 0..y + 1
+for x in 0..y + 1 {
 	print(x::Str + ' ' + fib(x)::Str)
+}
 
 things = [3, 2, 1]
 print(things[1 + 1])
 
-Dec a
+a: Dec
 b = 3
 
-def four() -> Int
+def four() > Int {
 	return 2 + 2
+}
 
-Bool yes = true
+yes: Bool = true
 f = four()
-Float g = 7.5
+g: Float = 7.5
 h = 5
 no = false
 
-if no
+if no {
 	g = 2.6
-	if yes and no
+	if yes and no {
 		h += h
-else if yes
+    }
+} elif yes {
 	g = 3.6
-else
+} else {
 	g = 7.6
+}
 
-if yes
+if yes {
 	g += 7
+}
 first_name = 'Cid'
 last_name = 'Fabool'
 full_name = first_name + ' ' + last_name
@@ -297,23 +324,28 @@ a = 2 * g
 d = 0
 c = a::Int ** b
 
-def kupo(Int first, Int second) -> Int
+def kupo(first: Int, second: Int) > Int {
 	# Nested function
-	def mog() -> Int
+	def mog() > Int {
 		return 54
-	if first < second
+    }
+	if first < second {
 		return first + second
-	else
+    } else {
 		return mog()
+    }
+}
 
 e = kupo(c, b)
 
-while b < 30
+while b < 30 {
 	b += c + 1
-	if b >= 20
+	if b >= 20 {
 		b += 2
-	else
+    } else {
 		b += 1
+    }
+}
 
 d += c + b
 

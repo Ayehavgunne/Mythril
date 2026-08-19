@@ -7,11 +7,11 @@ Some examples of the code for Mythril can be seen in the [example.my file](https
 That is where I have been placing bits of test code as I work on various features.
 
 ## Goals:
-* Learn about compilers, LLVM, language design
-* Create a Python like syntax and mix in a whole lot of new language features and ideas
-* Use LLVM to make it more performant than Python but make sure it is just as easy to use
+* Learn about compilers, language design
+* Create a Python like syntax and mix in a whole lot of new language features and ideas. Python with enforced types
+* Make it more performant than Python but make sure it is just as easy to use
 * Focus on designs that will reduce possible errors
-* Choose defaults that are simple, easy and work despite possible performance overhead but make optimization easy. Example: use dynamic arrays by default but allow creation of fixed size arrays with a bit more notation
+* Choose defaults that are simple, easy and work despite possible performance overhead but make optimization easy. Example: use dynamic lists by default but allow creation of fixed size lists with a bit more notation
 
 ## Planned Features:
 * Type Infrencing
@@ -26,7 +26,6 @@ That is where I have been placing bits of test code as I work on various feature
 * Design by Contract
 * Builtin Testing
 * Builtin Documentation
-* Array programming
 * Generators
 * Comprehensions
 * Context Managers
@@ -39,13 +38,13 @@ That is where I have been placing bits of test code as I work on various feature
 ## TODO:
 - [ ] Refactor, refactor, refactor
 - [ ] Make a super cool logo
-- [x] Keyword arguments
-- [x] Parameter default values
+- [ ] Keyword arguments
+- [ ] Parameter default values
 - [ ] Variable number of arguments (varargs) {Partialy done}
 - [ ] Variable number of keyword arguments
 - [ ] Signed Integers
 - [ ] Nested Functions
-- [x] Structs
+- [ ] Structs
 - [ ] Classes
 - [ ] Multiple Inheritance (for both classes and structs! Considering alternatives) 
 - [ ] A more robust Type System would most likely be good to have
@@ -60,7 +59,7 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Modules (importing with 'import' and 'from')
 - [ ] Closures
 - [ ] Anonymous (multi statement) functions
-- [x] Assigning functions to variables
+- [ ] Assigning functions to variables
 - [ ] Properties ('getter' and 'setter')
 - [ ] Decorators
 - [ ] Delete things ('del')
@@ -68,7 +67,6 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Bytes type
 - [ ] Binary operators
 - [ ] Complex number type
-- [ ] Arrays {working in basic form}
 - [ ] Lists
 - [ ] Slices
 - [ ] Iterator unpacking
@@ -83,7 +81,6 @@ That is where I have been placing bits of test code as I work on various feature
 - [ ] Ignore underscores in numbers (as separators to increase readability)
 - [ ] Add hexidecimal, octal, and binary literal representations of numbers
 - [ ] Javadocs like documentation built in
-- [x] DO NOT add a Null type
 - [ ] Use an Option type instead of Null for sentinal values
 - [ ] Implement Exhaustive Pattern Matching to help reduce potential errors
 
@@ -97,3 +94,4 @@ That is where I have been placing bits of test code as I work on various feature
 * F#
 * Cobra
 * SQL
+* V

@@ -1,0 +1,13 @@
+[project]
+name = "mythril"
+version = "0.1.0"
+description = "My programming language. For fun and not profit."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "flynt>=1.0.6",
+    "ruff>=0.16.3",
+]

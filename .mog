@@ -1,0 +1,15 @@
+lex:
+    python src/lexer.py
+
+parse:
+	python src/parser.py
+
+fmt:
+	ruff format .
+
+lint:
+	@if {$1} == fix
+		ruff check --fix .
+	@else
+		ruff check .
+	@fi
