@@ -462,6 +462,8 @@ class Parser:
             self.next_token()
             node = self.square_bracket_expression(token)
         elif self.current_token.value in grammar.ASSIGNMENT_OP:
+            next_token = self.preview(1)
+            print(f"NEXT TOKEN is {next_token}")
             node = self.assignment_statement(token)
         else:
             raise SyntaxError(f"Line {self.line_num}")
@@ -581,7 +583,7 @@ class Parser:
             root.children.append(node)
         return root
 
-    def assignment_statement(self, token: Token) -> my_ast.Assign | my_ast.OpAssign:
+    def assignment_statement(self, token: Token, var_type: str) -> my_ast.Assign | my_ast.OpAssign:
         if token.value == grammar.CONST:
             read_only = True
             self.next_token()
@@ -589,7 +591,7 @@ class Parser:
             self.next_token()
         else:
             read_only = False
-        left = self.variable(token, read_only)
+        left = self.variable(token, var_type, read_only)
         token = self.next_token()
         if token.value == grammar.ASSIGN:
             right = self.expr()
@@ -601,8 +603,8 @@ class Parser:
             raise SyntaxError(f"Unknown assignment operator: {token.value}")
         return node
 
-    def variable(self, token: Token, read_only: bool = False) -> my_ast.Var:
-        return my_ast.Var(token.value, self.line_num, read_only)
+    def variable(self, token: Token, var_type: str, read_only: bool = False) -> my_ast.Var:
+        return my_ast.Var(token.value, var_type, self.line_num, read_only)
 
     def constant(self, token: Token) -> my_ast.Constant:
         return my_ast.Constant(token.value, self.line_num)

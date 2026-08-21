@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 import grammar
+# import my_types
 
 
 @dataclass
@@ -29,6 +30,7 @@ class VarDecl(AST):
 @dataclass
 class Var(AST):
     value: str
+    type: str
     line_num: int
     read_only: bool = False
 

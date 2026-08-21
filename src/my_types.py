@@ -19,7 +19,7 @@ class Int(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.IntType(64)"  # TODO: convert to c types
+        return "int"
 
 
 @dataclass
@@ -28,7 +28,7 @@ class Int8(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.IntType(8)"
+        raise NotImplementedError
 
 
 @dataclass
@@ -37,7 +37,7 @@ class Int32(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.IntType(32)"
+        return "long"
 
 
 @dataclass
@@ -46,7 +46,7 @@ class Int64(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.IntType(64)"
+        return "long long"
 
 
 @dataclass
@@ -55,7 +55,7 @@ class Int128(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.IntType(128)"
+        raise NotImplementedError
 
 
 @dataclass
@@ -64,7 +64,7 @@ class Dec(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.DoubleType()"
+        raise NotImplementedError
 
 
 @dataclass
@@ -73,7 +73,7 @@ class Float(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.FloatType()"
+        return "float"
 
 
 @dataclass
@@ -100,7 +100,7 @@ class Bool(AnyVal):
 
     @staticmethod
     def type():
-        return "ir.IntType(1)"
+        return "bool"
 
 
 @dataclass
