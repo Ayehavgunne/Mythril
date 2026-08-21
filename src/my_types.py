@@ -1,198 +1,175 @@
+from dataclasses import dataclass
+
 import grammar
 
 
+@dataclass
 class Any:
-    def __init__(self):
-        self.name = grammar.ANY
-
-    def __str__(self):
-        return f"<{self.name}>"
-
-    __repr__ = __str__
+    name: str = grammar.ANY
 
 
+@dataclass
 class AnyVal(Any):
-    def __init__(self):
-        super().__init__()
-        self.name = None
+    name: None
 
 
+@dataclass
 class Int(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.INT
+    name: str = grammar.INT
 
     @staticmethod
     def type():
-        return "ir.IntType(64)"
+        return "ir.IntType(64)"  # TODO: convert to c types
 
 
+@dataclass
 class Int8(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.INT8
+    name: str = grammar.INT8
 
     @staticmethod
     def type():
         return "ir.IntType(8)"
 
 
+@dataclass
 class Int32(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.INT32
+    name: str = grammar.INT32
 
     @staticmethod
     def type():
         return "ir.IntType(32)"
 
 
+@dataclass
 class Int64(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.INT64
+    name: str = grammar.INT64
 
     @staticmethod
     def type():
         return "ir.IntType(64)"
 
 
+@dataclass
 class Int128(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.INT128
+    name: str = grammar.INT128
 
     @staticmethod
     def type():
         return "ir.IntType(128)"
 
 
+@dataclass
 class Dec(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.DEC
+    name: str = grammar.DEC
 
     @staticmethod
     def type():
-        return "ir.DoubleType()"  # TODO: temorarily making Decimal a DoubleType till find (or make) a better representation
+        return "ir.DoubleType()"
 
 
+@dataclass
 class Float(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.FLOAT
+    name: str = grammar.FLOAT
 
     @staticmethod
     def type():
         return "ir.FloatType()"
 
 
+@dataclass
 class Complex(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.COMPLEX
+    name: str = grammar.COMPLEX
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Str(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.STR
+    name: str = grammar.STR
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Bool(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.BOOL
+    name: str = grammar.BOOL
 
     @staticmethod
     def type():
         return "ir.IntType(1)"
 
 
+@dataclass
 class Bytes(AnyVal):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.BYTES
+    name: str = grammar.BYTES
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Collection(Any):
-    def __init__(self):
-        super().__init__()
-        self.name = None
+    name: None
 
 
+@dataclass
 class List(Collection):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.LIST
+    name: str = grammar.LIST
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Set(Collection):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.SET
+    name: str = grammar.SET
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Dict(Collection):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.DICT
+    name: str = grammar.DICT
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Enum(Collection):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.ENUM
+    name: str = grammar.ENUM
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class Struct(Collection):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.STRUCT
+    name: str = grammar.STRUCT
 
     @staticmethod
     def type():
         raise NotImplementedError
 
 
+@dataclass
 class AnyRef(Any):
-    def __init__(self):
-        super().__init__()
-        self.name = None
+    name: None
 
 
+@dataclass
 class Func(AnyRef):
-    def __init__(self):
-        super().__init__()
-        self.name = grammar.FUNC
+    name: str = grammar.FUNC
 
     @staticmethod
     def type():

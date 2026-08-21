@@ -1,67 +1,69 @@
-import ast
 from collections import OrderedDict
 
 import grammar
+import my_ast
 from grammar import LexerType
+from lexer import Lexer, Token
 
 
 class Parser:
-    def __init__(self, lexer):
+    def __init__(self, lexer: Lexer) -> None:
         self.lexer = lexer
         self.file_name = lexer.file_name
-        self.current_token = None
+        self.current_token = Token("PROGRAM_START", "", 0, 0)
+        self.indent_level = 0
         self.next_token()
         self.user_types = []
         self.in_class = False
 
     @property
-    def line_num(self):
+    def line_num(self) -> int:
         return self.current_token.line_num
 
-    def next_token(self):
+    def next_token(self) -> Token:
         token = self.current_token
         self.current_token = self.lexer.get_next_token()
         # print(self.current_token)
         return token
 
-    def eat_type(self, *token_type):
-        if self.current_token.type in token_type:
+    def eat_type(self, *token_type: grammar.TokenType) -> None:
+        if self.current_token.token_type in token_type:
             self.next_token()
         else:
             raise SyntaxError(f"Line {self.line_num}")
 
-    def eat_value(self, *token_value):
+    def eat_value(self, *token_value: str) -> None:
         if self.current_token.value in token_value:
             self.next_token()
         else:
             raise SyntaxError
 
-    def preview(self, num=1):
+    def preview(self, num: int = 1) -> Token:
         return self.lexer.preview_token(num)
 
-    def program(self):
-        root = ast.Compound()
-        while self.current_token.type != LexerType.EOF:
+    def program(self) -> my_ast.Program:
+        root = my_ast.Compound()
+        while self.current_token.token_type != LexerType.EOF:
             comp = self.compound_statement()
             root.children.extend(comp.children)
-        return ast.Program(root)
+        return my_ast.Program(root)
 
-    def struct_declaration(self):
+    def struct_declaration(self) -> my_ast.StructDeclaration:
         self.eat_value(grammar.STRUCT)
         name = self.next_token()
         self.user_types.append(name.value)
         self.eat_type(grammar.NEWLINE)
+        self.indent_level += 1
         fields = OrderedDict()
-        while (
-            self.current_token.indent_level > name.indent_level
-        ):  # TODO: remove indent stuff
+        while self.current_token.indent_level > name.indent_level:
             field_type = self.type_spec()
             field = self.next_token().value
             fields[field] = field_type
             self.eat_type(grammar.NEWLINE)
-        return ast.StructDeclaration(name.value, fields, self.line_num)
+        self.indent_level -= 1
+        return my_ast.StructDeclaration(name.value, fields, self.line_num)
 
-    def class_declaration(self):
+    def class_declaration(self) -> my_ast.ClassDeclaration:
         base = None
         constructor = None
         methods = None
@@ -72,15 +74,15 @@ class Parser:
         class_name = self.current_token
         self.eat_type(LexerType.NAME)
         if self.current_token.value == grammar.LPAREN:
-            pass  # TODO impliment inheritance
+            self.next_token()  # TODO impliment inheritance
         self.eat_type(grammar.NEWLINE)
-        # self.indent_level += 1
+        self.indent_level += 1
         while self.current_token.indent_level == self.indent_level:
             if self.current_token.value == grammar.NEW:
                 constructor = self.constructor_declaration(class_name)
-        # self.indent_level -= 1
+        self.indent_level -= 1
         self.in_class = False
-        return ast.ClassDeclaration(
+        return my_ast.ClassDeclaration(
             class_name.value,
             base=base,
             constructor=constructor,
@@ -89,28 +91,30 @@ class Parser:
             instance_fields=instance_fields,
         )
 
-    def variable_declaration(self):
+    def variable_declaration(self) -> my_ast.VarDecl | my_ast.Assign:
         type_node = self.type_spec()
-        var_node = ast.Var(self.current_token.value, self.line_num)
+        var_node = my_ast.Var(self.current_token.value, self.line_num)
         self.eat_type(LexerType.NAME)
-        var = ast.VarDecl(var_node, type_node, self.line_num)
+        var = my_ast.VarDecl(var_node, type_node, self.line_num)
         if self.current_token.value == grammar.ASSIGN:
             var = self.variable_declaration_assignment(var)
         return var
 
-    def variable_declaration_assignment(self, declaration):
-        return ast.Assign(
+    def variable_declaration_assignment(
+        self, declaration: my_ast.VarDecl
+    ) -> my_ast.Assign:
+        return my_ast.Assign(
             declaration, self.next_token().value, self.expr(), self.line_num
         )
 
-    def alias_declaration(self):
+    def alias_declaration(self) -> my_ast.AliasDeclaration:
         self.eat_value(grammar.ALIAS)
         name = self.next_token()
         self.user_types.append(name.value)
         self.eat_value(grammar.ASSIGN)
-        return ast.AliasDeclaration(name.value, (self.type_spec(),), self.line_num)
+        return my_ast.AliasDeclaration(name.value, (self.type_spec(),), self.line_num)
 
-    def function_declaration(self):
+    def function_declaration(self) -> my_ast.FuncDecl | my_ast.AnonymousFunc:
         self.eat_value(grammar.FUNC_DEFINITION)
         if self.current_token.value == grammar.LPAREN:
             name = LexerType.ANON
@@ -121,7 +125,7 @@ class Parser:
         param_defaults = {}
         vararg = None
         while self.current_token.value != grammar.RPAREN:
-            if self.current_token.type == LexerType.NAME:
+            if self.current_token.token_type == LexerType.NAME:
                 param_type = self.variable(self.current_token)
                 self.eat_type(LexerType.NAME)
             else:
@@ -146,20 +150,20 @@ class Parser:
         self.eat_value(grammar.RPAREN)
         self.eat_value(grammar.ARROW)
         if self.current_token.value == LexerType.VOID:
-            return_type = ast.Void()
+            return_type = my_ast.Void()
             self.next_token()
         else:
             return_type = self.type_spec()
         self.eat_type(grammar.NEWLINE)
-        # self.indent_level += 1
+        self.indent_level += 1
         stmts = self.compound_statement()
-        # self.indent_level -= 1
+        self.indent_level -= 1
         if name == LexerType.ANON:
-            return ast.AnonymousFunc(
+            return my_ast.AnonymousFunc(
                 return_type, params, stmts, self.line_num, param_defaults, vararg
             )
         else:
-            return ast.FuncDecl(
+            return my_ast.FuncDecl(
                 name.value,
                 return_type,
                 params,
@@ -169,14 +173,14 @@ class Parser:
                 vararg,
             )
 
-    def constructor_declaration(self, class_name):
+    def constructor_declaration(self, class_name: str) -> my_ast.FuncDecl:
         self.eat_value(grammar.NEW)
         self.eat_value(grammar.LPAREN)
         params = OrderedDict()
         param_defaults = {}
         vararg = None
         while self.current_token.value != grammar.RPAREN:
-            if self.current_token.type == LexerType.NAME:
+            if self.current_token.token_type == LexerType.NAME:
                 param_type = self.variable(self.current_token)
                 self.eat_type(LexerType.NAME)
             else:
@@ -200,12 +204,12 @@ class Parser:
                     self.eat_value(grammar.COMMA)
         self.eat_value(grammar.RPAREN)
         self.eat_type(grammar.NEWLINE)
-        # self.indent_level += 1
+        self.indent_level += 1
         stmts = self.compound_statement()
-        # self.indent_level -= 1
-        return ast.FuncDecl(
+        self.indent_level -= 1
+        return my_ast.FuncDecl(
             f"{class_name}.constructor",
-            ast.Void(),
+            my_ast.Void(),
             params,
             stmts,
             self.line_num,
@@ -213,7 +217,7 @@ class Parser:
             vararg,
         )
 
-    def bracket_literal(self):
+    def bracket_literal(self) -> my_ast.Collection | my_ast.Dict | my_ast.StructLiteral:
         token = self.next_token()
         if token.value == grammar.LCURLYBRACKET:
             return self.curly_bracket_expression(token)
@@ -222,14 +226,14 @@ class Parser:
         else:
             return self.square_bracket_expression(token)
 
-    def function_call(self, token):
+    def function_call(self, token: Token) -> my_ast.FuncCall:
         if token.value == grammar.INPUT:
-            return ast.Input(self.expr(), self.line_num)
+            return my_ast.Input(self.expr(), self.line_num)
         self.eat_value(grammar.LPAREN)
         args = []
         named_args = {}
         while self.current_token.value != grammar.RPAREN:
-            while self.current_token.type == grammar.NEWLINE:
+            while self.current_token.token_type == grammar.NEWLINE:
                 self.eat_type(grammar.NEWLINE)
             if self.current_token.value in grammar.LBRACKETS:
                 args.append(self.bracket_literal())
@@ -239,21 +243,21 @@ class Parser:
                 named_args[name] = self.expr()
             else:
                 args.append(self.expr())
-            while self.current_token.type == grammar.NEWLINE:
+            while self.current_token.token_type == grammar.NEWLINE:
                 self.eat_type(grammar.NEWLINE)
             if self.current_token.value != grammar.RPAREN:
                 self.eat_value(grammar.COMMA)
-        func = ast.FuncCall(token.value, args, self.line_num, named_args)
+        func = my_ast.FuncCall(token.value, args, self.line_num, named_args)
         self.next_token()
         return func
 
-    def type_spec(self):
+    def type_spec(self) -> my_ast.Type:
         token = self.current_token
         if token.value in self.user_types:
             self.eat_type(LexerType.NAME)
-            return ast.Type(token.value, self.line_num)
+            return my_ast.Type(token.value, self.line_num)
         self.eat_type(LexerType.TYPE)
-        type_spec = ast.Type(token.value, self.line_num)
+        type_spec = my_ast.Type(token.value, self.line_num)
         func_ret_type = None
         if (
             self.current_token.value == grammar.LSQUAREBRACKET
@@ -266,30 +270,30 @@ class Parser:
             type_spec.func_ret_type = func_ret_type
         return type_spec
 
-    def compound_statement(self):
+    def compound_statement(self) -> my_ast.Compound:
         nodes = self.statement_list()
-        root = ast.Compound()
+        root = my_ast.Compound()
         for node in nodes:
             root.children.append(node)
         return root
 
-    def statement_list(self):
+    def statement_list(self) -> list[my_ast.AST]:
         node = self.statement()
-        if self.current_token.type == grammar.NEWLINE:
+        if self.current_token.token_type == grammar.NEWLINE:
             self.next_token()
-        if isinstance(node, ast.Return):
+        if isinstance(node, my_ast.Return):
             return [node]
         results = [node]
         while self.current_token.indent_level == self.indent_level:
             results.append(self.statement())
-            if self.current_token.type == grammar.NEWLINE:
+            if self.current_token.token_type == grammar.NEWLINE:
                 self.next_token()
-            elif self.current_token.type == LexerType.EOF:
+            elif self.current_token.token_type == LexerType.EOF:
                 results = [x for x in results if x is not None]
                 break
         return results
 
-    def statement(self):
+    def statement(self) -> my_ast.AST | None:
         if self.current_token.value == grammar.IF:
             node = self.if_statement()
         elif self.current_token.value == grammar.WHILE:
@@ -298,20 +302,20 @@ class Parser:
             node = self.for_statement()
         elif self.current_token.value == grammar.BREAK:
             self.next_token()
-            node = ast.Break(self.line_num)
+            node = my_ast.Break(self.line_num)
         elif self.current_token.value == grammar.CONTINUE:
             self.next_token()
-            node = ast.Continue(self.line_num)
+            node = my_ast.Continue(self.line_num)
         elif self.current_token.value == grammar.PASS:
             self.next_token()
-            node = ast.Pass(self.line_num)
+            node = my_ast.Pass(self.line_num)
         elif self.current_token.value == grammar.CONST:
             node = self.assignment_statement(self.current_token)
         elif self.current_token.value == grammar.RETURN:
             node = self.return_statement()
         elif self.current_token.value in self.user_types:
             node = self.variable_declaration()
-        elif self.current_token.type == LexerType.NAME:
+        elif self.current_token.token_type == LexerType.NAME:
             if self.preview().value == grammar.DOT:
                 node = self.property_or_method(self.next_token())
             else:
@@ -320,7 +324,7 @@ class Parser:
             node = self.function_declaration()
         elif self.current_token.value == grammar.ALIAS:
             node = self.alias_declaration()
-        elif self.current_token.type == LexerType.TYPE:
+        elif self.current_token.token_type == LexerType.TYPE:
             if self.current_token.value == grammar.STRUCT:
                 node = self.struct_declaration()
             else:
@@ -334,7 +338,7 @@ class Parser:
             node = self.statement()
         return node
 
-    def square_bracket_expression(self, token):
+    def square_bracket_expression(self, token: Token) -> my_ast.Collection:
         if token.value == grammar.LSQUAREBRACKET:
             items = []
             while self.current_token.value != grammar.RSQUAREBRACKET:
@@ -344,15 +348,15 @@ class Parser:
                 else:
                     break
             self.eat_value(grammar.RSQUAREBRACKET)
-            return ast.Collection(grammar.LIST, self.line_num, False, *items)
-        elif self.current_token.type == LexerType.TYPE:
+            return my_ast.Collection(grammar.LIST, self.line_num, False, *items)
+        elif self.current_token.token_type == LexerType.TYPE:
             type_token = self.next_token()
             if self.current_token.value == grammar.COMMA:
                 return self.dictionary_assignment(token)
             elif self.current_token.value == grammar.RSQUAREBRACKET:
                 self.next_token()
                 return self.collection_expression(token, type_token)
-        elif self.current_token.type == LexerType.NUMBER:
+        elif self.current_token.token_type == LexerType.NUMBER:
             tok = self.expr()
             if self.current_token.value == grammar.COMMA:
                 return self.slice_expression(tok)
@@ -364,11 +368,11 @@ class Parser:
                     self.next_token()
                     right = self.expr()
                     if op.value == grammar.ASSIGN:
-                        return ast.Assign(access, op.value, right, self.line_num)
+                        return my_ast.Assign(access, op.value, right, self.line_num)
                     else:
-                        return ast.OpAssign(access, op.value, right, self.line_num)
+                        return my_ast.OpAssign(access, op.value, right, self.line_num)
                 return access
-        elif token.type == LexerType.NAME:
+        elif token.token_type == LexerType.NAME:
             self.eat_value(grammar.LSQUAREBRACKET)
             tok = self.expr()
             if self.current_token.value == grammar.COMMA:
@@ -379,10 +383,12 @@ class Parser:
         else:
             raise SyntaxError
 
-    def slice_expression(self, token):
-        pass
+    def slice_expression(self, _: Token) -> my_ast.NotDoneYet:
+        raise NotImplementedError
 
-    def curly_bracket_expression(self, token):
+    def curly_bracket_expression(
+        self, token: Token
+    ) -> my_ast.Dict | my_ast.StructLiteral:
         dict_or_struct = None
         if token.value == grammar.LCURLYBRACKET:
             pairs = OrderedDict()
@@ -401,13 +407,13 @@ class Parser:
                     break
             self.eat_value(grammar.RCURLYBRACKET)
             if dict_or_struct == grammar.DICT:
-                return ast.Dict(pairs, self.line_num)
+                return my_ast.Dict(pairs, self.line_num)
             elif dict_or_struct == grammar.STRUCT:
-                return ast.StructLiteral(pairs, self.line_num)
+                return my_ast.StructLiteral(pairs, self.line_num)
         else:
             raise SyntaxError("Wait... what?")
 
-    def list_expression(self, token):
+    def list_expression(self, token: Token) -> my_ast.Collection:
         if token.value == grammar.LPAREN:
             items = []
             while self.current_token.value != grammar.RPAREN:
@@ -417,32 +423,39 @@ class Parser:
                 else:
                     break
             self.eat_value(grammar.RPAREN)
-            return ast.Collection(grammar.LIST, self.line_num, False, *items)
+            return my_ast.Collection(grammar.LIST, self.line_num, False, *items)
+        raise SyntaxError
 
-    def collection_expression(self, token, type_token):
+    def collection_expression(
+        self, token: Token, type_token: grammar.TokenType
+    ) -> my_ast.NotDoneYet:
         if self.current_token.value == grammar.ASSIGN:
             return self.list_of_type_assignment(token, type_token)
         else:
             raise NotImplementedError
 
-    def access_collection(self, collection, key):
-        return ast.CollectionAccess(collection, key, self.line_num)
+    def access_collection(
+        self, collection: Token, key: my_ast.AST
+    ) -> my_ast.CollectionAccess:
+        return my_ast.CollectionAccess(collection, key, self.line_num)
 
-    def list_of_type_assignment(self, token, type_token):
+    def list_of_type_assignment(
+        self, _: Token, __: grammar.TokenType
+    ) -> my_ast.NotDoneYet:
         raise NotImplementedError
 
-    def dot_access(self, token):
+    def dot_access(self, token: Token) -> my_ast.DotAccess:
         self.eat_value(grammar.DOT)
         field = self.current_token.value
         self.next_token()
-        return ast.DotAccess(token.value, field, self.line_num)
+        return my_ast.DotAccess(token.value, field, self.line_num)
 
-    def name_statement(self):
+    def name_statement(self) -> my_ast.AST:
         token = self.next_token()
         if token.value == grammar.PRINT:
-            node = ast.Print(self.expr(), self.line_num)
+            node = my_ast.Print(self.expr(), self.line_num)
         elif token.value == grammar.INPUT:
-            node = ast.Input(self.expr(), self.line_num)
+            node = my_ast.Input(self.expr(), self.line_num)
         elif self.current_token.value == grammar.LPAREN:
             node = self.function_call(token)
         elif self.current_token.value == grammar.LSQUAREBRACKET:
@@ -454,22 +467,24 @@ class Parser:
             raise SyntaxError(f"Line {self.line_num}")
         return node
 
-    def property_or_method(self, token):
+    def property_or_method(
+        self, token: Token
+    ) -> my_ast.Assign | my_ast.OpAssign | my_ast.MethodCall:
         self.eat_value(grammar.DOT)
         field = self.current_token.value
         self.next_token()
-        left = ast.DotAccess(token.value, field, self.line_num)
+        left = my_ast.DotAccess(token.value, field, self.line_num)
         token = self.next_token()
         if token.value in grammar.ASSIGNMENT_OP:
             return self.field_assignment(token, left)
         else:
             return self.method_call(token, left)
 
-    def method_call(self, token, left):
+    def method_call(self, _: Token, left: my_ast.DotAccess) -> my_ast.MethodCall:
         args = []
         named_args = {}
         while self.current_token.value != grammar.RPAREN:
-            while self.current_token.type == grammar.NEWLINE:
+            while self.current_token.token_type == grammar.NEWLINE:
                 self.eat_type(grammar.NEWLINE)
             if self.current_token.value in grammar.LBRACKETS:
                 args.append(self.bracket_literal())
@@ -479,43 +494,48 @@ class Parser:
                 named_args[name] = self.expr()
             else:
                 args.append(self.expr())
-            while self.current_token.type == grammar.NEWLINE:
+            while self.current_token.token_type == grammar.NEWLINE:
                 self.eat_type(grammar.NEWLINE)
             if self.current_token.value != grammar.RPAREN:
                 self.eat_value(grammar.COMMA)
-        method = ast.MethodCall(left.obj, left.field, args, self.line_num, named_args)
+        method = my_ast.MethodCall(
+            left.obj, left.field, args, self.line_num, named_args
+        )
         self.next_token()
         return method
 
-    def field_assignment(self, token, left):
+    def field_assignment(
+        self, token: Token, left: my_ast.DotAccess
+    ) -> my_ast.Assign | my_ast.OpAssign:
         if token.value == grammar.ASSIGN:
             right = self.expr()
-            node = ast.Assign(left, token.value, right, self.line_num)
+            node = my_ast.Assign(left, token.value, right, self.line_num)
         elif token.value in grammar.ARITHMETIC_ASSIGNMENT_OP:
             right = self.expr()
-            node = ast.OpAssign(left, token.value, right, self.line_num)
+            node = my_ast.OpAssign(left, token.value, right, self.line_num)
         else:
             raise SyntaxError(f"Unknown assignment operator: {token.value}")
         return node
 
-    def dictionary_assignment(self, token):
+    def dictionary_assignment(self, _: Token) -> my_ast.NotDoneYet:
         raise NotImplementedError
 
-    def return_statement(self):
+    def return_statement(self) -> my_ast.Return:
         self.next_token()
-        return ast.Return(self.expr(), self.line_num)
+        return my_ast.Return(self.expr(), self.line_num)
 
-    def if_statement(self):
-        # self.indent_level += 1
+    def if_statement(self) -> my_ast.If:
+        self.indent_level += 1
         token = self.next_token()
-        comp = ast.If(
-            token.value,
-            [self.expr()],
-            [self.compound_statement()],
-            self.line_num,
+        comp = my_ast.If(
+            op=token.value,
+            comps=[self.expr()],
+            blocks=[self.compound_statement()],
+            indent_level=self.indent_level,
+            line_num=self.line_num,
         )
         if self.current_token.indent_level < comp.indent_level:
-            # self.indent_level -= 1
+            self.indent_level -= 1
             return comp
         while self.current_token.value == grammar.ELSE_IF:
             self.next_token()
@@ -523,20 +543,22 @@ class Parser:
             comp.blocks.append(self.compound_statement())
         if self.current_token.value == grammar.ELSE:
             self.next_token()
-            comp.comps.append(ast.Else())
+            comp.comps.append(my_ast.Else())
             comp.blocks.append(self.compound_statement())
-        # self.indent_level -= 1
+        self.indent_level -= 1
         return comp
 
-    def while_statement(self):
-        # self.indent_level += 1
+    def while_statement(self) -> my_ast.While:
+        self.indent_level += 1
         token = self.next_token()
-        comp = ast.While(token.value, self.expr(), self.loop_block(), self.line_num)
-        # self.indent_level -= 1
+        comp = my_ast.While(
+            token.value, [self.expr()], self.loop_block(), self.line_num
+        )
+        self.indent_level -= 1
         return comp
 
-    def for_statement(self):
-        # self.indent_level += 1
+    def for_statement(self) -> my_ast.For:
+        self.indent_level += 1
         self.next_token()
         elements = []
         while self.current_token.value != grammar.IN:
@@ -548,18 +570,18 @@ class Parser:
         if self.current_token.value == grammar.NEWLINE:
             self.eat_type(grammar.NEWLINE)
         block = self.loop_block()
-        loop = ast.For(iterator, block, elements, self.line_num)
-        # self.indent_level -= 1
+        loop = my_ast.For(iterator, block, elements, self.line_num)
+        self.indent_level -= 1
         return loop
 
-    def loop_block(self):
+    def loop_block(self) -> my_ast.LoopBlock:
         nodes = self.statement_list()
-        root = ast.LoopBlock()
+        root = my_ast.LoopBlock()
         for node in nodes:
             root.children.append(node)
         return root
 
-    def assignment_statement(self, token):
+    def assignment_statement(self, token: Token) -> my_ast.Assign | my_ast.OpAssign:
         if token.value == grammar.CONST:
             read_only = True
             self.next_token()
@@ -571,21 +593,21 @@ class Parser:
         token = self.next_token()
         if token.value == grammar.ASSIGN:
             right = self.expr()
-            node = ast.Assign(left, token.value, right, self.line_num)
+            node = my_ast.Assign(left, token.value, right, self.line_num)
         elif token.value in grammar.ARITHMETIC_ASSIGNMENT_OP:
             right = self.expr()
-            node = ast.OpAssign(left, token.value, right, self.line_num)
+            node = my_ast.OpAssign(left, token.value, right, self.line_num)
         else:
             raise SyntaxError(f"Unknown assignment operator: {token.value}")
         return node
 
-    def variable(self, token, read_only=False):
-        return ast.Var(token.value, self.line_num, read_only)
+    def variable(self, token: Token, read_only: bool = False) -> my_ast.Var:
+        return my_ast.Var(token.value, self.line_num, read_only)
 
-    def constant(self, token):
-        return ast.Constant(token.value, self.line_num)
+    def constant(self, token: Token) -> my_ast.Constant:
+        return my_ast.Constant(token.value, self.line_num)
 
-    def factor(self):
+    def factor(self) -> my_ast.AST | list[my_ast.AST]:
         token = self.current_token
         preview = self.preview()
         if preview.value == grammar.DOT:
@@ -593,19 +615,19 @@ class Parser:
             return self.dot_access(token)
         elif token.value in (grammar.PLUS, grammar.MINUS):
             self.next_token()
-            return ast.UnaryOp(token.value, self.factor(), self.line_num)
+            return my_ast.UnaryOp(token.value, self.factor(), self.line_num)
         elif token.value == grammar.NOT:
             self.next_token()
-            return ast.UnaryOp(token.value, self.expr(), self.line_num)
-        elif token.type == LexerType.NUMBER:
+            return my_ast.UnaryOp(token.value, self.expr(), self.line_num)
+        elif token.token_type == LexerType.NUMBER:
             self.next_token()
-            return ast.Num(token.value, token.value_type, self.line_num)
-        elif token.type == LexerType.STRING:
+            return my_ast.Num(token.value, token.value_type, self.line_num)
+        elif token.token_type == LexerType.STRING:
             self.next_token()
-            return ast.Str(token.value, self.line_num)
+            return my_ast.Str(token.value, self.line_num)
         elif token.value == grammar.FUNC_DEFINITION:
             return self.function_declaration()
-        elif token.type == LexerType.TYPE:
+        elif token.token_type == LexerType.TYPE:
             return self.type_spec()
         elif token.value == grammar.LPAREN:
             if preview.value == grammar.RPAREN:
@@ -627,16 +649,16 @@ class Parser:
         elif token.value == grammar.LCURLYBRACKET:
             self.next_token()
             return self.curly_bracket_expression(token)
-        elif token.type == LexerType.NAME:
+        elif token.token_type == LexerType.NAME:
             self.next_token()
             return self.variable(token)
-        elif token.type == LexerType.CONSTANT:
+        elif token.token_type == LexerType.CONSTANT:
             self.next_token()
             return self.constant(token)
         else:
             raise SyntaxError
 
-    def term(self):
+    def term(self) -> my_ast.AST | list[my_ast.AST] | my_ast.BinOp | my_ast.Range:
         node = self.factor()
         while self.current_token.value in grammar.TERM_OPS:
             token = self.next_token()
@@ -645,23 +667,23 @@ class Parser:
                 or token.value in grammar.LOGICAL_OP
                 or token.value in grammar.BINARY_OP
             ):
-                node = ast.BinOp(node, token.value, self.expr(), self.line_num)
+                node = my_ast.BinOp(node, token.value, self.expr(), self.line_num)
             elif token.value == grammar.RANGE:
-                node = ast.Range(node, self.expr(), self.line_num)
+                node = my_ast.Range(node, self.expr(), self.line_num)
             else:
-                node = ast.BinOp(node, token.value, self.factor(), self.line_num)
+                node = my_ast.BinOp(node, token.value, self.factor(), self.line_num)
         return node
 
-    def expr(self):
+    def expr(self) -> my_ast.AST | list[my_ast.AST] | my_ast.BinOp | my_ast.Range:
         node = self.term()
         while self.current_token.value in (grammar.PLUS, grammar.MINUS):
             token = self.next_token()
-            node = ast.BinOp(node, token.value, self.term(), self.line_num)
+            node = my_ast.BinOp(node, token.value, self.term(), self.line_num)
         return node
 
-    def parse(self):
+    def parse(self) -> my_ast.Program:
         node = self.program()
-        if self.current_token.type != LexerType.EOF:
+        if self.current_token.token_type != LexerType.EOF:
             raise SyntaxError("Unexpected end of program")
         return node
 

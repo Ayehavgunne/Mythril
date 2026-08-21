@@ -320,7 +320,7 @@ class LexerType(StrEnum):
 
 
 type TokenType = Literal[
-    "TYPE",
+    "PROGRAM_STARTTYPE",
     "NUMBER",
     "STRING",
     "OP",

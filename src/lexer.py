@@ -7,24 +7,11 @@ from grammar import LexerType
 
 @dataclass
 class Token:
-    def __init__(
-        self,
-        token_type: grammar.TokenType,
-        value: str,
-        line_num: int,
-        value_type: str | None = None,
-    ):
-        self.type = token_type
-        self.value = value
-        self.value_type = value_type
-        self.line_num = line_num
-
-    def __str__(self):
-        return (
-            f"Token(type={self.type}, value={self.value!r}, line_num={self.line_num})"
-        )
-
-    __repr__ = __str__
+    token_type: grammar.TokenType
+    value: str
+    line_num: int
+    indent_level: int
+    value_type: str | None = None
 
 
 class Lexer:
@@ -37,6 +24,7 @@ class Lexer:
         self.word = ""
         self.word_type = None
         self._line_num = 1
+        self._indent_level = 0
         self.current_token = None
 
     def next_char(self):
@@ -61,7 +49,18 @@ class Lexer:
         else:
             return self.text[peek_pos]
 
-    def preview_token(self, num=1):
+    def make_token(
+        self, token_type: grammar.TokenType, value: str, value_type: str | None = None
+    ):
+        return Token(
+            token_type=token_type,
+            value=value,
+            line_num=self.line_num,
+            indent_level=self.indent_level,
+            value_type=value_type,
+        )
+
+    def preview_token(self, num=1) -> Token:
         if num < 1:
             raise ValueError("num argument must be 1 or greater")
         next_token = None
@@ -71,6 +70,7 @@ class Lexer:
         current_word = self.word
         current_word_type = self.word_type
         current_line_num = self.line_num
+        current_indent_level = self.indent_level
         for _ in range(num):
             next_token = self.get_next_token()
         self.pos = current_pos
@@ -79,9 +79,13 @@ class Lexer:
         self.word = current_word
         self.word_type = current_word_type
         self._line_num = current_line_num
+        self._indent_level = current_indent_level
         return next_token
 
     def skip_whitespace(self):
+        # if self.peek(-1) == '\n':
+        #     print(f'({self.current_char})')
+        #     raise SyntaxError('Only tab characters can indent')
         while self.current_char is not None and self.current_char.isspace():
             self.next_char()
             self.reset_word()
@@ -102,15 +106,38 @@ class Lexer:
     def line_num(self):
         return self._line_num
 
+    @property
+    def indent_level(self):
+        return self._indent_level
+
+    def reset_indent_level(self):
+        self._indent_level = 0
+        return self._indent_level
+
+    def decriment_indent_level(self):
+        self._indent_level -= 1
+        return self._indent_level
+
+    def increment_indent_level(self):
+        self._indent_level += 1
+        return self._indent_level
+
     def eat_newline(self):
         self.reset_word()
-        token = Token(LexerType.NEWLINE, grammar.NEWLINE, self.line_num)
+        token = self.make_token(LexerType.NEWLINE, grammar.NEWLINE)
+        self.reset_indent_level()
         self.increment_line_num()
         self.next_char()
         return token
 
+    def skip_indent(self):
+        while self.current_char is not None and self.current_char == "\t":
+            self.reset_word()
+            self.increment_indent_level()
+            self.next_char()
+
     def eof(self):
-        return Token(LexerType.EOF, LexerType.EOF, self.line_num)
+        return self.make_token(LexerType.EOF, LexerType.EOF)
 
     @staticmethod
     def get_type(char: str):
@@ -127,7 +154,7 @@ class Lexer:
         else:
             return LexerType.ALPHANUMERIC
 
-    def get_next_token(self):
+    def get_next_token(self) -> Token:
         if self.current_char is None:
             return self.eof()
 
@@ -152,7 +179,7 @@ class Lexer:
                 self.word += self.current_char
                 self.next_char()
             self.next_char()
-            return Token(LexerType.STRING, self.reset_word(), self.line_num)
+            return self.make_token(LexerType.STRING, self.reset_word())
 
         if self.current_char == grammar.SINGLE_QUOTE:
             self.next_char()
@@ -165,7 +192,7 @@ class Lexer:
                 self.word += self.current_char
                 self.next_char()
             self.next_char()
-            return Token(LexerType.STRING, self.reset_word(), self.line_num)
+            return self.make_token(LexerType.STRING, self.reset_word())
 
         if not self.char_type:
             self.char_type = self.get_type(self.current_char)
@@ -181,7 +208,7 @@ class Lexer:
                     or self.word in grammar.SINGLE_OPERATORS
                 ):
                     break
-            return Token(LexerType.OP, self.reset_word(), self.line_num)
+            return self.make_token(LexerType.OP, self.reset_word())
 
         if self.word_type == LexerType.ALPHANUMERIC:
             while (
@@ -204,9 +231,9 @@ class Lexer:
                     ):
                         self.word += self.current_char
                         self.next_char()
-                    return Token(LexerType.OP, self.reset_word(), self.line_num)
+                    return self.make_token(LexerType.OP, self.reset_word())
                 else:
-                    return Token(LexerType.OP, self.reset_word(), self.line_num)
+                    return self.make_token(LexerType.OP, self.reset_word())
 
             if self.word in grammar.KEYWORDS:
                 if (
@@ -221,15 +248,15 @@ class Lexer:
                     ):
                         self.word += self.current_char
                         self.next_char()
-                    return Token(LexerType.KEYWORD, self.reset_word(), self.line_num)
+                    return self.make_token(LexerType.KEYWORD, self.reset_word())
                 else:
-                    return Token(LexerType.KEYWORD, self.reset_word(), self.line_num)
+                    return self.make_token(LexerType.KEYWORD, self.reset_word())
             elif self.word in grammar.TYPES:
-                return Token(LexerType.TYPE, self.reset_word(), self.line_num)
+                return self.make_token(LexerType.TYPE, self.reset_word())
             elif self.word in grammar.CONSTANTS:
-                return Token(LexerType.CONSTANT, self.reset_word(), self.line_num)
+                return self.make_token(LexerType.CONSTANT, self.reset_word())
             else:
-                return Token(LexerType.NAME, self.reset_word(), self.line_num)
+                return self.make_token(LexerType.NAME, self.reset_word())
 
         if self.word_type == LexerType.NUMERIC:
             while (
@@ -248,7 +275,7 @@ class Lexer:
             else:
                 value = int(value)
                 value_type = grammar.INT
-            return Token(LexerType.NUMBER, value, self.line_num, value_type=value_type)
+            return self.make_token(LexerType.NUMBER, value, value_type=value_type)
 
         if self.char_type == LexerType.ESCAPE:
             self.reset_word()
@@ -257,13 +284,13 @@ class Lexer:
             if self.current_char == grammar.NEWLINE:
                 self.increment_line_num()
             self.next_char()
-            return Token(LexerType.ESCAPE, grammar.ESCAPE, line_num)
+            return self.make_token(LexerType.ESCAPE, grammar.ESCAPE, line_num)
 
         raise SyntaxError("Unknown character")
 
     def analyze(self):
         token = self.get_next_token()
-        while token.type != LexerType.EOF:
+        while token.token_type != LexerType.EOF:
             yield token
             token = self.get_next_token()
         yield token
@@ -274,7 +301,7 @@ if __name__ == "__main__":
     with open(file) as my_file:
         lexer = Lexer(my_file.read(), file)
         for t in lexer.analyze():
-            if t.type == LexerType.NEWLINE:
+            if t.token_type == LexerType.NEWLINE:
                 print(t)
             else:
                 print(t, end=" ")

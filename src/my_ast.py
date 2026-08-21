@@ -1,350 +1,272 @@
+from dataclasses import dataclass, field
+
 import grammar
 
 
+@dataclass
 class AST:
-    def __str__(self):
-        return (
-            "("
-            + " ".join(
-                str(value)
-                for key, value in sorted(self.__dict__.items())
-                if not key.startswith("__")
-                and key != "read_only"
-                and key != "line_num"
-                and value is not None
-            )
-            + ")"
-        )
-
-    __repr__ = __str__
+    pass
 
 
+@dataclass
+class NotDoneYet(AST):
+    pass
+
+
+@dataclass
 class Program(AST):
-    def __init__(self, block):
-        self.block = block
-
-    def __str__(self):
-        return "\n".join(str(child) for child in self.block.children)
-
-    __repr__ = __str__
+    block: Compound
 
 
+@dataclass
 class VarDecl(AST):
-    def __init__(self, value, type_node, line_num, read_only=False):
-        self.value = value
-        self.type = type_node
-        self.read_only = read_only
-        self.line_num = line_num
+    value: Var
+    type: Type
+    line_num: int
+    read_only: bool = False
 
 
+@dataclass
 class Var(AST):
-    def __init__(self, value, line_num, read_only=False):
-        self.value = value
-        self.read_only = read_only
-        self.line_num = line_num
-
-    def __str__(self):
-        return " ".join(
-            str(value)
-            for key, value in sorted(self.__dict__.items())
-            if not key.startswith("__") and key != "read_only" and key != "line_num"
-        )
-
-    __repr__ = __str__
+    value: str
+    line_num: int
+    read_only: bool = False
 
 
+@dataclass
 class Compound(AST):
-    def __init__(self):
-        self.children = []
-
-    # def __str__(self):
-    # 	return '\n'.join(str(child) for child in self.children)
-    #
-    # __repr__ = __str__
+    children: list[AST] = field(default_factory=list)
 
 
+@dataclass
 class FuncDecl(AST):
-    def __init__(
-        self,
-        name,
-        return_type,
-        parameters,
-        body,
-        line_num,
-        parameter_defaults=None,
-        varargs=None,
-    ):
-        self.name = name
-        self.return_type = return_type
-        self.parameters = parameters
-        self.parameter_defaults = parameter_defaults or {}
-        self.varargs = varargs
-        self.body = body
-        self.line_num = line_num
-
-    # def __str__(self):
-    # 	return '<{name}:{type} ({params})>'.format(name=self.name, type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
-    #
-    # __repr__ = __str__
+    name: str
+    return_type: Type
+    parameters: Var | Type
+    body: Compound
+    line_num: int
+    parameter_defaults: dict[str, AST] = field(default_factory=dict)
+    varargs: list[str | Var | Type] = field(default_factory=list)
 
 
+@dataclass
 class AnonymousFunc(AST):
-    def __init__(
-        self,
-        return_type,
-        parameters,
-        body,
-        line_num,
-        parameter_defaults=None,
-        varargs=None,
-    ):
-        self.return_type = return_type
-        self.parameters = parameters
-        self.parameter_defaults = parameter_defaults or {}
-        self.varargs = varargs
-        self.body = body
-        self.line_num = line_num
-
-    # def __str__(self):
-    # 	return '<Anonymous:{type} ({params})>'.format(type=self.return_type.value, params=', '.join('{}:{}'.format(key, value.value) for key, value in self.parameters.items()))
-    #
-    # __repr__ = __str__
+    return_type: Type
+    parameters: Var | Type
+    body: Compound
+    line_num: int
+    parameter_defaults: dict[str, AST] = field(default_factory=dict)
+    varargs: list[str | Var | Type] = field(default_factory=list)
 
 
+@dataclass
 class FuncCall(AST):
-    def __init__(self, name, arguments, line_num, named_arguments=None):
-        self.name = name
-        self.arguments = arguments
-        self.named_arguments = named_arguments or {}
-        self.line_num = line_num
+    name: str
+    arguments: list[AST]
+    line_num: int
+    named_arguments: dict[str, AST] = field(default_factory=dict)
 
 
+@dataclass
 class MethodCall(AST):
-    def __init__(self, obj, name, arguments, line_num, named_arguments=None):
-        self.obj = obj
-        self.name = name
-        self.arguments = arguments
-        self.named_arguments = named_arguments or {}
-        self.line_num = line_num
+    obj: str
+    name: str
+    arguments: list
+    line_num: int
+    named_arguments: dict[str, AST] = field(default_factory=dict)
 
 
+@dataclass
 class Return(AST):
-    def __init__(self, value, line_num):
-        self.value = value
-        self.line_num = line_num
+    value: AST
+    line_num: int
 
 
+@dataclass
 class StructDeclaration(AST):
-    def __init__(self, name, fields, line_num):
-        self.name = name
-        self.fields = fields
-        self.line_num = line_num
+    name: str
+    fields: dict[str, Type]
+    line_num: int
 
 
+@dataclass
 class StructLiteral(AST):
-    def __init__(self, fields, line_num):
-        self.fields = fields
-        self.line_num = line_num
+    fields: dict[str, Type]
+    line_num: int
 
 
+@dataclass
 class ClassDeclaration(AST):
-    def __init__(
-        self,
-        name,
-        base=None,
-        constructor=None,
-        methods=None,
-        class_fields=None,
-        instance_fields=None,
-    ):
-        self.name = name
-        self.constructor = constructor
-        self.base = base
-        self.methods = methods
-        self.class_fields = class_fields
-        self.instance_fields = instance_fields
+    name: str
+    base: NotDoneYet
+    constructor: FuncDecl | None
+    methods: NotDoneYet
+    class_fields: NotDoneYet
+    instance_fields: NotDoneYet
 
 
+@dataclass
 class Assign(AST):
-    def __init__(self, left, op, right, line_num):
-        self.left = left
-        self.op = op
-        self.right = right
-        self.line_num = line_num
+    left: AST | list[AST]
+    op: str
+    right: AST | list[AST]
+    line_num: int
 
 
+@dataclass
 class OpAssign(AST):
-    def __init__(self, left, op, right, line_num):
-        self.left = left
-        self.op = op
-        self.right = right
-        self.line_num = line_num
+    left: AST | list[AST]
+    op: str
+    right: AST | list[AST]
+    line_num: int
 
 
+@dataclass
 class If(AST):
-    def __init__(self, op, comps, blocks, line_num):
-        self.op = op
-        self.comps = comps
-        self.blocks = blocks
-        self.line_num = line_num
+    op: str
+    comps: list[AST]
+    blocks: list[Compound]
+    indent_level: int
+    line_num: int
 
 
+@dataclass
 class Else(AST):
     pass
 
 
+@dataclass
 class While(AST):
-    def __init__(self, op, comp, block, line_num):
-        self.op = op
-        self.comp = comp
-        self.block = block
-        self.line_num = line_num
+    op: str
+    comp: list[AST]
+    block: LoopBlock
+    line_num: int
 
 
+@dataclass
 class For(AST):
-    def __init__(self, iterator, block, elements, line_num):
-        self.iterator = iterator
-        self.block = block
-        self.elements = elements
-        self.line_num = line_num
+    iterator: AST | list[AST]
+    block: LoopBlock
+    elements: list[AST]
+    line_num: int
 
 
+@dataclass
 class LoopBlock(AST):
-    def __init__(self):
-        self.children = []
-
-    def __str__(self):
-        return "\n".join(str(child) for child in self.children)
-
-    __repr__ = __str__
+    children: list[AST] = field(default_factory=list)
 
 
+@dataclass
 class Break(AST):
-    def __init__(self, line_num):
-        self.line_num = line_num
-
-    def __str__(self):
-        return grammar.BREAK
-
-    __repr__ = __str__
+    line_num: int
 
 
+@dataclass
 class Continue(AST):
-    def __init__(self, line_num):
-        self.line_num = line_num
-
-    def __str__(self):
-        return grammar.CONTINUE
-
-    __repr__ = __str__
+    line_num: int
 
 
+@dataclass
 class Pass(AST):
-    def __init__(self, line_num):
-        self.line_num = line_num
-
-    def __str__(self):
-        return grammar.PASS
-
-    __repr__ = __str__
+    line_num: int
 
 
+@dataclass
 class BinOp(AST):
-    def __init__(self, left, op, right, line_num):
-        self.left = left
-        self.op = op
-        self.right = right
-        self.line_num = line_num
+    left: AST | list[AST]
+    op: str
+    right: AST | list[AST]
+    line_num: int
 
 
+@dataclass
 class UnaryOp(AST):
-    def __init__(self, op, expr, line_num):
-        self.op = op
-        self.expr = expr
-        self.line_num = line_num
+    op: str
+    expr: AST | list[AST]
+    line_num: int
 
 
+@dataclass
 class Range(AST):
-    def __init__(self, left, right, line_num):
-        self.left = left
-        self.right = right
-        self.value = grammar.RANGE
-        self.line_num = line_num
+    left: AST | list[AST]
+    right: AST | list[AST]
+    line_num: int
+    value = grammar.RANGE
 
 
+@dataclass
 class CollectionAccess(AST):
-    def __init__(self, collection, key, line_num):
-        self.collection = collection
-        self.key = key
-        self.line_num = line_num
+    collection: grammar.Token
+    key: AST
+    line_num: int
 
 
+@dataclass
 class DotAccess(AST):
-    def __init__(self, obj, field, line_num):
-        self.obj = obj
-        self.field = field
-        self.line_num = line_num
+    obj: str
+    field: str
+    line_num: int
 
 
+@dataclass
 class Type(AST):
-    def __init__(self, value, line_num, func_ret_type=None):
-        self.value = value
-        self.func_ret_type = func_ret_type or []
-        self.line_num = line_num
+    value: str
+    line_num: int
+    func_ret_type: Type | None = None
 
 
+@dataclass
 class AliasDeclaration(AST):
-    def __init__(self, name, collection, line_num):
-        self.name = name
-        self.collection = collection
-        self.line_num = line_num
+    name: str
+    collection: tuple[Type]
+    line_num: int
 
 
+@dataclass
 class Void(AST):
-    value = "void"
+    value: str = "void"
 
 
+@dataclass
 class Constant(AST):
-    def __init__(self, value, line_num):
-        self.value = value
-        self.line_num = line_num
+    value: str
+    line_num: int
 
 
+@dataclass
 class Num(AST):
-    def __init__(self, value, val_type, line_num):
-        self.value = value
-        self.val_type = val_type
-        self.line_num = line_num
+    value: str
+    val_type: str | None
+    line_num: int
 
 
+@dataclass
 class Str(AST):
-    def __init__(self, value, line_num):
-        self.value = value
-        self.line_num = line_num
+    value: str
+    line_num: int
 
 
+@dataclass
 class Collection(AST):
-    def __init__(self, collection_type, line_num, read_only, *items):
-        self.type = collection_type
-        self.read_only = read_only
-        self.read_only = read_only
-        self.items = items
-        self.line_num = line_num
+    type: str
+    line_num: int
+    read_only: bool
+    items: list[AST]
 
 
+@dataclass
 class Dict(AST):
-    def __init__(self, items, line_num):
-        self.items = items
-        self.line_num = line_num
+    items: dict[str, AST]
+    line_num: int
 
 
+@dataclass
 class Print(AST):
-    def __init__(self, value, line_num):
-        self.value = value
-        self.line_num = line_num
+    value: AST
+    line_num: int
 
 
+@dataclass
 class Input(AST):
-    def __init__(self, value, line_num):
-        self.value = value
-        self.line_num = line_num
+    value: AST
+    line_num: int

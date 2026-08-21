@@ -1,7 +1,6 @@
-import ast
 from collections import OrderedDict
-from types import *
 
+import grammar
 from visitor import BuiltinFuncSymbol
 
 
@@ -21,19 +20,18 @@ class BuiltinTypeSymbol(Symbol):
     __repr__ = __str__
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(ast.ANY)
-INT_BUILTIN = BuiltinTypeSymbol(ast.INT)
-DEC_BUILTIN = BuiltinTypeSymbol(ast.DEC)
-FLOAT_BUILTIN = BuiltinTypeSymbol(ast.FLOAT)
-COMPLEX_BUILTIN = BuiltinTypeSymbol(ast.COMPLEX)
-BOOL_BUILTIN = BuiltinTypeSymbol(ast.BOOL)
-BYTES_BUILTIN = BuiltinTypeSymbol(ast.BYTES)
-STR_BUILTIN = BuiltinTypeSymbol(ast.STR)
-# ARRAY_BUILTIN = BuiltinTypeSymbol(ARRAY)
-LIST_BUILTIN = BuiltinTypeSymbol(ast.LIST)
-DICT_BUILTIN = BuiltinTypeSymbol(ast.DICT)
-ENUM_BUILTIN = BuiltinTypeSymbol(ast.ENUM)
-FUNC_BUILTIN = BuiltinTypeSymbol(ast.FUNC)
+ANY_BUILTIN = BuiltinTypeSymbol(grammar.ANY)
+INT_BUILTIN = BuiltinTypeSymbol(grammar.INT)
+DEC_BUILTIN = BuiltinTypeSymbol(grammar.DEC)
+FLOAT_BUILTIN = BuiltinTypeSymbol(grammar.FLOAT)
+COMPLEX_BUILTIN = BuiltinTypeSymbol(grammar.COMPLEX)
+BOOL_BUILTIN = BuiltinTypeSymbol(grammar.BOOL)
+BYTES_BUILTIN = BuiltinTypeSymbol(grammar.BYTES)
+STR_BUILTIN = BuiltinTypeSymbol(grammar.STR)
+LIST_BUILTIN = BuiltinTypeSymbol(grammar.LIST)
+DICT_BUILTIN = BuiltinTypeSymbol(grammar.DICT)
+ENUM_BUILTIN = BuiltinTypeSymbol(grammar.ENUM)
+FUNC_BUILTIN = BuiltinTypeSymbol(grammar.FUNC)
 
 
 class VarSymbol(Symbol):

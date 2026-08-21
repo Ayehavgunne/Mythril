@@ -1,9 +1,3 @@
 num = 1
 
-num_str = num::Str
-
-print(num_str)
-
-if num_str == "1" {
-    print("one")
-}
+print(num + 1)

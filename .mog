@@ -4,6 +4,9 @@ lex:
 parse:
 	python src/parser.py
 
+preprocess:
+	python src/preprocessor.py
+
 fmt:
 	ruff format .
 
@@ -13,3 +16,6 @@ lint:
 	@else
 		ruff check .
 	@fi
+
+check:
+	pyright .

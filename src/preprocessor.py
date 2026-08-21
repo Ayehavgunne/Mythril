@@ -1,8 +1,8 @@
 import warnings
-from ast import Collection, CollectionAccess, DotAccess, Var, VarDecl
 
 import grammar
 from grammar import LexerType
+from my_ast import Collection, CollectionAccess, DotAccess, Var, VarDecl
 from visitor import (
     AliasSymbol,
     CollectionSymbol,
@@ -98,7 +98,11 @@ class Preprocessor(NodeVisitor):
     def visit_constant(self, node):
         if node.value == grammar.TRUE or node.value == grammar.FALSE:
             return self.search_scopes(grammar.BOOL)
-        elif node.value == grammar.NAN or node.value == grammar.INF or node.value == grammar.NEGATIVE_INF:
+        elif (
+            node.value == grammar.NAN
+            or node.value == grammar.INF
+            or node.value == grammar.NEGATIVE_INF
+        ):
             return self.search_scopes(grammar.DEC)
         else:
             return NotImplementedError

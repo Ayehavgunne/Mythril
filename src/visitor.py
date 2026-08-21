@@ -1,8 +1,8 @@
-from ast import Type
 from decimal import Decimal
 from enum import Enum
 
-import my_types
+import grammar
+from my_ast import Type
 
 
 class VisitorException(Exception):
@@ -22,7 +22,7 @@ class BuiltinTypeSymbol(Symbol):
         self.return_type = return_type
 
     def type(self):
-        return self.c_type.type()
+        return self.c_type.type() if self.c_type else None
 
     def __str__(self):
         return self.name
@@ -30,22 +30,22 @@ class BuiltinTypeSymbol(Symbol):
     __repr__ = __str__
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(my_types.ANY)
-INT_BUILTIN = BuiltinTypeSymbol(my_types.INT, "Int")
-INT8_BUILTIN = BuiltinTypeSymbol(my_types.INT8, "Int8")
-INT32_BUILTIN = BuiltinTypeSymbol(my_types.INT32, "Int32")
-INT128_BUILTIN = BuiltinTypeSymbol(my_types.INT128, "Int128")
-DEC_BUILTIN = BuiltinTypeSymbol(my_types.DEC, "Dec")
-FLOAT_BUILTIN = BuiltinTypeSymbol(my_types.FLOAT, "Float")
-COMPLEX_BUILTIN = BuiltinTypeSymbol(my_types.COMPLEX, "Complex")
-BOOL_BUILTIN = BuiltinTypeSymbol(my_types.BOOL, "Bool")
-BYTES_BUILTIN = BuiltinTypeSymbol(my_types.BYTES, "Bytes")
-STR_BUILTIN = BuiltinTypeSymbol(my_types.STR, "Str")
-STRUCT_BUILTIN = BuiltinTypeSymbol(my_types.STRUCT, "Str")
-LIST_BUILTIN = BuiltinTypeSymbol(my_types.LIST, "List")
-DICT_BUILTIN = BuiltinTypeSymbol(my_types.DICT, "Dict")
-ENUM_BUILTIN = BuiltinTypeSymbol(my_types.ENUM, "Enum")
-FUNC_BUILTIN = BuiltinTypeSymbol(my_types.FUNC, "Func")
+ANY_BUILTIN = BuiltinTypeSymbol(grammar.ANY)
+INT_BUILTIN = BuiltinTypeSymbol(grammar.INT, "Int")
+INT8_BUILTIN = BuiltinTypeSymbol(grammar.INT8, "Int8")
+INT32_BUILTIN = BuiltinTypeSymbol(grammar.INT32, "Int32")
+INT128_BUILTIN = BuiltinTypeSymbol(grammar.INT128, "Int128")
+DEC_BUILTIN = BuiltinTypeSymbol(grammar.DEC, "Dec")
+FLOAT_BUILTIN = BuiltinTypeSymbol(grammar.FLOAT, "Float")
+COMPLEX_BUILTIN = BuiltinTypeSymbol(grammar.COMPLEX, "Complex")
+BOOL_BUILTIN = BuiltinTypeSymbol(grammar.BOOL, "Bool")
+BYTES_BUILTIN = BuiltinTypeSymbol(grammar.BYTES, "Bytes")
+STR_BUILTIN = BuiltinTypeSymbol(grammar.STR, "Str")
+STRUCT_BUILTIN = BuiltinTypeSymbol(grammar.STRUCT, "Str")
+LIST_BUILTIN = BuiltinTypeSymbol(grammar.LIST, "List")
+DICT_BUILTIN = BuiltinTypeSymbol(grammar.DICT, "Dict")
+ENUM_BUILTIN = BuiltinTypeSymbol(grammar.ENUM, "Enum")
+FUNC_BUILTIN = BuiltinTypeSymbol(grammar.FUNC, "Func")
 
 
 class VarSymbol(Symbol):
@@ -123,22 +123,22 @@ class NodeVisitor:
         self._init_builtins()
 
     def _init_builtins(self):
-        self.define(my_types.ANY, ANY_BUILTIN)
-        self.define(my_types.INT, INT_BUILTIN)
-        self.define(my_types.INT8, INT8_BUILTIN)
-        self.define(my_types.INT32, INT32_BUILTIN)
-        self.define(my_types.INT128, INT128_BUILTIN)
-        self.define(my_types.DEC, DEC_BUILTIN)
-        self.define(my_types.FLOAT, FLOAT_BUILTIN)
-        self.define(my_types.COMPLEX, COMPLEX_BUILTIN)
-        self.define(my_types.BOOL, BOOL_BUILTIN)
-        self.define(my_types.BYTES, BYTES_BUILTIN)
-        self.define(my_types.STR, STR_BUILTIN)
-        self.define(my_types.STRUCT, STRUCT_BUILTIN)
-        self.define(my_types.LIST, LIST_BUILTIN)
-        self.define(my_types.DICT, DICT_BUILTIN)
-        self.define(my_types.ENUM, ENUM_BUILTIN)
-        self.define(my_types.FUNC, FUNC_BUILTIN)
+        self.define(grammar.ANY, ANY_BUILTIN)
+        self.define(grammar.INT, INT_BUILTIN)
+        self.define(grammar.INT8, INT8_BUILTIN)
+        self.define(grammar.INT32, INT32_BUILTIN)
+        self.define(grammar.INT128, INT128_BUILTIN)
+        self.define(grammar.DEC, DEC_BUILTIN)
+        self.define(grammar.FLOAT, FLOAT_BUILTIN)
+        self.define(grammar.COMPLEX, COMPLEX_BUILTIN)
+        self.define(grammar.BOOL, BOOL_BUILTIN)
+        self.define(grammar.BYTES, BYTES_BUILTIN)
+        self.define(grammar.STR, STR_BUILTIN)
+        self.define(grammar.STRUCT, STRUCT_BUILTIN)
+        self.define(grammar.LIST, LIST_BUILTIN)
+        self.define(grammar.DICT, DICT_BUILTIN)
+        self.define(grammar.ENUM, ENUM_BUILTIN)
+        self.define(grammar.FUNC, FUNC_BUILTIN)
 
     def visit(self, node):
         method_name = "visit_" + type(node).__name__.lower()
@@ -201,33 +201,33 @@ class NodeVisitor:
         if isinstance(value, BuiltinTypeSymbol):
             return value
         if isinstance(value, FuncSymbol):
-            return self.search_scopes(my_types.FUNC)
+            return self.search_scopes(grammar.FUNC)
         elif isinstance(value, VarSymbol):
             return value.type
         elif isinstance(value, Type):
             return self.search_scopes(value.value)
         else:
             if isinstance(value, int):
-                return self.search_scopes(my_types.INT)
+                return self.search_scopes(grammar.INT)
             elif isinstance(value, Decimal):
-                return self.search_scopes(my_types.DEC)
+                return self.search_scopes(grammar.DEC)
             elif isinstance(value, float):
-                return self.search_scopes(my_types.FLOAT)
+                return self.search_scopes(grammar.FLOAT)
             elif isinstance(value, complex):
-                return self.search_scopes(my_types.COMPLEX)
+                return self.search_scopes(grammar.COMPLEX)
             elif isinstance(value, str):
-                return self.search_scopes(my_types.STR)
+                return self.search_scopes(grammar.STR)
             elif isinstance(value, bool):
-                return self.search_scopes(my_types.BOOL)
+                return self.search_scopes(grammar.BOOL)
             elif isinstance(value, bytes):
-                return self.search_scopes(my_types.BYTES)
+                return self.search_scopes(grammar.BYTES)
             elif isinstance(value, list):
-                return self.search_scopes(my_types.LIST)
+                return self.search_scopes(grammar.LIST)
             elif isinstance(value, dict):
-                return self.search_scopes(my_types.DICT)
+                return self.search_scopes(grammar.DICT)
             elif isinstance(value, Enum):
-                return self.search_scopes(my_types.ENUM)
+                return self.search_scopes(grammar.ENUM)
             elif callable(value):
-                return self.search_scopes(my_types.FUNC)
+                return self.search_scopes(grammar.FUNC)
             else:
                 raise TypeError(f"Type not recognized: {value}")
