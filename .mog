@@ -1,16 +1,35 @@
+src = src
+out = out
+
+setup:
+    uv venv --clear
+    uv sync --all-extras
+
 lex:
+    {_activate}
     python src/lexer.py
 
 parse:
-	python src/parser.py
+    {_activate}
+	python {src}/parser.py
 
 preprocess:
-	python src/preprocessor.py
+    {_activate}
+	python {src}/preprocessor.py
+
+build:
+    {_activate}
+	python {src}/main.py test.my -o {out}/test -p
+
+run:
+    {out}/test
 
 fmt:
+	{_activate}
 	ruff format .
 
 lint:
+    {_activate}
 	@if {$1} == fix
 		ruff check --fix .
 	@else
@@ -18,4 +37,8 @@ lint:
 	@fi
 
 check:
+    (_activate)
 	pyright .
+
+_activate:
+	. .venv/bin/activate
