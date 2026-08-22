@@ -1,6 +1,5 @@
 # Operators
 from enum import StrEnum
-from typing import Literal
 
 PLUS = "+"
 MINUS = "-"
@@ -80,6 +79,7 @@ STR = "Str"
 BOOL = "Bool"
 BYTES = "Bytes"
 LIST = "List"
+TUPLE = "TUPLE"
 SET = "Set"
 DICT = "Dict"
 ENUM_TYPE = "Enum"
@@ -319,22 +319,22 @@ class LexerType(StrEnum):
     ESCAPE = "escape"
 
 
-type TokenType = Literal[
-    "PROGRAM_STARTTYPE",
-    "NUMBER",
-    "STRING",
-    "OP",
-    "CONSTANT",
-    "NEWLINE",
-    "KEYWORD",
-    "ANON",
-    "NAME",
-    "EOF",
-    "VOID",
-    "ALPHANUMERIC",
-    "NUMERIC",
-    "OPERATIC",
-    "WHITESPACE",
-    "COMMENT",
-    "ESCAPE",
-]
+class TokenType(StrEnum):
+    PROGRAM_START = "PROGRAM_START"
+    NUMBER = "NUMBER"
+    STRING = "STRING"
+    OP = "OP"
+    CONSTANT = "CONSTANT"
+    NEWLINE = "NEWLINE"
+    KEYWORD = "KEYWORD"
+    ANON = "ANON"
+    NAME = "NAME"
+    EOF = "EOF"
+    VOID = "VOID"
+    ALPHANUMERIC = "ALPHANUMERIC"
+    NUMERIC = "NUMERIC"
+    OPERATIC = "OPERATIC"
+    WHITESPACE = "WHITESPACE"
+    COMMENT = "COMMENT"
+    ESCAPE = "ESCAPE"
+    TYPE = "TYPE"

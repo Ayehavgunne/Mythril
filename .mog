@@ -37,8 +37,12 @@ lint:
 	@fi
 
 check:
-    (_activate)
-	pyright .
+    {_activate}
+    @if {$1} == ""
+		pyright .
+    @else
+		pyright {$1}
+    @fi
 
 _activate:
 	. .venv/bin/activate

@@ -22,7 +22,7 @@ def preamble(my_prog: NamedTemporaryFile) -> Generator[None]:
     my_prog.write("}\n")
 
 
-def visit(node: my_ast.AST) -> str:
+def visit(node: my_ast.Node) -> str:
     match node:
         case my_ast.Assign(left, op, right):
             visited_left = visit(left)

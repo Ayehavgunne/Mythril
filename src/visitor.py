@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -7,12 +7,12 @@ from typing import Any
 import grammar
 import my_ast
 
-type Scope = dict[str, Symbol]
+type Scope = dict[str, AccessibleSymbol]
 
 
 def to_snake(s: str) -> str:
-    s = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', s)
-    s = re.sub(r'([a-z\d])([A-Z])', r'\1_\2', s)
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", s)
+    s = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", s)
     s = s.lower()
     return s
 
@@ -27,71 +27,69 @@ class Symbol:
     type: Symbol | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class BuiltinTypeSymbol(Symbol):
     pass
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(grammar.ANY)
-INT_BUILTIN = BuiltinTypeSymbol(grammar.INT, "Int")
-# INT8_BUILTIN = BuiltinTypeSymbol(grammar.INT8, "Int8")
-# INT32_BUILTIN = BuiltinTypeSymbol(grammar.INT32, "Int32")
-# INT128_BUILTIN = BuiltinTypeSymbol(grammar.INT128, "Int128")
-DEC_BUILTIN = BuiltinTypeSymbol(grammar.DEC, "Dec")
-FLOAT_BUILTIN = BuiltinTypeSymbol(grammar.FLOAT, "Float")
-# COMPLEX_BUILTIN = BuiltinTypeSymbol(grammar.COMPLEX, "Complex")
-BOOL_BUILTIN = BuiltinTypeSymbol(grammar.BOOL, "Bool")
-# BYTES_BUILTIN = BuiltinTypeSymbol(grammar.BYTES, "Bytes")
-STR_BUILTIN = BuiltinTypeSymbol(grammar.STR, "Str")
-STRUCT_BUILTIN = BuiltinTypeSymbol(grammar.STRUCT, "Str")
-LIST_BUILTIN = BuiltinTypeSymbol(grammar.LIST, "List")
-DICT_BUILTIN = BuiltinTypeSymbol(grammar.DICT, "Dict")
-ENUM_BUILTIN = BuiltinTypeSymbol(grammar.ENUM, "Enum")
-FUNC_BUILTIN = BuiltinTypeSymbol(grammar.FUNC, "Func")
+ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY)
+INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type="Int")
+# INT8_BUILTIN = BuiltinTypeSymbol(name=grammar.INT8, type="Int8")
+# INT32_BUILTIN = BuiltinTypeSymbol(name=grammar.INT32, type="Int32")
+# INT128_BUILTIN = BuiltinTypeSymbol(name=grammar.INT128, type="Int128")
+DEC_BUILTIN = BuiltinTypeSymbol(name=grammar.DEC, type="Dec")
+FLOAT_BUILTIN = BuiltinTypeSymbol(name=grammar.FLOAT, type="Float")
+# COMPLEX_BUILTIN = BuiltinTypeSymbol(name=grammar.COMPLEX, type="Complex")
+BOOL_BUILTIN = BuiltinTypeSymbol(name=grammar.BOOL, type="Bool")
+# BYTES_BUILTIN = BuiltinTypeSymbol(name=grammar.BYTES, type="Bytes")
+STR_BUILTIN = BuiltinTypeSymbol(name=grammar.STR, type="Str")
+STRUCT_BUILTIN = BuiltinTypeSymbol(name=grammar.STRUCT, type="Str")
+LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type="List")
+DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type="Dict")
+ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type="Enum")
+FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type="Func")
 
 
-@dataclass
-class VarSymbol(Symbol):
+@dataclass(kw_only=True)
+class AccessibleSymbol(Symbol):
     accessed: bool = False
+
+
+@dataclass(kw_only=True)
+class VarSymbol(AccessibleSymbol):
     val_assigned: bool = False
     read_only: bool = False
 
 
-@dataclass
-class StructSymbol(Symbol):
+@dataclass(kw_only=True)
+class StructSymbol(AccessibleSymbol):
     fields: dict[str, my_ast.Type]
-    accessed: bool = False
     val_assigned: bool = False
 
 
-@dataclass
-class CollectionSymbol(Symbol):
+@dataclass(kw_only=True)
+class CollectionSymbol(AccessibleSymbol):
     item_types: Symbol
-    accessed: bool = False
     val_assigned: bool = False
 
 
-@dataclass
-class FuncSymbol(Symbol):
-    # def __init__(self, name, return_type, parameters, body, parameter_defaults=None):
-    parameters = parameters
-    parameter_defaults = parameter_defaults or {}
-    body = body
-    accessed: bool = False
+@dataclass(kw_only=True)
+class FuncSymbol(AccessibleSymbol):
+    parameters: dict[str, my_ast.Var | my_ast.Type] | None
+    parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
+    body: my_ast.Compound | None
     val_assigned: bool = False
 
 
-@dataclass
-class AliasSymbol(Symbol):
-    accessed: bool = False
+@dataclass(kw_only=True)
+class AliasSymbol(AccessibleSymbol):
+    type: list[my_ast.Type]
 
 
-@dataclass
-class BuiltinFuncSymbol(Symbol):
-    # def __init__(self, name, return_type, parameters, body):
-    parameters = parameters
-    body = body
-    accessed: bool = False
+@dataclass(kw_only=True)
+class BuiltinFuncSymbol(AccessibleSymbol):
+    parameters: my_ast.Var | my_ast.Type
+    body: my_ast.Compound
     val_assigned: bool = False
 
 
@@ -118,13 +116,13 @@ class NodeVisitor:
         self.define(grammar.ENUM, ENUM_BUILTIN)
         self.define(grammar.FUNC, FUNC_BUILTIN)
 
-    def visit(self, node: my_ast.AST) -> Any:
+    def visit(self, node: my_ast.Node) -> Any:
         method_name = "visit_" + to_snake(type(node).__name__)
         visitor = getattr(self, method_name, self.generic_visit)
         return visitor(node)
 
     @staticmethod
-    def generic_visit(node: my_ast.AST) -> None:
+    def generic_visit(node: my_ast.Node) -> None:
         raise VisitorException(f"No visit_{to_snake(type(node).__name__)} method")
 
     @property
@@ -135,7 +133,7 @@ class NodeVisitor:
     def second_scope(self) -> Scope | None:
         return self._scope[-2] if len(self._scope) >= 2 else None
 
-    def search_scopes(self, name: str, level: int | None = None) -> Symbol:
+    def search_scopes(self, name: str, level: int | None = None) -> Symbol | None:
         if level:
             if name in self._scope[level]:
                 return self._scope[level][name]
@@ -143,6 +141,7 @@ class NodeVisitor:
             for scope in reversed(self._scope):
                 if name in scope:
                     return scope[name]
+        return None
 
     def define(self, key: str, value: Symbol, level: int = 0) -> None:
         level = (len(self._scope) - level) - 1
@@ -155,7 +154,7 @@ class NodeVisitor:
         self._scope.pop()
 
     @property
-    def symbols(self) -> list[Symbol]:
+    def symbols(self) -> list[AccessibleSymbol]:
         return [value for scope in self._scope for value in scope.values()]
 
     @property
@@ -163,7 +162,7 @@ class NodeVisitor:
         return [key for scope in self._scope for key in scope]
 
     @property
-    def items(self) -> list[tuple[str, Symbol]]:
+    def items(self) -> list[tuple[str, AccessibleSymbol]]:
         return [(key, value) for scope in self._scope for key, value in scope.items()]
 
     @property
@@ -175,7 +174,7 @@ class NodeVisitor:
             and not sym_val.accessed
         ]
 
-    def infer_type(self, value: Symbol) -> Symbol:
+    def infer_type(self, value: Symbol) -> Symbol | None:
         if isinstance(value, BuiltinTypeSymbol):
             return value
         if isinstance(value, FuncSymbol):

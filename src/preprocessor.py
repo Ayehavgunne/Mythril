@@ -56,46 +56,46 @@ class Preprocessor(NodeVisitor):
             )
         return res
 
-    def visit_program(self, node):
+    def visit_program(self, node: my_ast.Program):
         return self.visit(node.block)
 
-    def visit_if(self, node):
+    def visit_if(self, node: my_ast.If):
         blocks = []
         for x, block in enumerate(node.blocks):
             self.visit(node.comps[x])
             blocks.append(self.visit(block))
         return blocks
 
-    def visit_else(self, node):
+    def visit_else(self, _: my_ast.Else):
         pass
 
-    def visit_while(self, node):
+    def visit_while(self, node: my_ast.While):
         self.visit(node.comp)
         self.visit(node.block)
 
-    def visit_for(self, node):
+    def visit_for(self, node: my_ast.For):
         for element in node.elements:
             elem_type = self.visit(node.iterator)
             if isinstance(elem_type, CollectionSymbol):
                 elem_type = elem_type.item_types
-            var_sym = VarSymbol(element.value, elem_type)
+            var_sym = VarSymbol(name=element.value, type=elem_type)
             var_sym.val_assigned = True
             self.define(var_sym.name, var_sym)
         self.visit(node.block)
 
-    def visit_loopblock(self, node):
+    def visit_loop_block(self, node: my_ast.LoopBlock):
         results = []
         for child in node.children:
             results.append(self.visit(child))
         return results
 
-    def visit_break(self, node):
+    def visit_break(self, _: my_ast.Break):
         pass
 
-    def visit_continue(self, node):
+    def visit_continue(self, _: my_ast.Continue):
         pass
 
-    def visit_constant(self, node):
+    def visit_constant(self, node: my_ast.Constant):
         if node.value == grammar.TRUE or node.value == grammar.FALSE:
             return self.search_scopes(grammar.BOOL)
         elif (
@@ -107,20 +107,20 @@ class Preprocessor(NodeVisitor):
         else:
             return NotImplementedError
 
-    def visit_num(self, node):
+    def visit_num(self, node: my_ast.Num):
         return self.infer_type(node.value)
 
-    def visit_str(self, node):
+    def visit_str(self, node: my_ast.Str):
         return self.infer_type(node.value)
 
-    def visit_type(self, node):
+    def visit_type(self, node: my_ast.Type):
         typ = self.search_scopes(node.value)
         if typ is self.search_scopes(grammar.FUNC):
             typ.return_type = self.visit(node.func_ret_type)
         return typ
 
     def visit_assign(
-        self, node
+        self, node: my_ast.Assign
     ):  # TODO clean up this mess of a function, Match statement!
         collection_type = None
         field_assignment = None
@@ -149,7 +149,9 @@ class Preprocessor(NodeVisitor):
         lookup_var = self.search_scopes(var_name)
         if not lookup_var:
             if collection_type:
-                col_sym = CollectionSymbol(var_name, value, collection_type)
+                col_sym = CollectionSymbol(
+                    name=var_name, type=value, item_types=collection_type
+                )
                 col_sym.val_assigned = True
                 self.define(var_name, col_sym)
             elif field_assignment:
@@ -170,15 +172,17 @@ class Preprocessor(NodeVisitor):
                 else:
                     val_info = self.search_scopes(node.right.value)
                     func_sym = FuncSymbol(
-                        var_name,
-                        val_info.type.return_type,
-                        val_info.parameters,
-                        val_info.body,
-                        val_info.parameter_defaults,
+                        name=var_name,
+                        type=val_info.type.return_type,
+                        parameters=val_info.parameters,
+                        body=val_info.body,
+                        parameter_defaults=val_info.parameter_defaults,
                     )
                     self.define(var_name, func_sym)
             else:
-                var_sym = VarSymbol(var_name, value, node.left.read_only)
+                var_sym = VarSymbol(
+                    name=var_name, type=value, read_only=node.left.read_only
+                )
                 var_sym.val_assigned = True
                 self.define(var_name, var_sym)
         else:
@@ -217,7 +221,7 @@ class Preprocessor(NodeVisitor):
             )
             self.warnings = True
 
-    def visit_opassign(self, node):
+    def visit_op_assign(self, node: my_ast.OpAssign):
         left = self.visit(node.left)
         right = self.visit(node.right)
         left_type = self.infer_type(left)
@@ -240,11 +244,11 @@ class Preprocessor(NodeVisitor):
             )
             self.warnings = True
 
-    def visit_fieldassignment(self, node):
-        obj = self.search_scopes(node.obj)
-        return self.visit(obj.type.fields[node.field])
+    # def visit_field_assignment(self, node):
+    #     obj = self.search_scopes(node.obj)
+    #     return self.visit(obj.type.fields[node.field])
 
-    def visit_var(self, node):
+    def visit_var(self, node: my_ast.Var):
         var_name = node.value
         val = self.search_scopes(var_name)
         if val is None:
@@ -261,7 +265,7 @@ class Preprocessor(NodeVisitor):
             val.accessed = True
             return val
 
-    def visit_binop(self, node):
+    def visit_bin_op(self, node: my_ast.BinOp):
         if node.op == grammar.CAST:
             self.visit(node.left)
             return self.infer_type(self.visit(node.right))
@@ -286,10 +290,10 @@ class Preprocessor(NodeVisitor):
                 )
                 self.warnings = True
 
-    def visit_unaryop(self, node):
+    def visit_unary_op(self, node: my_ast.UnaryOp):
         return self.visit(node.expr)
 
-    def visit_range(self, node):
+    def visit_range(self, node: my_ast.Range):
         left = self.visit(node.left)
         right = self.visit(node.right)
         left_type = self.infer_type(left)
@@ -313,7 +317,7 @@ class Preprocessor(NodeVisitor):
             )
             self.warnings = True
 
-    def visit_compound(self, node):
+    def visit_compound(self, node: my_ast.Compound):
         results = []
         for child in node.children:
             result = self.visit(child)
@@ -321,18 +325,18 @@ class Preprocessor(NodeVisitor):
                 results.append(result)
         return results
 
-    def visit_typedeclaration(self, node):
-        typs = []
-        for t in node.collection:
-            typs.append(self.visit(t))
-        if len(typs) == 1:
-            typs = typs[0]
-        else:
-            typs = tuple(typs)
-        typ = AliasSymbol(node.name.value, typs)
-        self.define(typ.name, typ)
+    # def visit_type_declaration(self, node):
+    #     typs = []
+    #     for t in node.collection:
+    #         typs.append(self.visit(t))
+    #     if len(typs) == 1:
+    #         typs = typs[0]
+    #     else:
+    #         typs = tuple(typs)
+    #     typ = AliasSymbol(name=node.name.value, type=typs)
+    #     self.define(typ.name, typ)
 
-    def visit_funcdecl(self, node):
+    def visit_func_decl(self, node: my_ast.FuncDecl):
         func_name = node.name
         func_type = self.search_scopes(node.return_type.value)
         if func_type and func_type.name == grammar.FUNC:
@@ -340,11 +344,11 @@ class Preprocessor(NodeVisitor):
         self.define(
             func_name,
             FuncSymbol(
-                func_name,
-                func_type,
-                node.parameters,
-                node.body,
-                node.parameter_defaults,
+                name=func_name,
+                type=func_type,
+                parameters=node.parameters,
+                body=node.body,
+                parameter_defaults=node.parameter_defaults,
             ),
         )
         self.new_scope()
@@ -392,18 +396,25 @@ class Preprocessor(NodeVisitor):
         self.define(func_name, func_symbol, 1)
         self.drop_top_scope()
 
-    def visit_anonymousfunc(self, node):
+    def visit_anonymous_func(self, node: my_ast.AnonymousFunc):
         func_type = self.search_scopes(node.return_type.value)
         self.new_scope()
         for k, v in node.parameters.items():
             var_type = self.search_scopes(v.value)
             if var_type is self.search_scopes(grammar.FUNC):
-                sym = FuncSymbol(k, v.func_ret_type, None, None)
+                sym = FuncSymbol(
+                    name=k, type=v.func_ret_type, parameters=None, body=None
+                )
             else:
-                sym = VarSymbol(k, var_type)
+                sym = VarSymbol(name=k, type=var_type)
             sym.val_assigned = True
             self.define(sym.name, sym)
-        func_symbol = FuncSymbol(LexerType.ANON, func_type, node.parameters, node.body)
+        func_symbol = FuncSymbol(
+            name=LexerType.ANON,
+            type=func_type,
+            parameters=node.parameters,
+            body=node.body,
+        )
         return_var_type = self.visit(func_symbol.body)
         return_var_type = list(flatten(return_var_type))
         for ret_type in return_var_type:
@@ -415,7 +426,7 @@ class Preprocessor(NodeVisitor):
         self.drop_top_scope()
         return func_symbol
 
-    def visit_funccall(self, node):
+    def visit_func_call(self, node: my_ast.FuncCall):
         func_name = node.name
         func = self.search_scopes(func_name)
         for x, param in enumerate(func.parameters.values()):
@@ -455,7 +466,7 @@ class Preprocessor(NodeVisitor):
             func.accessed = True
             return func.type
 
-    def visit_methodcall(self, node):  # Not done here!
+    def visit_method_call(self, node: my_ast.MethodCall):  # Not done here!
         method_name = node.name
         _ = self.search_scopes(node.obj)
         method = self.search_scopes(method_name)
@@ -493,26 +504,26 @@ class Preprocessor(NodeVisitor):
             method.accessed = True
             return method.type
 
-    def visit_structdeclaration(self, node: my_ast.StructDeclaration):
-        sym = StructSymbol(node.name, node.fields)
+    def visit_struct_declaration(self, node: my_ast.StructDeclaration):
+        sym = StructSymbol(name=node.name, fields=node.fields)
         self.define(sym.name, sym)
 
-    def visit_return(self, node):
+    def visit_return(self, node: my_ast.Return):
         res = self.visit(node.value)
         self.return_flag = True
         return res
 
-    def visit_pass(self, node):
+    def visit_pass(self, _: my_ast.Pass):
         pass  # HA!
 
-    def visit_vardecl(self, node):
+    def visit_var_decl(self, node: my_ast.VarDecl):
         type_name = node.type_node.value
         type_symbol = self.search_scopes(type_name)
         var_name = node.var_node.value
-        var_symbol = VarSymbol(var_name, type_symbol)
+        var_symbol = VarSymbol(name=var_name, type=type_symbol)
         self.define(var_symbol.name, var_symbol)
 
-    def visit_collection(self, node):
+    def visit_collection(self, node: my_ast.Collection):
         types = []
         for item in node.items:
             types.append(self.visit(item))
@@ -521,19 +532,19 @@ class Preprocessor(NodeVisitor):
         # else:
         return self.search_scopes(grammar.LIST), self.search_scopes(grammar.ANY)
 
-    def visit_dotaccess(self, node):
+    def visit_dot_access(self, node: my_ast.DotAccess):
         obj = self.search_scopes(node.obj)
         obj.accessed = True
         return self.visit(obj.type.fields[node.field])
 
-    def visit_hashmap(self, node):
+    def visit_dict(self, node: my_ast.Dict):
         for key in node.items:
             value = self.search_scopes(key)
             if value:
                 value.accessed = True
         return self.search_scopes(grammar.DICT)
 
-    def visit_collectionaccess(self, node):
+    def visit_collection_access(self, node: my_ast.Collection):
         collection = self.search_scopes(node.collection.value)
         collection.accessed = True
         if isinstance(node.key, my_ast.Var):
@@ -568,11 +579,11 @@ class Preprocessor(NodeVisitor):
             )
             self.warnings = True
 
-    def visit_print(self, node):
+    def visit_print(self, node: my_ast.Print):
         if node.value:
             self.visit(node.value)
 
-    def visit_input(self, node):
+    def visit_input(self, node: my_ast.Input):
         self.visit(node.value)
 
 
