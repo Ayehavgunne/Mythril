@@ -1,9 +1,9 @@
+import os
 import subprocess
 import sys
-import os
-from tempfile import NamedTemporaryFile
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
+from tempfile import NamedTemporaryFile
 from time import sleep
 
 import my_ast
@@ -51,7 +51,9 @@ def emit(tree: my_ast.Program, my_prog: NamedTemporaryFile) -> str:
     my_prog.seek(0)
 
 
-def build_prog(source_file: str, out_path: str = "", run: bool = False, print_out: bool = False):
+def build_prog(
+    source_file: str, out_path: str = "", run: bool = False, print_out: bool = False
+):
     o = source_file.replace(".my", "")
     if not out_path:
         out_path = o

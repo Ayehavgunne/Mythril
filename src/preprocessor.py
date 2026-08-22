@@ -1,8 +1,8 @@
 import warnings
 
 import grammar
+import my_ast
 from grammar import LexerType
-from my_ast import Collection, CollectionAccess, DotAccess, Var, VarDecl
 from visitor import (
     AliasSymbol,
     CollectionSymbol,
@@ -48,7 +48,7 @@ class Preprocessor(NodeVisitor):
         # 	self.search_scopes(FLOAT)
         # )
 
-    def check(self, node):
+    def check(self, node: my_ast.Program):
         res = self.visit(node)
         if self.unvisited_symbols:
             warnings.warn(
@@ -125,18 +125,18 @@ class Preprocessor(NodeVisitor):
         collection_type = None
         field_assignment = None
         collection_assignment = None
-        if isinstance(node.left, VarDecl):
+        if isinstance(node.left, my_ast.VarDecl):
             var_name = node.left.value.value
             value = self.infer_type(node.left.type)
             value.accessed = True
-        elif isinstance(node.right, Collection):
+        elif isinstance(node.right, my_ast.Collection):
             var_name = node.left.value
             value, collection_type = self.visit(node.right)
-        elif isinstance(node.left, DotAccess):
+        elif isinstance(node.left, my_ast.DotAccess):
             field_assignment = True
             var_name = self.visit(node.left)
             value = self.visit(node.right)
-        elif isinstance(node.left, CollectionAccess):
+        elif isinstance(node.left, my_ast.CollectionAccess):
             collection_assignment = True
             var_name = node.left.collection.value
             # key = node.left.key.value
@@ -493,7 +493,7 @@ class Preprocessor(NodeVisitor):
             method.accessed = True
             return method.type
 
-    def visit_structdeclaration(self, node):
+    def visit_structdeclaration(self, node: my_ast.StructDeclaration):
         sym = StructSymbol(node.name, node.fields)
         self.define(sym.name, sym)
 
@@ -536,7 +536,7 @@ class Preprocessor(NodeVisitor):
     def visit_collectionaccess(self, node):
         collection = self.search_scopes(node.collection.value)
         collection.accessed = True
-        if isinstance(node.key, Var):
+        if isinstance(node.key, my_ast.Var):
             key = self.infer_type(node.key.value)
         else:
             key = self.visit(node.key)

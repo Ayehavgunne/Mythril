@@ -583,7 +583,9 @@ class Parser:
             root.children.append(node)
         return root
 
-    def assignment_statement(self, token: Token, var_type: str) -> my_ast.Assign | my_ast.OpAssign:
+    def assignment_statement(
+        self, token: Token, var_type: str
+    ) -> my_ast.Assign | my_ast.OpAssign:
         if token.value == grammar.CONST:
             read_only = True
             self.next_token()
@@ -603,7 +605,9 @@ class Parser:
             raise SyntaxError(f"Unknown assignment operator: {token.value}")
         return node
 
-    def variable(self, token: Token, var_type: str, read_only: bool = False) -> my_ast.Var:
+    def variable(
+        self, token: Token, var_type: str, read_only: bool = False
+    ) -> my_ast.Var:
         return my_ast.Var(token.value, var_type, self.line_num, read_only)
 
     def constant(self, token: Token) -> my_ast.Constant:
