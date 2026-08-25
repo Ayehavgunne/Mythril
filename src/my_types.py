@@ -10,7 +10,7 @@ class Any:
 
 @dataclass
 class AnyVal(Any):
-    name: None
+    pass
 
 
 @dataclass
@@ -114,7 +114,7 @@ class Bytes(AnyVal):
 
 @dataclass
 class Collection(Any):
-    name: None
+    pass
 
 
 @dataclass
@@ -164,7 +164,7 @@ class Struct(Collection):
 
 @dataclass
 class AnyRef(Any):
-    name: None
+    pass
 
 
 @dataclass

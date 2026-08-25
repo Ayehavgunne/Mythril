@@ -180,15 +180,13 @@ class Car(Vehicle)
 		self.hatchback
 		super(make, year, color)
 
-	def print_year()
+	def print_year() > void
 		print('This car was made in {self.year}')
 
-class Person {
-	new(name: Str, age: Int) {
+class Person
+	new(name: Str, age: Int)
 		self.name
 		self.age
-	}
-}
 
 frank = Person('Frank', 30)
 
@@ -220,7 +218,7 @@ print(is_less_than_5(5))
 print(is_less_than_5(7))
 
 # Testing scope
-def do_stuff(y: Int)
+def do_stuff(y: Int) > void
 	print(y)
 
 def square(x: Int) > Int
@@ -229,7 +227,7 @@ def square(x: Int) > Int
 
 print(square(5))
 
-def greet_name(name: Str)
+def greet_name(name: Str) > void
 	print('Hello ' + name)
 
 greet_name('Anthony')

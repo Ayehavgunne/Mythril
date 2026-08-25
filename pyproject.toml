@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "My programming language. For fun and not profit."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "prettyprinter>=0.18.0",
+]
 
 [dependency-groups]
 dev = [

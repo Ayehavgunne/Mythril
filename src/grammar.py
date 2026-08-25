@@ -59,7 +59,7 @@ CLOSE_BLOCK = RCURLYBRACKET
 ESCAPE = "\\"
 COMMENT = "#"
 NEWLINE = "\n"
-TAB = "\t"
+INDENT = "\t"
 SINGLE_QUOTE = "'"
 DOUBLE_QUOTE = '"'
 
@@ -338,3 +338,4 @@ class TokenType(StrEnum):
     COMMENT = "COMMENT"
     ESCAPE = "ESCAPE"
     TYPE = "TYPE"
+    INDENT = "INDENT"

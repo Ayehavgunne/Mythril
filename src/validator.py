@@ -32,7 +32,7 @@ def warning_on_one_line(message, category, filename, lineno, file=None, line=Non
 warnings.formatwarning = warning_on_one_line
 
 
-class Preprocessor(NodeVisitor):
+class Validator(NodeVisitor):
     def __init__(self, file_name=None):
         super().__init__()
         self.file_name = file_name
@@ -61,13 +61,25 @@ class Preprocessor(NodeVisitor):
 
     def visit_if(self, node: my_ast.If):
         blocks = []
-        for x, block in enumerate(node.blocks):
-            self.visit(node.comps[x])
+        for comp in node.comps:
+            self.visit(comp)
+        for block in node.block.children:
             blocks.append(self.visit(block))
         return blocks
 
-    def visit_else(self, _: my_ast.Else):
-        pass
+    def visit_else_if(self, node: my_ast.ElseIf):
+        blocks = []
+        for comp in node.comps:
+            self.visit(comp)
+        for block in node.block.children:
+            blocks.append(self.visit(block))
+        return blocks
+
+    def visit_else(self, node: my_ast.Else):
+        blocks = []
+        for block in node.block.children:
+            blocks.append(self.visit(block))
+        return blocks
 
     def visit_while(self, node: my_ast.While):
         self.visit(node.comp)
@@ -141,6 +153,15 @@ class Preprocessor(NodeVisitor):
             var_name = node.left.collection.value
             # key = node.left.key.value
             value = self.visit(node.right)
+        elif isinstance(node.right, my_ast.Var):
+            var_name = node.left.value
+            value = self.visit(node.right)
+            # if isinstance(value, VarSymbol):
+            #     value = value.type
+            # lookup_var = self.search_scopes(value.name)
+            # print(f'var_name is {var_name}')
+            # print(f'Var value is {value}')
+            # print(f'lookup_var is {lookup_var}')
         else:
             var_name = node.left.value
             value = self.visit(node.right)
@@ -181,7 +202,7 @@ class Preprocessor(NodeVisitor):
                     self.define(var_name, func_sym)
             else:
                 var_sym = VarSymbol(
-                    name=var_name, type=value, read_only=node.left.read_only
+                    name=var_name, type=value.type, read_only=node.left.read_only
                 )
                 var_sym.val_assigned = True
                 self.define(var_name, var_sym)
@@ -539,13 +560,15 @@ class Preprocessor(NodeVisitor):
 
     def visit_dict(self, node: my_ast.Dict):
         for key in node.items:
-            value = self.search_scopes(key)
+            value = self.search_scopes(key.value)
             if value:
                 value.accessed = True
         return self.search_scopes(grammar.DICT)
 
-    def visit_collection_access(self, node: my_ast.Collection):
-        collection = self.search_scopes(node.collection.value)
+    def visit_collection_access(self, node: my_ast.CollectionAccess):
+        collection = self.search_scopes(node.value)
+        if not isinstance(collection, CollectionSymbol):
+            raise TypeError
         collection.accessed = True
         if isinstance(node.key, my_ast.Var):
             key = self.infer_type(node.key.value)
@@ -580,11 +603,13 @@ class Preprocessor(NodeVisitor):
             self.warnings = True
 
     def visit_print(self, node: my_ast.Print):
-        if node.value:
-            self.visit(node.value)
+        return self.visit_func_call(node)
 
     def visit_input(self, node: my_ast.Input):
-        self.visit(node.value)
+        return self.visit_func_call(node)
+
+    def visit_eof(self, _: my_ast.Eof):
+        return None
 
 
 if __name__ == "__main__":
@@ -597,7 +622,7 @@ if __name__ == "__main__":
         lexer = Lexer(code, f)
         parser = Parser(lexer)
         tree = parser.parse()
-        symtab_builder = Preprocessor(parser.file_name)
-        symtab_builder.check(tree)
-        if not symtab_builder.warnings:
+        validator = Validator(parser.file_name)
+        validator.check(tree)
+        if not validator.warnings:
             print("Looks good!")

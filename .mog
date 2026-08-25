@@ -13,13 +13,18 @@ parse:
     {_activate}
 	python {src}/parser.py
 
-preprocess:
+validate:
     {_activate}
-	python {src}/preprocessor.py
+	python {src}/validator.py
 
 build:
     {_activate}
-	python {src}/main.py test.my -o {out}/test -p
+	@if {$1} in ["preview", "p"]
+		echo Program:
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p
+	@else
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test
+	@fi
 
 run:
     {out}/test

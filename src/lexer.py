@@ -139,6 +139,12 @@ class Lexer:
             self.increment_indent_level()
             self.next_char()
 
+    # def eat_indent(self):
+    #     self.next_char()
+    #     self.reset_word()
+    #     self.increment_indent_level()
+    #     return self.make_token(TokenType.INDENT, grammar.INDENT)
+
     def eof(self):
         return self.make_token(TokenType.EOF, LexerType.EOF)
 
@@ -164,7 +170,10 @@ class Lexer:
         if self.current_char == grammar.NEWLINE:
             return self.eat_newline()
 
-        if self.current_char.isspace():
+        if self.current_char == "\t":
+            self.skip_indent()
+
+        if self.current_char.isspace() and self.current_char != "\t":
             self.skip_whitespace()
 
         if self.current_char == grammar.COMMENT:
@@ -309,6 +318,6 @@ if __name__ == "__main__":
         lexer = Lexer(my_file.read(), file)
         for t in lexer.analyze():
             if t.token_type == LexerType.NEWLINE:
-                print(t)
+                print(t, end="\n\n")
             else:
                 print(t, end=" ")

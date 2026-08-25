@@ -24,11 +24,16 @@ class VisitorException(Exception):
 @dataclass(kw_only=True)
 class Symbol:
     name: str
-    type: Symbol | None = None
+    type: str | None = None
 
 
 @dataclass(kw_only=True)
-class BuiltinTypeSymbol(Symbol):
+class AccessibleSymbol(Symbol):
+    accessed: bool = False
+
+
+@dataclass(kw_only=True)
+class BuiltinTypeSymbol(AccessibleSymbol):
     pass
 
 
@@ -48,11 +53,6 @@ LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type="List")
 DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type="Dict")
 ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type="Enum")
 FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type="Func")
-
-
-@dataclass(kw_only=True)
-class AccessibleSymbol(Symbol):
-    accessed: bool = False
 
 
 @dataclass(kw_only=True)
@@ -83,14 +83,26 @@ class FuncSymbol(AccessibleSymbol):
 
 @dataclass(kw_only=True)
 class AliasSymbol(AccessibleSymbol):
-    type: list[my_ast.Type]
+    pass
 
 
 @dataclass(kw_only=True)
-class BuiltinFuncSymbol(AccessibleSymbol):
-    parameters: my_ast.Var | my_ast.Type
-    body: my_ast.Compound
-    val_assigned: bool = False
+class BuiltinFuncSymbol(FuncSymbol):
+    pass
+
+
+PRINT_BUILTIN = BuiltinFuncSymbol(
+    name=grammar.PRINT,
+    type="Func",
+    parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
+    body=None,
+)
+INPUT_BUILTIN = BuiltinFuncSymbol(
+    name=grammar.INPUT,
+    type="Func",
+    parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
+    body=None,
+)
 
 
 class NodeVisitor:
@@ -115,6 +127,8 @@ class NodeVisitor:
         self.define(grammar.DICT, DICT_BUILTIN)
         self.define(grammar.ENUM, ENUM_BUILTIN)
         self.define(grammar.FUNC, FUNC_BUILTIN)
+        self.define(grammar.PRINT, PRINT_BUILTIN)
+        self.define(grammar.INPUT, INPUT_BUILTIN)
 
     def visit(self, node: my_ast.Node) -> Any:
         method_name = "visit_" + to_snake(type(node).__name__)
@@ -133,7 +147,9 @@ class NodeVisitor:
     def second_scope(self) -> Scope | None:
         return self._scope[-2] if len(self._scope) >= 2 else None
 
-    def search_scopes(self, name: str, level: int | None = None) -> Symbol | None:
+    def search_scopes(
+        self, name: str, level: int | None = None
+    ) -> AccessibleSymbol | None:
         if level:
             if name in self._scope[level]:
                 return self._scope[level][name]
@@ -143,7 +159,7 @@ class NodeVisitor:
                     return scope[name]
         return None
 
-    def define(self, key: str, value: Symbol, level: int = 0) -> None:
+    def define(self, key: str, value: AccessibleSymbol, level: int = 0) -> None:
         level = (len(self._scope) - level) - 1
         self._scope[level][key] = value
 
@@ -174,13 +190,13 @@ class NodeVisitor:
             and not sym_val.accessed
         ]
 
-    def infer_type(self, value: Symbol) -> Symbol | None:
+    def infer_type(self, value: Any) -> AccessibleSymbol | None:
         if isinstance(value, BuiltinTypeSymbol):
             return value
         if isinstance(value, FuncSymbol):
             return self.search_scopes(grammar.FUNC)
         elif isinstance(value, VarSymbol):
-            return value.type
+            return self.search_scopes(value.type or "")
         elif isinstance(value, my_ast.Type):
             return self.search_scopes(value.value)
         else:
@@ -206,5 +222,4 @@ class NodeVisitor:
                 return self.search_scopes(grammar.ENUM)
             elif callable(value):
                 return self.search_scopes(grammar.FUNC)
-            else:
-                raise TypeError(f"Type not recognized: {value}")
+        raise TypeError(f"Type not recognized: {value}")

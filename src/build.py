@@ -9,7 +9,9 @@ from time import sleep
 import my_ast
 from lexer import Lexer
 from parser import Parser
-from preprocessor import Preprocessor
+import grammar
+from visitor import STR_BUILTIN, NodeVisitor, VarSymbol
+from validator import Validator
 
 
 @contextmanager
@@ -22,32 +24,138 @@ def preamble(my_prog: NamedTemporaryFile) -> Generator[None]:
     my_prog.write("}\n")
 
 
-def visit(node: my_ast.Node) -> str:
-    match node:
-        case my_ast.Assign(left, op, right):
-            visited_left = visit(left)
-            visited_right = visit(right)
-            return f"{right.val_type.lower()} {visited_left} {op} {visited_right};\n"
-        case my_ast.Print(value):
-            printf_str = r'printf("%d\n", '
-            result = visit(value)
-            return f"{printf_str}{result});\n"
-        case my_ast.BinOp(left, op, right):
-            visited_left = visit(left)
-            visited_right = visit(right)
-            return f"{visited_left} {op} {visited_right}"
-        case my_ast.Var(value):
-            return value
-        case my_ast.Num(value):
-            return value
-        case my_ast.Str(value):
-            return value
+class Builder(NodeVisitor):
+    def __init__(self, file_name=None):
+        super().__init__()
+        self.file_name = file_name
+
+    def visit_assign(self, node: my_ast.Assign) -> str:
+        visited_left = self.visit(node.left)
+        visited_right = self.visit(node.right)
+        match node.right:
+            case my_ast.Num(val_type=val_type):
+                var_sym = VarSymbol(
+                    name=node.left.value,
+                    type=val_type,
+                    val_assigned=True,
+                    read_only=node.left.read_only,
+                )
+            case my_ast.Str():
+                var_sym = VarSymbol(
+                    name=node.left.value,
+                    type=grammar.STR,
+                    val_assigned=True,
+                    read_only=node.left.read_only,
+                )
+            case my_ast.Var(value=value):
+                scoped_val = self.search_scopes(value)
+                var_sym = VarSymbol(
+                    name=scoped_val.name,
+                    type=scoped_val.type,
+                    val_assigned=True,
+                    read_only=node.left.read_only,
+                )
+        self.define(node.left.value, var_sym)
+        return f"{var_sym.type.lower()} {visited_left} {node.op} {visited_right};\n"
+
+    def visit_bin_op(self, node: my_ast.BinOp) -> str:
+        visited_left = self.visit(node.left)
+        visited_op = self.visit(node.op)
+        visited_right = self.visit(node.right)
+        return f"({visited_left} {visited_op} {visited_right})"
+
+    def visit_operator(self, node: my_ast.Operator) -> str:
+        match node.value:
+            case 'and':
+                return '&&'
+            case 'or':
+                return '||'
+            case _:
+                return node.value
+
+    def visit_if(self, node: my_ast.If) -> str:
+        comps = []
+        for comp in node.comps:
+            comps.append(self.visit(comp))
+        block = []
+        for line in node.block.children:
+            block.append(self.visit(line))
+        return f"if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}\n}}"
+
+    def visit_else_if(self, node: my_ast.ElseIf) -> str:
+        comps = []
+        for comp in node.comps:
+            comps.append(self.visit(comp))
+        block = []
+        for line in node.block.children:
+            block.append(self.visit(line))
+        return f" else if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}\n}}"
+
+    def visit_else(self, node: my_ast.Else) -> str:
+        block = []
+        for line in node.block.children:
+            block.append(self.visit(line))
+        return f" else {{\n{'\n'.join(block)}\n}}"
+
+    def visit_compound(self, node: my_ast.Compound) -> str:
+        result = []
+        for child in node.children:
+            result.append(self.visit(child))
+        return " ".join(result)
+
+    def visit_var(self, node: my_ast.Var) -> str:
+        return node.value
+
+    def visit_num(self, node: my_ast.Num) -> str:
+        return node.value
+
+    def visit_str(self, node: my_ast.Str) -> str:
+        return f'"{node.value}"'
+
+    def visit_pass(self, _: my_ast.Pass) -> str:
+        return '(void)0;'
+
+    def visit_print(self, node: my_ast.Print) -> str:
+        result = []
+        val_name = ""
+        scoped_var = STR_BUILTIN
+        for arg in node.arguments:
+            match arg:
+                case my_ast.BinOp():
+                    val_name = arg.right.value
+                    scoped_var = self.search_scopes(val_name)
+                case my_ast.Str():
+                    scoped_var = STR_BUILTIN
+                case my_ast.Num(val_type=val_type):
+                    scoped_var = self.infer_type(val_type)
+                case my_ast.Var(value=value):
+                    scoped_var = self.search_scopes(value)
+                case _:
+                    scoped_var = STR_BUILTIN
+            result.append(self.visit(arg))
+        percent = printf_type_to_percent(scoped_var.type)
+        printf_str = f'printf("{percent}\\n", '
+        return f"{printf_str}{' '.join(result)});"
+
+    def visit_eof(self, node: my_ast.Eof) -> str:
+        return ""
+
+
+def printf_type_to_percent(var_type: str) -> str:
+    match var_type:
+        case "Int":
+            return r"%d"
+        case "Str":
+            return r"%s"
+        case _:
+            return r"%s"
 
 
 def emit(tree: my_ast.Program, my_prog: NamedTemporaryFile) -> str:
+    builder = Builder()
     with preamble(my_prog):
         for node in tree.block.children:
-            my_prog.write(visit(node))
+            my_prog.write(builder.visit(node))
     my_prog.seek(0)
 
 
@@ -62,9 +170,9 @@ def build_prog(
         lexer = Lexer(code, source_file)
         parser = Parser(lexer)
         tree = parser.parse()
-        symtab_builder = Preprocessor(parser.file_name)
-        symtab_builder.check(tree)
-        if symtab_builder.warnings:
+        validator = Validator(parser.file_name)
+        validator.check(tree)
+        if validator.warnings:
             sys.exit(1)
         with NamedTemporaryFile(mode="+r", suffix=".c", delete=False) as my_prog:
             emit(tree, my_prog)
