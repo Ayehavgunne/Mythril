@@ -595,7 +595,6 @@ class Parser:
     def if_statement(self) -> my_ast.If:
         self.next_token()
         comps = [self.expr()]
-        pprint(comps)
         self.increment_indent_level()
         comp = my_ast.If(
             comps=comps,
@@ -713,16 +712,6 @@ class Parser:
             return my_ast.UnaryOp(
                 op=token.value, expr=self.factor(), line_num=self.line_num
             )
-        # elif token.value == grammar.NOT:
-        #     self.next_token()
-        #     return my_ast.UnaryOp(
-        #         op=token.value, expr=self.expr(), line_num=self.line_num
-        #     )
-        # elif token.value in (grammar.AND, grammar.OR):
-        #     self.next_token()
-        #     return my_ast.BinOp(
-        #         left=self.factor(), op=self.operator(token), right=self.factor(), line_num=self.line_num
-        #     )
         elif token.value in grammar.COMPARISON_OP:
             self.next_token()
             return my_ast.BinOp(

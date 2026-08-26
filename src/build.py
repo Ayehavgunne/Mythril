@@ -7,17 +7,24 @@ from tempfile import NamedTemporaryFile
 from time import sleep
 
 import my_ast
+import my_types
 from lexer import Lexer
 from parser import Parser
 import grammar
-from visitor import STR_BUILTIN, NodeVisitor, VarSymbol
+from visitor import NodeVisitor, VarSymbol
 from validator import Validator
+
+
+class BuilderError(Exception):
+    pass
 
 
 @contextmanager
 def preamble(my_prog: NamedTemporaryFile) -> Generator[None]:
-    my_prog.write("#include <stdlib.h>\n")
-    my_prog.write("#include <stdio.h>\n")
+    my_prog.write('#pragma clang diagnostic ignored "-Wparentheses-equality"\n')
+    my_prog.write("#include <iostream>\n")
+    my_prog.write("#include <vector>\n")
+    my_prog.write("using namespace std;\n")
     my_prog.write("int main(void) {\n")
     yield
     my_prog.write("return 0;\n")
@@ -36,14 +43,14 @@ class Builder(NodeVisitor):
             case my_ast.Num(val_type=val_type):
                 var_sym = VarSymbol(
                     name=node.left.value,
-                    type=val_type,
+                    type=my_types.type_map[val_type.lower()],
                     val_assigned=True,
                     read_only=node.left.read_only,
                 )
             case my_ast.Str():
                 var_sym = VarSymbol(
                     name=node.left.value,
-                    type=grammar.STR,
+                    type=grammar.STR.lower(),
                     val_assigned=True,
                     read_only=node.left.read_only,
                 )
@@ -51,12 +58,25 @@ class Builder(NodeVisitor):
                 scoped_val = self.search_scopes(value)
                 var_sym = VarSymbol(
                     name=scoped_val.name,
-                    type=scoped_val.type,
+                    type=my_types.type_map[scoped_val.type],
                     val_assigned=True,
                     read_only=node.left.read_only,
                 )
+            case my_ast.Collection(type=collection_type, items=items):
+                if collection_type == 'List':
+                    collection_type = items[0].val_type.lower()
+                var_sym = VarSymbol(
+                    name=node.left.value,
+                    type=f'{collection_type}',
+                    val_assigned=True,
+                    read_only=node.left.read_only,
+                )
+                self.define(node.left.value, var_sym)
+                return f"vector<{var_sym.type}> {visited_left} {node.op} {visited_right};\n"
+            case _:
+                raise BuilderError(f'Assignment of type {node.right.__class__.__name__} not implimented')
         self.define(node.left.value, var_sym)
-        return f"{var_sym.type.lower()} {visited_left} {node.op} {visited_right};\n"
+        return f"{var_sym.type} {visited_left} {node.op} {visited_right};\n"
 
     def visit_bin_op(self, node: my_ast.BinOp) -> str:
         visited_left = self.visit(node.left)
@@ -112,43 +132,50 @@ class Builder(NodeVisitor):
     def visit_str(self, node: my_ast.Str) -> str:
         return f'"{node.value}"'
 
+    def visit_collection(self, node: my_ast.Collection) -> str:
+        items = []
+        for item in node.items:
+            items.append(self.visit(item))
+        open_bracket = ''
+        close_bracket = ''
+        match node.type:
+            case grammar.LIST:
+                open_bracket = '{'
+                close_bracket = '}'
+        return f"{open_bracket}{', '.join(items)}{close_bracket}"
+
+    def visit_for(self, node: my_ast.For) -> str:
+        elements = []
+        for element in node.elements:
+            elements.append(self.visit(element))
+        iterator = self.visit(node.iterator)
+        searched_scope = self.search_scopes(iterator)
+        my_type = searched_scope.type.replace('*', '').lower()
+        self.define(
+            elements[0],
+            VarSymbol(
+                name=elements[0],
+                type=my_type,
+                val_assigned=True,
+                read_only=False,
+            )
+        )
+        block = []
+        for line in node.block.children:
+            block.append(self.visit(line))
+        return f"for ( {my_type} {elements[0]} : {iterator} ) {{\n{'\n'.join(block)}\n}}"
+
     def visit_pass(self, _: my_ast.Pass) -> str:
         return '(void)0;'
 
     def visit_print(self, node: my_ast.Print) -> str:
         result = []
-        val_name = ""
-        scoped_var = STR_BUILTIN
         for arg in node.arguments:
-            match arg:
-                case my_ast.BinOp():
-                    val_name = arg.right.value
-                    scoped_var = self.search_scopes(val_name)
-                case my_ast.Str():
-                    scoped_var = STR_BUILTIN
-                case my_ast.Num(val_type=val_type):
-                    scoped_var = self.infer_type(val_type)
-                case my_ast.Var(value=value):
-                    scoped_var = self.search_scopes(value)
-                case _:
-                    scoped_var = STR_BUILTIN
             result.append(self.visit(arg))
-        percent = printf_type_to_percent(scoped_var.type)
-        printf_str = f'printf("{percent}\\n", '
-        return f"{printf_str}{' '.join(result)});"
+        return f'cout << {' << '.join(result)} << "\\n";'
 
     def visit_eof(self, node: my_ast.Eof) -> str:
         return ""
-
-
-def printf_type_to_percent(var_type: str) -> str:
-    match var_type:
-        case "Int":
-            return r"%d"
-        case "Str":
-            return r"%s"
-        case _:
-            return r"%s"
 
 
 def emit(tree: my_ast.Program, my_prog: NamedTemporaryFile) -> str:
@@ -174,7 +201,7 @@ def build_prog(
         validator.check(tree)
         if validator.warnings:
             sys.exit(1)
-        with NamedTemporaryFile(mode="+r", suffix=".c", delete=False) as my_prog:
+        with NamedTemporaryFile(mode="+r", suffix=".cpp", delete=False) as my_prog:
             emit(tree, my_prog)
             with suppress(FileNotFoundError):
                 os.remove(f"{out_path}")
@@ -182,7 +209,7 @@ def build_prog(
                 with open(my_prog.name) as my_prog_file:
                     print(my_prog_file.read())
             subprocess.Popen(
-                f"clang {my_prog.name} -o {out_path} && rm {my_prog.name}", shell=True
+                f"clang++ -Iinclude {my_prog.name} -o {out_path} && rm {my_prog.name}", shell=True
             )
         if run:
             sleep(0.1)

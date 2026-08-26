@@ -6,6 +6,7 @@ from typing import Any
 
 import grammar
 import my_ast
+import my_types
 
 type Scope = dict[str, AccessibleSymbol]
 
@@ -24,7 +25,7 @@ class VisitorException(Exception):
 @dataclass(kw_only=True)
 class Symbol:
     name: str
-    type: str | None = None
+    type: my_types.Any
 
 
 @dataclass(kw_only=True)
@@ -37,22 +38,22 @@ class BuiltinTypeSymbol(AccessibleSymbol):
     pass
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY)
-INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type="Int")
+ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY, type=my_types.Any)
+INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type=my_types.Int)
 # INT8_BUILTIN = BuiltinTypeSymbol(name=grammar.INT8, type="Int8")
 # INT32_BUILTIN = BuiltinTypeSymbol(name=grammar.INT32, type="Int32")
 # INT128_BUILTIN = BuiltinTypeSymbol(name=grammar.INT128, type="Int128")
-DEC_BUILTIN = BuiltinTypeSymbol(name=grammar.DEC, type="Dec")
-FLOAT_BUILTIN = BuiltinTypeSymbol(name=grammar.FLOAT, type="Float")
+DEC_BUILTIN = BuiltinTypeSymbol(name=grammar.DEC, type=my_types.Dec)
+FLOAT_BUILTIN = BuiltinTypeSymbol(name=grammar.FLOAT, type=my_types.Float)
 # COMPLEX_BUILTIN = BuiltinTypeSymbol(name=grammar.COMPLEX, type="Complex")
-BOOL_BUILTIN = BuiltinTypeSymbol(name=grammar.BOOL, type="Bool")
+BOOL_BUILTIN = BuiltinTypeSymbol(name=grammar.BOOL, type=my_types.Bool)
 # BYTES_BUILTIN = BuiltinTypeSymbol(name=grammar.BYTES, type="Bytes")
-STR_BUILTIN = BuiltinTypeSymbol(name=grammar.STR, type="Str")
-STRUCT_BUILTIN = BuiltinTypeSymbol(name=grammar.STRUCT, type="Str")
-LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type="List")
-DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type="Dict")
-ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type="Enum")
-FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type="Func")
+STR_BUILTIN = BuiltinTypeSymbol(name=grammar.STR, type=my_types.Str)
+STRUCT_BUILTIN = BuiltinTypeSymbol(name=grammar.STRUCT, type=my_types.Struct)
+LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type=my_types.List)
+DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type=my_types.Dict)
+ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type=my_types.Enum)
+FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type=my_types.Func)
 
 
 @dataclass(kw_only=True)
