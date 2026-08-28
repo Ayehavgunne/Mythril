@@ -4,15 +4,21 @@ import grammar
 
 
 @dataclass
-class Any:
+class MyAny:
     name: str = grammar.ANY
 
     @property
-    def type(self):
-        return 'void'
+    def destination_type(self) -> str:
+        return "void"
+
 
 @dataclass
-class AnyVal(Any):
+class Void(MyAny):
+    name: str = "void"
+
+
+@dataclass
+class AnyVal(MyAny):
     pass
 
 
@@ -21,7 +27,7 @@ class Int(AnyVal):
     name: str = grammar.INT
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         return "int"
 
 
@@ -30,8 +36,8 @@ class Int8(AnyVal):
     name: str = grammar.INT8
 
     @property
-    def type(self):
-        raise 'char'
+    def destination_type(self) -> str:
+        return "char"
 
 
 @dataclass
@@ -39,7 +45,7 @@ class Int32(AnyVal):
     name: str = grammar.INT32
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         return "long"
 
 
@@ -48,7 +54,7 @@ class Int64(AnyVal):
     name: str = grammar.INT64
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         return "long long"
 
 
@@ -57,7 +63,7 @@ class Int128(AnyVal):
     name: str = grammar.INT128
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
@@ -66,7 +72,7 @@ class Dec(AnyVal):
     name: str = grammar.DEC
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
@@ -75,7 +81,7 @@ class Float(AnyVal):
     name: str = grammar.FLOAT
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         return "float"
 
 
@@ -84,7 +90,7 @@ class Complex(AnyVal):
     name: str = grammar.COMPLEX
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
@@ -93,8 +99,8 @@ class Str(AnyVal):
     name: str = grammar.STR
 
     @property
-    def type(self):
-        raise 'string'
+    def destination_type(self) -> str:
+        return "string"
 
 
 @dataclass
@@ -102,7 +108,7 @@ class Bool(AnyVal):
     name: str = grammar.BOOL
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         return "bool"
 
 
@@ -111,24 +117,24 @@ class Bytes(AnyVal):
     name: str = grammar.BYTES
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
 @dataclass
-class Collection(Any):
-    name: str = 'Collection'
-    subtype: Any = field(default_factory=Any)
+class Collection(MyAny):
+    name: str = "Collection"
+    subtype: MyAny = field(default_factory=MyAny)
 
 
 @dataclass
 class List(Collection):
     name: str = grammar.LIST
-    subtype: Any = field(default_factory=Any)
+    subtype: MyAny = field(default_factory=MyAny)
 
     @property
-    def type(self):
-        return f'vector<{self.subtype.type}>'
+    def destination_type(self) -> str:
+        return f"vector<{self.subtype.destination_type}>"
 
 
 @dataclass
@@ -136,7 +142,7 @@ class Set(Collection):
     name: str = grammar.SET
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
@@ -145,30 +151,30 @@ class Dict(Collection):
     name: str = grammar.DICT
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
 @dataclass
-class Enum(Collection):
-    name: str = grammar.ENUM
+class Enum(AnyVal):
+    name: str
 
     @property
-    def type(self):
-        raise NotImplementedError
+    def destination_type(self) -> str:
+        return self.name
 
 
 @dataclass
-class Struct(Collection):
-    name: str = grammar.STRUCT
+class Struct(AnyVal):
+    name: str
 
     @property
-    def type(self):
-        raise NotImplementedError
+    def destination_type(self) -> str:
+        return self.name
 
 
 @dataclass
-class AnyRef(Any):
+class AnyRef(MyAny):
     pass
 
 
@@ -177,12 +183,14 @@ class Func(AnyRef):
     name: str = grammar.FUNC
 
     @property
-    def type(self):
+    def destination_type(self) -> str:
         raise NotImplementedError
 
 
 type_map = {
-    grammar.ANY: Any,
+    grammar.ANY: MyAny,
     grammar.INT: Int,
     grammar.STR: Str,
+    grammar.LIST: List,
+    grammar.STRUCT: Struct,
 }

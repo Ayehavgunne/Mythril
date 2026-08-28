@@ -1,3 +1,4 @@
+from contextlib import suppress
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -25,12 +26,13 @@ class VisitorException(Exception):
 @dataclass(kw_only=True)
 class Symbol:
     name: str
-    type: my_types.Any
+    type: my_types.MyAny
 
 
 @dataclass(kw_only=True)
 class AccessibleSymbol(Symbol):
     accessed: bool = False
+    read_only: bool = False
 
 
 @dataclass(kw_only=True)
@@ -38,7 +40,7 @@ class BuiltinTypeSymbol(AccessibleSymbol):
     pass
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY, type=my_types.Any)
+ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY, type=my_types.MyAny)
 INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type=my_types.Int)
 # INT8_BUILTIN = BuiltinTypeSymbol(name=grammar.INT8, type="Int8")
 # INT32_BUILTIN = BuiltinTypeSymbol(name=grammar.INT32, type="Int32")
@@ -59,7 +61,6 @@ FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type=my_types.Func)
 @dataclass(kw_only=True)
 class VarSymbol(AccessibleSymbol):
     val_assigned: bool = False
-    read_only: bool = False
 
 
 @dataclass(kw_only=True)
@@ -78,7 +79,7 @@ class CollectionSymbol(AccessibleSymbol):
 class FuncSymbol(AccessibleSymbol):
     parameters: dict[str, my_ast.Var | my_ast.Type] | None
     parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
-    body: my_ast.Compound | None
+    # body: my_ast.Compound | None
     val_assigned: bool = False
 
 
@@ -94,15 +95,15 @@ class BuiltinFuncSymbol(FuncSymbol):
 
 PRINT_BUILTIN = BuiltinFuncSymbol(
     name=grammar.PRINT,
-    type="Func",
+    type=my_types.Void(),
     parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
-    body=None,
+    # body=None,
 )
 INPUT_BUILTIN = BuiltinFuncSymbol(
     name=grammar.INPUT,
-    type="Func",
+    type=my_types.Str(),
     parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
-    body=None,
+    # body=None,
 )
 
 
@@ -167,7 +168,7 @@ class NodeVisitor:
     def new_scope(self) -> None:
         self._scope.append({})
 
-    def drop_top_scope(self) -> None:
+    def pop_scope(self) -> None:
         self._scope.pop()
 
     @property
@@ -191,36 +192,42 @@ class NodeVisitor:
             and not sym_val.accessed
         ]
 
-    def infer_type(self, value: Any) -> AccessibleSymbol | None:
+    def infer_type(self, value: Any) -> my_types.MyAny | None:
+        with suppress(TypeError):
+            if issubclass(value, my_types.MyAny):
+                return value
         if isinstance(value, BuiltinTypeSymbol):
-            return value
+            return value.type
         if isinstance(value, FuncSymbol):
-            return self.search_scopes(grammar.FUNC)
+            return self.search_scopes(grammar.FUNC).type
         elif isinstance(value, VarSymbol):
-            return self.search_scopes(value.type or "")
+            with suppress(TypeError):
+                if issubclass(value.type, my_types.MyAny):
+                    return value.type
+            return self.infer_type(self.search_scopes(value.type.value))
         elif isinstance(value, my_ast.Type):
-            return self.search_scopes(value.value)
+            return self.search_scopes(value.value).type
         else:
-            if isinstance(value, int):
-                return self.search_scopes(grammar.INT)
-            elif isinstance(value, Decimal):
-                return self.search_scopes(grammar.DEC)
-            elif isinstance(value, float):
-                return self.search_scopes(grammar.FLOAT)
-            elif isinstance(value, complex):
-                return self.search_scopes(grammar.COMPLEX)
-            elif isinstance(value, str):
-                return self.search_scopes(grammar.STR)
-            elif isinstance(value, bool):
-                return self.search_scopes(grammar.BOOL)
-            elif isinstance(value, bytes):
-                return self.search_scopes(grammar.BYTES)
-            elif isinstance(value, list):
-                return self.search_scopes(grammar.LIST)
-            elif isinstance(value, dict):
-                return self.search_scopes(grammar.DICT)
-            elif isinstance(value, Enum):
-                return self.search_scopes(grammar.ENUM)
-            elif callable(value):
-                return self.search_scopes(grammar.FUNC)
+            if isinstance(value, int) or value == grammar.INT:
+                return self.search_scopes(grammar.INT).type
+            elif isinstance(value, Decimal) or value == grammar.DEC:
+                return self.search_scopes(grammar.DEC).type
+            elif isinstance(value, float) or value == grammar.FLOAT:
+                return self.search_scopes(grammar.FLOAT).type
+            elif isinstance(value, complex) or value == grammar.COMPLEX:
+                return self.search_scopes(grammar.COMPLEX).type
+            elif isinstance(value, str) or value == grammar.STR:
+                return self.search_scopes(grammar.STR).type
+            elif isinstance(value, bool) or value == grammar.BOOL:
+                return self.search_scopes(grammar.BOOL).type
+            elif isinstance(value, bytes) or value == grammar.BYTES:
+                return self.search_scopes(grammar.BYTES).type
+            elif isinstance(value, list) or value == grammar.LIST:
+                return self.search_scopes(grammar.LIST).type
+            elif isinstance(value, dict) or value == grammar.DICT:
+                return self.search_scopes(grammar.DICT).type
+            elif isinstance(value, Enum) or value == grammar.ENUM:
+                return self.search_scopes(grammar.ENUM).type
+            elif callable(value) or value == grammar.FUNC:
+                return self.search_scopes(grammar.FUNC).type
         raise TypeError(f"Type not recognized: {value}")

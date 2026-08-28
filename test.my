@@ -1,3 +1,5 @@
-my_str = "Hello, World!"
-
-print(my_str)
+for item in 0..5
+	if item == 3
+		break
+	else
+		print(item)

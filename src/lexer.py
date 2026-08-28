@@ -86,9 +86,8 @@ class Lexer:
         return next_token
 
     def skip_whitespace(self):
-        # if self.peek(-1) == '\n':
-        #     print(f'({self.current_char})')
-        #     raise SyntaxError('Only tab characters can indent')
+        if self.peek(-1) == "\n":
+            raise SyntaxError(f"Only tab characters can indent. Line {self.line_num}")
         while self.current_char is not None and self.current_char.isspace():
             self.next_char()
             self.reset_word()
@@ -250,23 +249,7 @@ class Lexer:
                     return self.make_token(TokenType.OP, self.reset_word())
 
             if self.word in grammar.KEYWORDS:
-                next_token = self.preview_token(1)
-                if (
-                    self.word in grammar.MULTI_WORD_KEYWORDS
-                    and (next_token.value if next_token else "")
-                    in grammar.MULTI_WORD_KEYWORDS
-                ):
-                    self.next_char()
-                    self.word += " "
-                    while (
-                        self.char_type == LexerType.ALPHANUMERIC
-                        or self.char_type == LexerType.NUMERIC
-                    ):
-                        self.word += self.current_char
-                        self.next_char()
-                    return self.make_token(TokenType.KEYWORD, self.reset_word())
-                else:
-                    return self.make_token(TokenType.KEYWORD, self.reset_word())
+                return self.make_token(TokenType.KEYWORD, self.reset_word())
             elif self.word in grammar.TYPES:
                 return self.make_token(TokenType.TYPE, self.reset_word())
             elif self.word in grammar.CONSTANTS:

@@ -2,6 +2,7 @@ import warnings
 
 import grammar
 import my_ast
+import my_types
 from grammar import LexerType
 from visitor import (
     AliasSymbol,
@@ -120,7 +121,7 @@ class Validator(NodeVisitor):
             return NotImplementedError
 
     def visit_num(self, node: my_ast.Num):
-        return self.infer_type(node.value)
+        return self.infer_type(node.val_type)
 
     def visit_str(self, node: my_ast.Str):
         return self.infer_type(node.value)
@@ -150,7 +151,7 @@ class Validator(NodeVisitor):
             value = self.visit(node.right)
         elif isinstance(node.left, my_ast.CollectionAccess):
             collection_assignment = True
-            var_name = node.left.collection.value
+            var_name = node.left.name
             # key = node.left.key.value
             value = self.visit(node.right)
         elif isinstance(node.right, my_ast.Var):
@@ -162,6 +163,12 @@ class Validator(NodeVisitor):
             # print(f'var_name is {var_name}')
             # print(f'Var value is {value}')
             # print(f'lookup_var is {lookup_var}')
+            self.define(var_name, value)
+        elif isinstance(node.right, my_ast.StructCreation):
+            value = self.visit(node.right)
+            value.val_assigned = True
+            self.define(node.left.value, value)
+            return
         else:
             var_name = node.left.value
             value = self.visit(node.right)
@@ -196,13 +203,15 @@ class Validator(NodeVisitor):
                         name=var_name,
                         type=val_info.type.return_type,
                         parameters=val_info.parameters,
-                        body=val_info.body,
+                        # body=val_info.body,
                         parameter_defaults=val_info.parameter_defaults,
                     )
                     self.define(var_name, func_sym)
             else:
                 var_sym = VarSymbol(
-                    name=var_name, type=value.type, read_only=node.left.read_only
+                    name=var_name,
+                    type=value.type if hasattr(value, "type") else value,
+                    read_only=node.left.read_only,
                 )
                 var_sym.val_assigned = True
                 self.define(var_name, var_sym)
@@ -280,7 +289,7 @@ class Validator(NodeVisitor):
         else:
             if not val.val_assigned:
                 warnings.warn(
-                    f"file={self.file_name} line={var_name}: {node.line_num} is being accessed before it was defined"
+                    f"file={self.file_name} line={node.line_num}: {var_name} is being accessed before it was defined"
                 )
                 self.warnings = True
             val.accessed = True
@@ -293,23 +302,24 @@ class Validator(NodeVisitor):
         else:
             left = self.visit(node.left)
             right = self.visit(node.right)
-            left_type = self.infer_type(left)
-            right_type = self.infer_type(right)
+            left_symbol = self.infer_type(left)
+            right_symbol = self.infer_type(right)
             any_type = self.search_scopes(grammar.ANY)
-            # if left_type in self.num_types:
+            # if left_symbol in self.num_types:
             # 	if right_type in self.num_types:
             # 		return left_type
             if (
-                right_type is left_type
-                or left_type is any_type
-                or right_type is any_type
+                right_symbol is left_symbol
+                or left_symbol is any_type
+                or right_symbol is any_type
             ):
-                return left_type
+                return left_symbol
             else:
                 warnings.warn(
                     f"file={self.file_name} line={node.line_num}: types do not match for operation {node.op}, got {left} : {right}"
                 )
                 self.warnings = True
+        raise Exception("no idea")
 
     def visit_unary_op(self, node: my_ast.UnaryOp):
         return self.visit(node.expr)
@@ -334,7 +344,7 @@ class Validator(NodeVisitor):
             return left_type
         else:
             warnings.warn(
-                f"file={self.file_name} line={node.line_num}: Please don't do what you just did there ever again. It bad (fix this message)"
+                f"file={self.file_name} line={node.line_num}: Range types do not match"
             )
             self.warnings = True
 
@@ -366,9 +376,9 @@ class Validator(NodeVisitor):
             func_name,
             FuncSymbol(
                 name=func_name,
-                type=func_type,
+                type=func_type.type,
                 parameters=node.parameters,
-                body=node.body,
+                # body=node.body,
                 parameter_defaults=node.parameter_defaults,
             ),
         )
@@ -381,18 +391,22 @@ class Validator(NodeVisitor):
             )
             varargs.val_assigned = True
             self.define(varargs.name, varargs)
-        for k, v in node.parameters.items():
-            var_type = self.search_scopes(v.value)
+        for var, var_type in node.parameters.items():
+            # var_type = self.search_scopes(v.value)
             if var_type is self.search_scopes(grammar.FUNC):
-                sym = FuncSymbol(k, v.func_ret_type, None, None)
+                sym = FuncSymbol(name=var, type=var_type, parameters=node.parameters)
             elif isinstance(var_type, AliasSymbol):
                 var_type.accessed = True
                 if var_type.type is self.search_scopes(grammar.FUNC):
-                    sym = FuncSymbol(k, var_type.type.return_type, None, None)
+                    sym = FuncSymbol(
+                        name=var,
+                        type=var_type.type.return_type,
+                        parameters=node.parameters,
+                    )
                 else:
                     raise NotImplementedError
             else:
-                sym = VarSymbol(k, var_type)
+                sym = VarSymbol(name=var, type=var_type)
             sym.val_assigned = True
             self.define(sym.name, sym)
         return_types = self.visit(node.body)
@@ -401,7 +415,7 @@ class Validator(NodeVisitor):
             self.return_flag = False
             for ret_type in return_types:
                 infered_type = self.infer_type(ret_type)
-                if infered_type is not func_type:
+                if infered_type is not func_type.type:
                     warnings.warn(
                         f"file={self.file_name} line={node.line_num}: The actual return type does not match the declared return type: {func_name}"
                     )
@@ -412,10 +426,14 @@ class Validator(NodeVisitor):
             )
             self.warnings = True
         func_symbol = FuncSymbol(
-            func_name, func_type, node.parameters, node.body, node.parameter_defaults
+            name=func_name,
+            type=func_type.type,
+            parameters=node.parameters,
+            # body=node.body,
+            parameter_defaults=node.parameter_defaults,
         )
         self.define(func_name, func_symbol, 1)
-        self.drop_top_scope()
+        self.pop_scope()
 
     def visit_anonymous_func(self, node: my_ast.AnonymousFunc):
         func_type = self.search_scopes(node.return_type.value)
@@ -424,7 +442,7 @@ class Validator(NodeVisitor):
             var_type = self.search_scopes(v.value)
             if var_type is self.search_scopes(grammar.FUNC):
                 sym = FuncSymbol(
-                    name=k, type=v.func_ret_type, parameters=None, body=None
+                    name=k, type=v.func_ret_type, parameters=node.parameters
                 )
             else:
                 sym = VarSymbol(name=k, type=var_type)
@@ -434,7 +452,7 @@ class Validator(NodeVisitor):
             name=LexerType.ANON,
             type=func_type,
             parameters=node.parameters,
-            body=node.body,
+            # body=node.body,
         )
         return_var_type = self.visit(func_symbol.body)
         return_var_type = list(flatten(return_var_type))
@@ -444,7 +462,7 @@ class Validator(NodeVisitor):
                     f"file={self.file_name} line={node.line_num}: The actual return type does not match the declared return type"
                 )
                 self.warnings = True
-        self.drop_top_scope()
+        self.pop_scope()
         return func_symbol
 
     def visit_func_call(self, node: my_ast.FuncCall):
@@ -459,7 +477,7 @@ class Validator(NodeVisitor):
                 if (
                     param_ss != self.search_scopes(grammar.ANY)
                     and param.value != var.name
-                    and param.value != var.type.name
+                    and param.value != node.arguments[x].val_type
                 ):
                     raise TypeError
             else:
@@ -526,8 +544,14 @@ class Validator(NodeVisitor):
             return method.type
 
     def visit_struct_declaration(self, node: my_ast.StructDeclaration):
-        sym = StructSymbol(name=node.name, fields=node.fields)
+        sym = StructSymbol(name=node.name, fields=node.fields, type=my_types.Struct())
         self.define(sym.name, sym)
+
+    def visit_struct_creation(self, node: my_ast.StructCreation):
+        var = self.search_scopes(node.name)
+        var.accessed = True
+        # TODO: validate the args and named args match the defined struct
+        return VarSymbol(name=node.name, type=var.type)
 
     def visit_return(self, node: my_ast.Return):
         res = self.visit(node.value)
@@ -551,12 +575,17 @@ class Validator(NodeVisitor):
         # if types[1:] == types[:-1]:
         # 	return self.search_scopes(ARRAY), types[0]
         # else:
-        return self.search_scopes(grammar.LIST), self.search_scopes(grammar.ANY)
+        item_type = self.search_scopes(types[0].name)
+        return self.search_scopes(grammar.LIST), item_type.type
 
     def visit_dot_access(self, node: my_ast.DotAccess):
         obj = self.search_scopes(node.obj)
         obj.accessed = True
-        return self.visit(obj.type.fields[node.field])
+        try:
+            return self.visit(obj.type.fields[node.field])
+        except Exception:
+            print("FIX THIS")
+            return
 
     def visit_dict(self, node: my_ast.Dict):
         for key in node.items:
@@ -566,7 +595,7 @@ class Validator(NodeVisitor):
         return self.search_scopes(grammar.DICT)
 
     def visit_collection_access(self, node: my_ast.CollectionAccess):
-        collection = self.search_scopes(node.value)
+        collection = self.search_scopes(node.name)
         if not isinstance(collection, CollectionSymbol):
             raise TypeError
         collection.accessed = True
@@ -577,13 +606,11 @@ class Validator(NodeVisitor):
         if collection.type is self.search_scopes(
             grammar.LIST
         ) or collection.type is self.search_scopes(grammar.SET):
-            if key is not self.search_scopes(
-                grammar.INT
-            ) and key.type is not self.search_scopes(grammar.INT):
-                warnings.warn(
-                    f"file={self.file_name} line={node.line_num}: Something something error... huh? (fix this message)"
-                )
-                self.warnings = True
+            # if key is not self.search_scopes(grammar.INT):
+            #     warnings.warn(
+            #         f"file={self.file_name} line={node.line_num}: Something something error... huh? (fix this message)"
+            #     )
+            #     self.warnings = True
             return collection.item_types
         elif collection.type is self.search_scopes(
             grammar.DICT

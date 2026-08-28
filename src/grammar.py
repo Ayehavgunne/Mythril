@@ -62,6 +62,7 @@ NEWLINE = "\n"
 INDENT = "\t"
 SINGLE_QUOTE = "'"
 DOUBLE_QUOTE = '"'
+TYPE_DELIMETER = COLON
 
 LBRACKETS = (LPAREN, LSQUAREBRACKET, LCURLYBRACKET)
 
@@ -104,6 +105,7 @@ ENUM = "enum"
 STRUCT = "struct"
 CLASS = "class"
 CONST = "const"
+STATIC = "static"
 NEW = "new"
 SUPER = "super"
 SELF = "self"
@@ -264,11 +266,10 @@ KEYWORDS = (
     GETTER,
     SETTER,
     ASSERT,
+    STATIC,
     NEW,
     ALIAS,
 )
-
-MULTI_WORD_KEYWORDS = (IF, ELSE, ELSE_IF)
 
 TYPES = (
     ANY,

@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 
 import grammar
 
-# import my_types
-
 
 @dataclass(kw_only=True)
 class Node:
@@ -51,7 +49,6 @@ class VarDecl(Expression):
 @dataclass(kw_only=True)
 class Var(Expression):
     value: str
-    # type: str
     line_num: int
     read_only: bool = False
 
@@ -103,25 +100,30 @@ class Return(Expression):
 @dataclass(kw_only=True)
 class StructDeclaration(Statement):
     name: str
-    fields: dict[str, Type]
+    instance_fields: dict[str, Type]
+    static_fields: dict[str, Type]
     line_num: int
 
 
 @dataclass(kw_only=True)
 class StructLiteral(Expression):
-    fields: dict[str, Type]
+    intsance_fields: dict[str, Type]
     line_num: int
 
 
 @dataclass(kw_only=True)
-class ClassDeclaration(Statement):
+class StructCreation(Expression):
     name: str
+    arguments: list[Expression]
+    line_num: int
+    named_arguments: dict[str, Expression] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
+class ClassDeclaration(StructDeclaration):
     base: NotDoneYet
     constructor: FuncDecl | None
-    methods: NotDoneYet
-    class_fields: NotDoneYet
-    instance_fields: NotDoneYet
-    line_num: int
+    methods: list[FuncDecl]
 
 
 @dataclass(kw_only=True)
@@ -163,16 +165,16 @@ class Else(Statement):
 @dataclass(kw_only=True)
 class While(Statement):
     op: str
-    comp: list[Node]
+    comp: list[Expression]
     block: LoopBlock
     line_num: int
 
 
 @dataclass(kw_only=True)
 class For(Statement):
-    iterator: Node | list[Node]
+    iterator: Expression | list[Expression]
     block: LoopBlock
-    elements: list[Node]
+    elements: list[Expression]
     line_num: int
 
 
@@ -199,14 +201,14 @@ class Pass(Statement):
 @dataclass(kw_only=True)
 class BinOp(Expression):
     left: Expression
-    op: str
+    op: Operator
     right: Expression
     line_num: int
 
 
 @dataclass(kw_only=True)
 class UnaryOp(Expression):
-    op: str
+    op: Operator
     expr: Expression
     line_num: int
 
@@ -227,6 +229,8 @@ class Range(Expression):
 
 @dataclass(kw_only=True)
 class CollectionAccess(Expression):
+    name: str
+    type: str
     key: Node
     line_num: int
 
