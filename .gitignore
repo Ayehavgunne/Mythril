@@ -167,3 +167,5 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 /.vscode/
+/.ruff_cache/
+/.venv/

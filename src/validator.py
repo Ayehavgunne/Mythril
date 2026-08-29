@@ -6,6 +6,7 @@ import my_types
 from grammar import LexerType
 from visitor import (
     AliasSymbol,
+    ClassSymbol,
     CollectionSymbol,
     FuncSymbol,
     NodeVisitor,
@@ -369,7 +370,10 @@ class Validator(NodeVisitor):
 
     def visit_func_decl(self, node: my_ast.FuncDecl):
         func_name = node.name
-        func_type = self.search_scopes(node.return_type.value)
+        if node.return_type.value == grammar.VOID:
+            func_type = VarSymbol(name=grammar.VOID, type=my_types.Void)
+        else:
+            func_type = self.search_scopes(node.return_type.value)
         if func_type and func_type.name == grammar.FUNC:
             func_type.return_type = self.visit(node.return_type.func_ret_type)
         self.define(
@@ -420,7 +424,7 @@ class Validator(NodeVisitor):
                         f"file={self.file_name} line={node.line_num}: The actual return type does not match the declared return type: {func_name}"
                     )
                     self.warnings = True
-        elif func_type != "void":  # TODO: void no longer a thing
+        elif func_type.name != grammar.VOID:
             warnings.warn(
                 f"file={self.file_name} line={node.line_num}: No return value was specified for function: {func_name}"
             )
@@ -507,7 +511,10 @@ class Validator(NodeVisitor):
 
     def visit_method_call(self, node: my_ast.MethodCall):  # Not done here!
         method_name = node.name
-        _ = self.search_scopes(node.obj)
+        obj_symbol = self.search_scopes(node.obj)
+        if obj_symbol:
+            # TODO: validate that the method belongs to the obj instance
+            return
         method = self.search_scopes(method_name)
         for x, param in enumerate(method.parameters.values()):
             if x < len(node.arguments):
@@ -553,6 +560,24 @@ class Validator(NodeVisitor):
         # TODO: validate the args and named args match the defined struct
         return VarSymbol(name=node.name, type=var.type)
 
+    def visit_class_declaration(self, node: my_ast.ClassDeclaration):
+        self.new_scope()
+        instance_fields = {}
+        static_fields = {}
+        for field, field_type in node.instance_fields.items():
+            instance_fields[field] = self.visit(field_type)
+            self.define(field, instance_fields[field])
+        for field, field_type in node.static_fields.items():
+            static_fields[field] = self.visit(field_type)
+            self.define(field, static_fields[field])
+        methods = []
+        for method in node.methods:
+            methods.append(self.visit(method))
+            self.define(method.name, methods[-1])
+        sym = ClassSymbol(name=node.name, fields=instance_fields, type=my_types.Class())
+        self.pop_scope()
+        self.define(sym.name, sym)
+
     def visit_return(self, node: my_ast.Return):
         res = self.visit(node.value)
         self.return_flag = True
@@ -586,6 +611,10 @@ class Validator(NodeVisitor):
         except Exception:
             print("FIX THIS")
             return
+
+    def visit_self(self, _: my_ast.Self):
+        # TODO: verify the self access is correct
+        return
 
     def visit_dict(self, node: my_ast.Dict):
         for key in node.items:

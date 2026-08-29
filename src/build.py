@@ -12,7 +12,7 @@ from lexer import Lexer
 from parser import Parser
 import grammar
 from preamble import Preamble
-from visitor import NodeVisitor, VarSymbol, FuncSymbol, StructSymbol
+from visitor import ClassSymbol, NodeVisitor, VarSymbol, FuncSymbol, StructSymbol
 from validator import Validator
 
 
@@ -96,7 +96,7 @@ class Builder(NodeVisitor):
                 raise BuilderError(
                     f"Assignment of type {node.right.__class__.__name__} not implimented"
                 )
-        assigned = self.search_scopes(node.left.name)
+        assigned = self.search_scopes(node.left.name if hasattr(node.left, 'name') else node.left.value)
         if assigned is None:
             self.define(visited_left, var_sym)
             return f"{var_sym.type.destination_type} {visited_left} {node.op} {visited_right};\n"
@@ -127,7 +127,7 @@ class Builder(NodeVisitor):
         for line in node.block.children:
             block.append(self.visit(line))
         self.pop_scope()
-        return f"if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}\n}}"
+        return f"if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}\n}}\n"
 
     def visit_else_if(self, node: my_ast.ElseIf) -> str:
         comps = []
@@ -138,7 +138,7 @@ class Builder(NodeVisitor):
         for line in node.block.children:
             block.append(self.visit(line))
         self.pop_scope()
-        return f" else if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}\n}}"
+        return f" else if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}\n}}\n"
 
     def visit_else(self, node: my_ast.Else) -> str:
         block = []
@@ -146,7 +146,7 @@ class Builder(NodeVisitor):
         for line in node.block.children:
             block.append(self.visit(line))
         self.pop_scope()
-        return f" else {{\n{'\n'.join(block)}\n}}"
+        return f" else {{\n{'\n'.join(block)}\n}}\n"
 
     def visit_compound(self, node: my_ast.Compound) -> str:
         result = []
@@ -269,12 +269,53 @@ class Builder(NodeVisitor):
             args.append(self.visit(arg))
         return f"{func.name}({', '.join(args)})"
 
+    def visit_method_call(self, node: my_ast.MethodCall) -> str:
+        func = self.search_scopes(node.name)
+        obj = node.obj
+        args = []
+        for arg in node.arguments:
+            if arg is not None:
+                args.append(self.visit(arg))
+        return f"{obj}.{func.name}({', '.join(args)});"
+
     def visit_print(self, node: my_ast.Print) -> str:
         result = []
         self.preamble.print = True
         for arg in node.arguments:
             result.append(self.visit(arg))
         return f'cout << {" << ".join(result)} << "\\n";\n'
+
+    def visit_class_declaration(self, node: my_ast.ClassDeclaration) -> str:
+        name = node.name
+        lower_name = name.lower()
+        instance_fields = []
+        static_fields = []
+        print_fields = []
+        methods = []
+        for field, field_type in node.static_fields.items():
+            scoped_field_type = self.infer_type(field_type.value)()
+            static_fields.append(f"static {scoped_field_type.destination_type} {field};")
+            # print_fields.append(f'"    {field}: " << {name}.{field}')
+        for field, field_type in node.instance_fields.items():
+            scoped_field_type = self.infer_type(field_type.value)()
+            instance_fields.append(f"{scoped_field_type.destination_type} {field};")
+            print_fields.append(f'"    {field}: " << {lower_name}.{field}')
+        for method in node.methods:
+            methods.append(self.visit(method))
+        constructor = self.visit(node.constructor)
+        self.define(
+            name,
+            ClassSymbol(
+                name=name, type=type_map[grammar.CLASS](name=name), fields=node.instance_fields
+            ),
+        )
+        overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
+return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
+}}"""
+        return f"struct {name} {{\n{'\n'.join(static_fields)}\n{'\n'.join(instance_fields)}\n{'\n'.join(methods)}\n}};\n{overload}\n"
+
+    def visit_self(self, node: my_ast.Self) -> str:
+        return f'this->{node.field}'
 
     def visit_struct_declaration(self, node: my_ast.StructDeclaration) -> str:
         name = node.name
@@ -330,7 +371,7 @@ def emit(tree: my_ast.Program, my_prog: IO[str]) -> str:
     my_prog.write("int main(void) {\n")
     for line in main:
         my_prog.write(line)
-    my_prog.write("return 0;\n")
+    my_prog.write("\nreturn 0;\n")
     my_prog.write("}\n")
     my_prog.seek(0)
 

@@ -15,11 +15,11 @@ class NotDoneYet(Node):
 
 @dataclass(kw_only=True)
 class Statement(Node):
-    pass
+    end: str = ''
 
 
 @dataclass(kw_only=True)
-class Expression(Statement):
+class Expression(Node):
     pass
 
 
@@ -39,11 +39,12 @@ class Compound(Statement):
 
 
 @dataclass(kw_only=True)
-class VarDecl(Expression):
+class VarDecl(Statement):
     value: Var
     type: Type
     line_num: int
     read_only: bool = False
+    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -54,7 +55,7 @@ class Var(Expression):
 
 
 @dataclass(kw_only=True)
-class FuncDecl(Expression):
+class FuncDecl(Statement):
     name: str
     return_type: Type
     parameters: dict[str, Var | Type]
@@ -92,9 +93,10 @@ class MethodCall(Expression):
 
 
 @dataclass(kw_only=True)
-class Return(Expression):
+class Return(Statement):
     value: Node
     line_num: int
+    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -103,20 +105,23 @@ class StructDeclaration(Statement):
     instance_fields: dict[str, Type]
     static_fields: dict[str, Type]
     line_num: int
+    end: str = ';'
 
 
 @dataclass(kw_only=True)
 class StructLiteral(Expression):
     intsance_fields: dict[str, Type]
     line_num: int
+    end: str = ';'
 
 
 @dataclass(kw_only=True)
-class StructCreation(Expression):
+class StructCreation(Statement):
     name: str
     arguments: list[Expression]
     line_num: int
     named_arguments: dict[str, Expression] = field(default_factory=dict)
+    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -127,19 +132,23 @@ class ClassDeclaration(StructDeclaration):
 
 
 @dataclass(kw_only=True)
-class Assign(Expression):
-    left: Expression
-    op: str
-    right: Expression
+class Self(Statement):
+    field: str
     line_num: int
 
 
 @dataclass(kw_only=True)
-class OpAssign(Expression):
+class Assign(Statement):
     left: Expression
     op: str
     right: Expression
     line_num: int
+    end: str = ';'
+
+
+@dataclass(kw_only=True)
+class OpAssign(Assign):
+    pass
 
 
 @dataclass(kw_only=True)

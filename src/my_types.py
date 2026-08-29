@@ -174,6 +174,14 @@ class Struct(AnyVal):
 
 
 @dataclass
+class Class(AnyVal):
+    name: str
+
+    @property
+    def destination_type(self) -> str:
+        return self.name
+
+@dataclass
 class AnyRef(MyAny):
     pass
 
@@ -193,4 +201,5 @@ type_map = {
     grammar.STR: Str,
     grammar.LIST: List,
     grammar.STRUCT: Struct,
+    grammar.CLASS: Class,
 }

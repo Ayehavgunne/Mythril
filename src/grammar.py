@@ -110,6 +110,7 @@ NEW = "new"
 SUPER = "super"
 SELF = "self"
 RETURN = "return"
+VOID = 'void'
 TEST = "test"
 YIELD = "yield"
 BREAK = "break"
@@ -289,6 +290,7 @@ TYPES = (
     ENUM,
     FUNC,
     STRUCT,
+    VOID,
 )
 
 CONSTANTS = (TRUE, FALSE, NAN, INF, NEGATIVE_INF)

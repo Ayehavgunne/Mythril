@@ -32,6 +32,7 @@ class Symbol:
 @dataclass(kw_only=True)
 class AccessibleSymbol(Symbol):
     accessed: bool = False
+    val_assigned: bool = False
     read_only: bool = False
 
 
@@ -60,19 +61,21 @@ FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type=my_types.Func)
 
 @dataclass(kw_only=True)
 class VarSymbol(AccessibleSymbol):
-    val_assigned: bool = False
-
+    pass
 
 @dataclass(kw_only=True)
 class StructSymbol(AccessibleSymbol):
     fields: dict[str, my_ast.Type]
-    val_assigned: bool = False
+
+
+@dataclass(kw_only=True)
+class ClassSymbol(AccessibleSymbol):
+    fields: dict[str, my_ast.Type]
 
 
 @dataclass(kw_only=True)
 class CollectionSymbol(AccessibleSymbol):
     item_types: Symbol
-    val_assigned: bool = False
 
 
 @dataclass(kw_only=True)
@@ -80,7 +83,6 @@ class FuncSymbol(AccessibleSymbol):
     parameters: dict[str, my_ast.Var | my_ast.Type] | None
     parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
     # body: my_ast.Compound | None
-    val_assigned: bool = False
 
 
 @dataclass(kw_only=True)
@@ -192,7 +194,7 @@ class NodeVisitor:
             and not sym_val.accessed
         ]
 
-    def infer_type(self, value: Any) -> my_types.MyAny | None:
+    def infer_type(self, value: Any) -> type[my_types.MyAny] | None:
         with suppress(TypeError):
             if issubclass(value, my_types.MyAny):
                 return value
@@ -207,6 +209,8 @@ class NodeVisitor:
             return self.infer_type(self.search_scopes(value.type.value))
         elif isinstance(value, my_ast.Type):
             return self.search_scopes(value.value).type
+        elif value == grammar.VOID:
+            return my_types.Void
         else:
             if isinstance(value, int) or value == grammar.INT:
                 return self.search_scopes(grammar.INT).type
