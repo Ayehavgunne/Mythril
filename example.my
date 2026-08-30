@@ -81,7 +81,7 @@ def fib_rec(n: Int) > Int
 		return 1
 	return fib_rec(n - 1) + fib_rec(n - 2)
 
-def factorial(n: Int) > Int {
+def factorial(n: Int) > Int
 	if n <= 1
 		return 1
 	return n * factorial(n - 1)

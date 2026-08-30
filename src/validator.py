@@ -1,3 +1,4 @@
+import sys
 import warnings
 
 import grammar
@@ -296,31 +297,49 @@ class Validator(NodeVisitor):
             val.accessed = True
             return val
 
+    def visit_constant(self, node: my_ast.Constant):
+        var_name = node.value
+        val = self.search_scopes(var_name)
+        if val is None:
+            warnings.warn(
+                f"file={self.file_name} line={node.line_num}: Name Error: {var_name!r}"
+            )
+            self.warnings = True
+        else:
+            if not val.val_assigned:
+                warnings.warn(
+                    f"file={self.file_name} line={node.line_num}: {var_name} is being accessed before it was defined"
+                )
+                self.warnings = True
+            val.accessed = True
+            return val
+
     def visit_bin_op(self, node: my_ast.BinOp):
-        if node.op == grammar.CAST:
+        if node.op.value == grammar.CAST:
             self.visit(node.left)
             return self.infer_type(self.visit(node.right))
         else:
             left = self.visit(node.left)
             right = self.visit(node.right)
-            left_symbol = self.infer_type(left)
-            right_symbol = self.infer_type(right)
+            left_type = self.infer_type(left)
+            right_type = self.infer_type(right)
             any_type = self.search_scopes(grammar.ANY)
             # if left_symbol in self.num_types:
             # 	if right_type in self.num_types:
             # 		return left_type
             if (
-                right_symbol is left_symbol
-                or left_symbol is any_type
-                or right_symbol is any_type
+                right_type is left_type
+                or left_type is any_type
+                or right_type is any_type
+                or (left_type in my_types.INTS and right_type in my_types.INTS)
             ):
-                return left_symbol
+                return left_type
             else:
                 warnings.warn(
                     f"file={self.file_name} line={node.line_num}: types do not match for operation {node.op}, got {left} : {right}"
                 )
                 self.warnings = True
-        raise Exception("no idea")
+        sys.exit(1)
 
     def visit_unary_op(self, node: my_ast.UnaryOp):
         return self.visit(node.expr)
@@ -419,7 +438,10 @@ class Validator(NodeVisitor):
             self.return_flag = False
             for ret_type in return_types:
                 infered_type = self.infer_type(ret_type)
-                if infered_type is not func_type.type:
+                if infered_type is not func_type.type and (
+                    infered_type not in my_types.INTS
+                    or func_type.type not in my_types.INTS
+                ):
                     warnings.warn(
                         f"file={self.file_name} line={node.line_num}: The actual return type does not match the declared return type: {func_name}"
                     )
@@ -478,7 +500,9 @@ class Validator(NodeVisitor):
                 param_ss = self.search_scopes(param.value)
                 # if param_ss in self.num_types and (var in self.num_types or var.type in self.num_types):
                 # 	continue
-                if (
+                if var.name in param.value:
+                    pass
+                elif (
                     param_ss != self.search_scopes(grammar.ANY)
                     and param.value != var.name
                     and param.value != node.arguments[x].val_type
@@ -551,7 +575,7 @@ class Validator(NodeVisitor):
             return method.type
 
     def visit_struct_declaration(self, node: my_ast.StructDeclaration):
-        sym = StructSymbol(name=node.name, fields=node.fields, type=my_types.Struct())
+        sym = StructSymbol(name=node.name, fields=node.instance_fields, type=my_types.Struct())
         self.define(sym.name, sym)
 
     def visit_struct_creation(self, node: my_ast.StructCreation):
@@ -609,7 +633,7 @@ class Validator(NodeVisitor):
         try:
             return self.visit(obj.type.fields[node.field])
         except Exception:
-            print("FIX THIS")
+            # TODO: fix this
             return
 
     def visit_self(self, _: my_ast.Self):

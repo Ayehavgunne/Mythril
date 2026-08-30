@@ -38,30 +38,34 @@ class AccessibleSymbol(Symbol):
 
 @dataclass(kw_only=True)
 class BuiltinTypeSymbol(AccessibleSymbol):
-    pass
+    val_assigned: bool = True
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY, type=my_types.MyAny)
-INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type=my_types.Int)
+ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY, type=my_types.MyAny())
+TRUE_BUILTIN = BuiltinTypeSymbol(name=grammar.TRUE, type=my_types.Bool())
+FALSE_BUILTIN = BuiltinTypeSymbol(name=grammar.FALSE, type=my_types.Bool())
+INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type=my_types.Int())
 # INT8_BUILTIN = BuiltinTypeSymbol(name=grammar.INT8, type="Int8")
-# INT32_BUILTIN = BuiltinTypeSymbol(name=grammar.INT32, type="Int32")
+INT32_BUILTIN = BuiltinTypeSymbol(name=grammar.INT32, type=my_types.Int32())
+INT64_BUILTIN = BuiltinTypeSymbol(name=grammar.INT64, type=my_types.Int64())
 # INT128_BUILTIN = BuiltinTypeSymbol(name=grammar.INT128, type="Int128")
-DEC_BUILTIN = BuiltinTypeSymbol(name=grammar.DEC, type=my_types.Dec)
-FLOAT_BUILTIN = BuiltinTypeSymbol(name=grammar.FLOAT, type=my_types.Float)
+DEC_BUILTIN = BuiltinTypeSymbol(name=grammar.DEC, type=my_types.Dec())
+FLOAT_BUILTIN = BuiltinTypeSymbol(name=grammar.FLOAT, type=my_types.Float())
 # COMPLEX_BUILTIN = BuiltinTypeSymbol(name=grammar.COMPLEX, type="Complex")
-BOOL_BUILTIN = BuiltinTypeSymbol(name=grammar.BOOL, type=my_types.Bool)
+BOOL_BUILTIN = BuiltinTypeSymbol(name=grammar.BOOL, type=my_types.Bool())
 # BYTES_BUILTIN = BuiltinTypeSymbol(name=grammar.BYTES, type="Bytes")
-STR_BUILTIN = BuiltinTypeSymbol(name=grammar.STR, type=my_types.Str)
-STRUCT_BUILTIN = BuiltinTypeSymbol(name=grammar.STRUCT, type=my_types.Struct)
-LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type=my_types.List)
-DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type=my_types.Dict)
-ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type=my_types.Enum)
-FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type=my_types.Func)
+STR_BUILTIN = BuiltinTypeSymbol(name=grammar.STR, type=my_types.Str())
+STRUCT_BUILTIN = BuiltinTypeSymbol(name=grammar.STRUCT, type=my_types.Struct())
+LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type=my_types.List())
+DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type=my_types.Dict())
+ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type=my_types.MyEnum())
+FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type=my_types.Func())
 
 
 @dataclass(kw_only=True)
 class VarSymbol(AccessibleSymbol):
     pass
+
 
 @dataclass(kw_only=True)
 class StructSymbol(AccessibleSymbol):
@@ -116,9 +120,12 @@ class NodeVisitor:
 
     def _init_builtins(self):
         self.define(grammar.ANY, ANY_BUILTIN)
+        self.define(grammar.TRUE, TRUE_BUILTIN)
+        self.define(grammar.FALSE, FALSE_BUILTIN)
         self.define(grammar.INT, INT_BUILTIN)
         # self.define(grammar.INT8, INT8_BUILTIN)
-        # self.define(grammar.INT32, INT32_BUILTIN)
+        self.define(grammar.INT32, INT32_BUILTIN)
+        self.define(grammar.INT64, INT64_BUILTIN)
         # self.define(grammar.INT128, INT128_BUILTIN)
         self.define(grammar.DEC, DEC_BUILTIN)
         self.define(grammar.FLOAT, FLOAT_BUILTIN)
@@ -196,7 +203,7 @@ class NodeVisitor:
 
     def infer_type(self, value: Any) -> type[my_types.MyAny] | None:
         with suppress(TypeError):
-            if issubclass(value, my_types.MyAny):
+            if isinstance(value, my_types.MyAny):
                 return value
         if isinstance(value, BuiltinTypeSymbol):
             return value.type
@@ -204,7 +211,7 @@ class NodeVisitor:
             return self.search_scopes(grammar.FUNC).type
         elif isinstance(value, VarSymbol):
             with suppress(TypeError):
-                if issubclass(value.type, my_types.MyAny):
+                if isinstance(value.type, my_types.MyAny):
                     return value.type
             return self.infer_type(self.search_scopes(value.type.value))
         elif isinstance(value, my_ast.Type):
@@ -212,7 +219,11 @@ class NodeVisitor:
         elif value == grammar.VOID:
             return my_types.Void
         else:
-            if isinstance(value, int) or value == grammar.INT:
+            if value == grammar.INT64:
+                return self.search_scopes(grammar.INT64).type
+            elif value == grammar.INT32:
+                return self.search_scopes(grammar.INT32).type
+            elif isinstance(value, int) or value == grammar.INT:
                 return self.search_scopes(grammar.INT).type
             elif isinstance(value, Decimal) or value == grammar.DEC:
                 return self.search_scopes(grammar.DEC).type

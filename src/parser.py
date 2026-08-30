@@ -184,7 +184,7 @@ class Parser:
         param_defaults = {}
         varargs = []
         while self.current_token.value != grammar.RPAREN:
-            self.param_definitions(params, param_defaults, varargs)
+            self.param_definition(params, param_defaults, varargs)
         self.eat_value(grammar.RPAREN)
         self.eat_value(grammar.ARROW)
         if self.current_token.value == LexerType.VOID:
@@ -216,7 +216,9 @@ class Parser:
                 varargs=varargs,
             )
 
-    def param_definition(self, params: dict, param_defaults: dict, varargs: list) -> None:
+    def param_definition(
+        self, params: dict, param_defaults: dict, varargs: list
+    ) -> None:
         if self.current_token.token_type == TokenType.NAME:
             param_var = self.variable(self.current_token)
             self.eat_type(TokenType.NAME)
@@ -273,10 +275,6 @@ class Parser:
             return self.square_bracket_expression(token)
 
     def function_call(self, token: Token) -> my_ast.FuncCall:
-        if token.value == grammar.INPUT:
-            return my_ast.Input(
-                name=grammar.INPUT, arguments=[self.expr()], line_num=self.line_num
-            )
         self.eat_value(grammar.LPAREN)
         args = []
         named_args = {}
@@ -565,12 +563,15 @@ class Parser:
     def self_access(self, token: Token, field: str) -> my_ast.Self:
         return my_ast.Self(field=field, line_num=token.line_num)
 
+
+
     def name_statement(self) -> my_ast.Statement:
         token = self.next_token()
         if token.value == grammar.PRINT:
-            node = my_ast.Print(
-                name=grammar.PRINT, arguments=[self.expr()], line_num=self.line_num
-            )
+            # node = my_ast.Print(
+            #     name=grammar.PRINT, arguments=[self.expr()], line_num=self.line_num
+            # )
+            node = self.function_call(token)
         elif token.value == grammar.INPUT:
             node = my_ast.Input(
                 name=grammar.INPUT, arguments=[self.expr()], line_num=self.line_num
@@ -767,8 +768,8 @@ class Parser:
             value=token.value, line_num=self.line_num, read_only=read_only
         )
 
-    def constant(self, token: Token) -> my_ast.Var:
-        return my_ast.Var(value=token.value, line_num=self.line_num, read_only=True)
+    def constant(self, token: Token) -> my_ast.Constant:
+        return my_ast.Constant(value=token.value, line_num=self.line_num)
 
     def factor(self) -> my_ast.Expression:
         token = self.current_token
@@ -795,6 +796,9 @@ class Parser:
                 right=self.expr(),
                 line_num=self.line_num,
             )
+        elif token.value == grammar.NOT:
+            token = self.next_token()
+            return my_ast.UnaryOp(op=self.operator(token), expr=self.factor(), line_num=self.line_num)
         elif token.token_type == TokenType.NUMBER:
             self.next_token()
             return my_ast.Num(
@@ -820,7 +824,10 @@ class Parser:
                 node = self.expr()
                 if self.current_token.token_type == TokenType.NEWLINE:
                     self.next_token()
-                if isinstance(node, my_ast.DotAccess) and self.current_token.value == grammar.LPAREN:
+                if (
+                    isinstance(node, my_ast.DotAccess)
+                    and self.current_token.value == grammar.LPAREN
+                ):
                     node = self.method_call(self.current_token, node)
                 self.eat_value(grammar.RPAREN)
                 return node

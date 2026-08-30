@@ -1,9 +1,16 @@
-def fib_rec(n: int) -> int:
-    if n == 0:
-        return 0
-    if n == 1:
-        return 1
-    return fib_rec(n - 1) + fib_rec(n - 2)
+# import sys
+
+# sys.set_int_max_str_digits(100000)
 
 
-print(fib_rec(40))
+def fib(n: int) -> int:
+    a = 0
+    b = 1
+    for _ in range(0, n):
+        prev_a = a
+        a = b
+        b = prev_a + b
+    return a
+
+
+print(fib(200))

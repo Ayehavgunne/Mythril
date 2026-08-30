@@ -15,7 +15,7 @@ class NotDoneYet(Node):
 
 @dataclass(kw_only=True)
 class Statement(Node):
-    end: str = ''
+    pass
 
 
 @dataclass(kw_only=True)
@@ -44,7 +44,6 @@ class VarDecl(Statement):
     type: Type
     line_num: int
     read_only: bool = False
-    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -96,7 +95,6 @@ class MethodCall(Expression):
 class Return(Statement):
     value: Node
     line_num: int
-    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -105,14 +103,12 @@ class StructDeclaration(Statement):
     instance_fields: dict[str, Type]
     static_fields: dict[str, Type]
     line_num: int
-    end: str = ';'
 
 
 @dataclass(kw_only=True)
 class StructLiteral(Expression):
     intsance_fields: dict[str, Type]
     line_num: int
-    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -121,7 +117,6 @@ class StructCreation(Statement):
     arguments: list[Expression]
     line_num: int
     named_arguments: dict[str, Expression] = field(default_factory=dict)
-    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -143,7 +138,6 @@ class Assign(Statement):
     op: str
     right: Expression
     line_num: int
-    end: str = ';'
 
 
 @dataclass(kw_only=True)
@@ -229,6 +223,11 @@ class Operator(Expression):
 
 
 @dataclass(kw_only=True)
+class Cast(BinOp):
+    pass
+
+
+@dataclass(kw_only=True)
 class Range(Expression):
     left: Expression
     right: Expression
@@ -268,6 +267,16 @@ class AliasDeclaration(Statement):
 @dataclass(kw_only=True)
 class Void(Type):
     value: str = "void"
+
+
+# @dataclass(kw_only=True)
+# class True_(Statement):
+#     value: str = "true"
+
+
+# @dataclass(kw_only=True)
+# class False_(Statement):
+#     value: str = "false"
 
 
 @dataclass(kw_only=True)

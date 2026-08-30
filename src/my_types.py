@@ -28,7 +28,8 @@ class Int(AnyVal):
 
     @property
     def destination_type(self) -> str:
-        return "int"
+        return "BigInt::bigint"
+        # return "int"
 
 
 @dataclass
@@ -73,7 +74,7 @@ class Dec(AnyVal):
 
     @property
     def destination_type(self) -> str:
-        raise NotImplementedError
+        return "float"  # TODO: find a decimal type library
 
 
 @dataclass
@@ -156,7 +157,7 @@ class Dict(Collection):
 
 
 @dataclass
-class Enum(AnyVal):
+class MyEnum(AnyVal):
     name: str
 
     @property
@@ -181,6 +182,7 @@ class Class(AnyVal):
     def destination_type(self) -> str:
         return self.name
 
+
 @dataclass
 class AnyRef(MyAny):
     pass
@@ -195,11 +197,19 @@ class Func(AnyRef):
         raise NotImplementedError
 
 
-type_map = {
+INTS = (Int, Int32, Int64)
+
+TYPE_MAP = {
     grammar.ANY: MyAny,
+    grammar.BOOL: Bool,
     grammar.INT: Int,
+    grammar.INT32: Int32,
+    grammar.INT64: Int64,
+    grammar.DEC: Dec,
+    grammar.FLOAT: Float,
     grammar.STR: Str,
     grammar.LIST: List,
+    grammar.ENUM: MyEnum,
     grammar.STRUCT: Struct,
     grammar.CLASS: Class,
 }

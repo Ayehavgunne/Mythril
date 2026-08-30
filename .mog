@@ -21,9 +21,9 @@ build:
     {_activate}
 	@if {$1} in ["preview", "p"]
 		echo Program:
-		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --optimization={$2}
 	@else
-		mkdir -p {out} && python {src}/main.py test.my -o {out}/test
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test --optimization={$2}
 	@fi
 
 run:
@@ -48,6 +48,9 @@ check:
     @else
 		pyright {$1}
     @fi
+
+benchmark:
+    hyperfine -N --warmup 3 --runs 30 "out/test" "python test.py"
 
 _activate:
 	. .venv/bin/activate

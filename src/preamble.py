@@ -12,6 +12,7 @@ class Preamble:
         self.my_prog.write(
             '#pragma clang diagnostic ignored "-Wparentheses-equality"\n'
         )
+        self.my_prog.write('#include "bigint.h"\n')
         if self.list:
             self.my_prog.write("#include <vector>\n")
         if self.range:

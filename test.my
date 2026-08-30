@@ -1,25 +1,3 @@
-class Person
-	static val: Str
-	name: Str
-	age: Int
+num = 1::Str
 
-	new(name: Str, age: Int)
-		self.name
-		self.age
-
-	def greet() > void
-		print("Hi, I am")
-		print(self.name)
-
-def hi() > void
-	print("hi")
-
-me = Person{"Anthony", 40}
-
-if 40 > 30
-	print("i am old")
-
-hi()
-
-print(me.age)
-me.greet()
+print(num + 2)
