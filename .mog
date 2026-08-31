@@ -19,12 +19,7 @@ validate:
 
 build:
     {_activate}
-	@if {$1} in ["preview", "p"]
-		echo Program:
-		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --optimization={$2}
-	@else
-		mkdir -p {out} && python {src}/main.py test.my -o {out}/test --optimization={$2}
-	@fi
+	mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --optimization=fast --ignore_warnings
 
 run:
     {out}/test

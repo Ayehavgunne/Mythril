@@ -49,6 +49,7 @@ class VarDecl(Statement):
 @dataclass(kw_only=True)
 class Var(Expression):
     value: str
+    type: Type | None = None
     line_num: int
     read_only: bool = False
 
@@ -267,16 +268,6 @@ class AliasDeclaration(Statement):
 @dataclass(kw_only=True)
 class Void(Type):
     value: str = "void"
-
-
-# @dataclass(kw_only=True)
-# class True_(Statement):
-#     value: str = "true"
-
-
-# @dataclass(kw_only=True)
-# class False_(Statement):
-#     value: str = "false"
 
 
 @dataclass(kw_only=True)

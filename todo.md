@@ -1,0 +1,52 @@
+- named arguments
+- default values for arguments
+- variadic functions
+- *args and **kwargs
+- truthyness ?
+- square bracket access
+- for loop nobreak keyword
+- operator chaining
+- class constructors
+- destructors ?
+- pattern matching
+- design by contract
+- with statement (context managers)
+- comprehentions
+- descriptor protocol
+- coroutines
+- generics
+- closures
+- ternary
+- unions
+- protocols
+- generators
+- constants
+- decimal type by default instead of float
+- duplicating pythons variable storage (all variables are pointers, pass by object reference, ...)
+- dictionaries
+- sets
+- fixed size arrays
+- empty lists, dicts, sets, tuples, ...
+- cli argument parsing
+- file operations
+- class inheritance
+- built in object methods (list.append(), string.split(), ...)
+- more built in functions (len, abs, ...)
+- result and option types
+- built in result and option semantics
+- make everything an object?
+- anonymous functions
+- assigning (anonymous) functions to variables
+- first class functions
+- unicode support
+- type aliasing
+- networking
+- modules
+- garbage collector
+- memaloc and free for option to forgo garbage collection
+- put more work into validator
+- decorators
+- metaprogramming (compile time execution)
+- computed class properties
+- magic methods
+- foreign function interface

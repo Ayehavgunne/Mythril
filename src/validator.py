@@ -171,6 +171,11 @@ class Validator(NodeVisitor):
             value.val_assigned = True
             self.define(node.left.value, value)
             return
+        elif isinstance(node.left.value, my_ast.Var):
+            var_name = node.left.value.value
+            value = self.visit(node.right)
+            if isinstance(value, VarSymbol):
+                value = value.type
         else:
             var_name = node.left.value
             value = self.visit(node.right)
@@ -575,7 +580,9 @@ class Validator(NodeVisitor):
             return method.type
 
     def visit_struct_declaration(self, node: my_ast.StructDeclaration):
-        sym = StructSymbol(name=node.name, fields=node.instance_fields, type=my_types.Struct())
+        sym = StructSymbol(
+            name=node.name, fields=node.instance_fields, type=my_types.Struct()
+        )
         self.define(sym.name, sym)
 
     def visit_struct_creation(self, node: my_ast.StructCreation):

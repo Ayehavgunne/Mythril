@@ -103,13 +103,11 @@ PRINT_BUILTIN = BuiltinFuncSymbol(
     name=grammar.PRINT,
     type=my_types.Void(),
     parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
-    # body=None,
 )
 INPUT_BUILTIN = BuiltinFuncSymbol(
     name=grammar.INPUT,
     type=my_types.Str(),
-    parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
-    # body=None,
+    parameters={"prompt": my_ast.Type(value=grammar.STR, line_num=1)},
 )
 
 
@@ -209,6 +207,8 @@ class NodeVisitor:
             return value.type
         if isinstance(value, FuncSymbol):
             return self.search_scopes(grammar.FUNC).type
+        elif isinstance(value, CollectionSymbol):
+            return value.type.type
         elif isinstance(value, VarSymbol):
             with suppress(TypeError):
                 if isinstance(value.type, my_types.MyAny):

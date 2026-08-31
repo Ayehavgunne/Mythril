@@ -157,7 +157,7 @@ class Lexer:
             return LexerType.ESCAPE
         if char in grammar.OPERATORS:
             return LexerType.OPERATIC
-        if char.isdigit():
+        if char.isdigit() or char == grammar.NUM_SEPERATOR:
             return LexerType.NUMERIC
         else:
             return LexerType.ALPHANUMERIC
@@ -260,19 +260,20 @@ class Lexer:
         if self.word_type == LexerType.NUMERIC:
             while (
                 self.char_type == LexerType.NUMERIC
-                or self.current_char == grammar.DOT
-                and self.peek(1) != grammar.DOT
+                or (self.current_char == grammar.DOT and self.peek(1) != grammar.DOT)
+                or (
+                    self.current_char == grammar.NUM_SEPERATOR
+                    and self.peek(1) != grammar.NUM_SEPERATOR
+                )
             ):
                 self.word += self.current_char
                 self.next_char()
                 if self.char_type == LexerType.ALPHANUMERIC:
                     raise SyntaxError("Variables cannot start with numbers")
-            value = self.reset_word()
+            value = self.reset_word().replace(grammar.NUM_SEPERATOR, '')
             if grammar.DOT in value:
-                # value = Decimal(value)
                 value_type = grammar.DEC
             else:
-                # value = int(value)
                 value_type = grammar.INT
             return self.make_token(TokenType.NUMBER, value, value_type=value_type)
 

@@ -1,3 +1,4 @@
-num = 1::Str
+first_name: Str = input("enter first name")
+last_name: Str = input("enter last name")
 
-print(num + 2)
+print("Hello {first_name} {last_name}")

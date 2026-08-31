@@ -34,5 +34,10 @@ if __name__ == "__main__":
     parser.add_argument("--ignore_warnings", action="store_true")
     args = parser.parse_args()
     build_prog(
-        args.filename, args.output, args.run, args.print, opt_map[args.optimization], args.ignore_warnings
+        args.filename,
+        args.output,
+        args.run,
+        args.print,
+        opt_map[args.optimization],
+        args.ignore_warnings,
     )

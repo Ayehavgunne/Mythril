@@ -152,17 +152,14 @@ class Parser:
         self.eat_value(grammar.DOT)
         return my_ast.Self(field=self.current_token.value, line_num=line_num)
 
-    def variable_declaration(self) -> my_ast.VarDecl | my_ast.Assign:
-        var_node = my_ast.Var(value=self.current_token.value, line_num=self.line_num)
+    def variable_declaration(self, token: Token) -> my_ast.Var | my_ast.Assign:
+        var_node = my_ast.Var(value=token.value, line_num=self.line_num)
         self.eat_value(grammar.TYPE_DELIMETER)
         type_node = self.type_spec()
         var = my_ast.VarDecl(value=var_node, type=type_node, line_num=self.line_num)
         if self.current_token.value == grammar.ASSIGN:
-            var = self.variable_declaration_assignment(var)
+            var = self.assignment_statement(self.next_token(), var)
         return var
-
-    def variable_declaration_assignment(self, var: my_ast.VarDecl) -> my_ast.Assign:
-        return self.assignment_statement(self.current_token)
 
     def alias_declaration(self) -> my_ast.AliasDeclaration:
         self.eat_value(grammar.ALIAS)
@@ -563,8 +560,6 @@ class Parser:
     def self_access(self, token: Token, field: str) -> my_ast.Self:
         return my_ast.Self(field=field, line_num=token.line_num)
 
-
-
     def name_statement(self) -> my_ast.Statement:
         token = self.next_token()
         if token.value == grammar.PRINT:
@@ -584,8 +579,8 @@ class Parser:
         elif self.current_token.value in grammar.ASSIGNMENT_OP:
             node = self.assignment_statement(token)
         elif self.current_token.value == grammar.TYPE_DELIMETER:
-            self.eat_value(grammar.TYPE_DELIMETER)
-            node = self.variable_declaration()
+            # self.eat_value(grammar.TYPE_DELIMETER)
+            node = self.variable_declaration(token)
         elif self.in_constructor:
             node = self.variable(token)
         else:
@@ -739,7 +734,7 @@ class Parser:
             root.children.append(node)
         return root
 
-    def assignment_statement(self, token: Token) -> my_ast.Assign | my_ast.OpAssign:
+    def assignment_statement(self, token: Token, var: my_ast.VarDecl | None = None) -> my_ast.Assign | my_ast.OpAssign:
         if token.value == grammar.CONST:
             read_only = True
             self.next_token()
@@ -747,8 +742,11 @@ class Parser:
             self.next_token()
         else:
             read_only = False
-        left = self.variable(token, read_only)
-        token = self.next_token()
+        if var is None:
+            left = self.variable(token, read_only)
+            token = self.next_token()
+        else:
+            left = my_ast.Var(value=var.value.value, type=var.type, line_num=var.line_num)
         if token.value == grammar.ASSIGN:
             right = self.expr()
             node = my_ast.Assign(
@@ -798,7 +796,9 @@ class Parser:
             )
         elif token.value == grammar.NOT:
             token = self.next_token()
-            return my_ast.UnaryOp(op=self.operator(token), expr=self.factor(), line_num=self.line_num)
+            return my_ast.UnaryOp(
+                op=self.operator(token), expr=self.factor(), line_num=self.line_num
+            )
         elif token.token_type == TokenType.NUMBER:
             self.next_token()
             return my_ast.Num(

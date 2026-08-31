@@ -7,16 +7,22 @@ class Preamble:
         self.list = False
         self.range = False
         self.print = False
+        self.format = False
 
     def write(self) -> None:
         self.my_prog.write(
             '#pragma clang diagnostic ignored "-Wparentheses-equality"\n'
         )
+        self.my_prog.write('#include "my_std_lib.h"\n')
         self.my_prog.write('#include "bigint.h"\n')
+        # self.my_prog.write("#include <iostream>\n")
+        # self.my_prog.write("#include <iterator>\n")
         if self.list:
             self.my_prog.write("#include <vector>\n")
         if self.range:
             self.my_prog.write("#include <ranges>\n")
+        if self.format:
+            self.my_prog.write("#include <format>\n")
         if self.print:
             self.my_prog.write("#include <iostream>\n")
         self.my_prog.write("using namespace std;\n\n")

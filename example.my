@@ -160,7 +160,7 @@ struct Circle
 	x: Int
 	y: Int
 
-cir: Circle = {radius=5, x=2, y=4}
+cir = Circle{radius=5, x=2, y=4}
 
 print(cir.radius)
 
@@ -188,7 +188,7 @@ class Person
 		self.name
 		self.age
 
-frank = Person('Frank', 30)
+frank = Person{'Frank', 30}
 
 print(frank.age)
 
