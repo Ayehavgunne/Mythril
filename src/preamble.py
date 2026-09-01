@@ -8,6 +8,7 @@ class Preamble:
         self.range = False
         self.print = False
         self.format = False
+        self.files = False
 
     def write(self) -> None:
         self.my_prog.write(
@@ -19,6 +20,8 @@ class Preamble:
         # self.my_prog.write("#include <iterator>\n")
         if self.list:
             self.my_prog.write("#include <vector>\n")
+        if self.files:
+            self.my_prog.write("#include <fstream>\n")
         if self.range:
             self.my_prog.write("#include <ranges>\n")
         if self.format:

@@ -1,4 +1,5 @@
-first_name: Str = input("enter first name")
-last_name: Str = input("enter last name")
+my_file = open("todo.md")
 
-print("Hello {first_name} {last_name}")
+print(my_file.read())
+
+my_file

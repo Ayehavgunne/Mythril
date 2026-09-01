@@ -75,6 +75,9 @@ class StructSymbol(AccessibleSymbol):
 @dataclass(kw_only=True)
 class ClassSymbol(AccessibleSymbol):
     fields: dict[str, my_ast.Type]
+    parameters: dict[str, my_ast.Var | my_ast.Type] = field(default_factory=dict)
+    parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
+    methods: dict[str, my_ast.FuncDecl] = field(default_factory=dict)
 
 
 @dataclass(kw_only=True)
@@ -109,6 +112,39 @@ INPUT_BUILTIN = BuiltinFuncSymbol(
     type=my_types.Str(),
     parameters={"prompt": my_ast.Type(value=grammar.STR, line_num=1)},
 )
+OPEN_BUILTIN = BuiltinFuncSymbol(
+    name=grammar.OPEN,
+    type=my_types.Class("File"),
+    parameters={"path": my_ast.Type(value=grammar.STR, line_num=1)},
+)
+
+
+@dataclass(kw_only=True)
+class BuiltInClassSymbol(ClassSymbol):
+    pass
+
+
+FILE_BUILTIN = BuiltInClassSymbol(
+    name="File",
+    type=my_types.Class(name="File"),
+    fields={"name": my_ast.Str(value=grammar.STR, line_num=1)},
+    methods={
+        "read": my_ast.FuncDecl(
+            name="read",
+            return_type=my_ast.Str(value=grammar.STR, line_num=1),
+            parameters={},
+            body=my_ast.Compound(children=[]),
+            line_num=1,
+        ),
+        "write": my_ast.FuncDecl(
+            name="write",
+            return_type=my_ast.Void(line_num=1),
+            parameters={"data": my_ast.Str(value=grammar.STR, line_num=1)},
+            body=my_ast.Compound(children=[]),
+            line_num=1,
+        ),
+    },
+)
 
 
 class NodeVisitor:
@@ -138,6 +174,8 @@ class NodeVisitor:
         self.define(grammar.FUNC, FUNC_BUILTIN)
         self.define(grammar.PRINT, PRINT_BUILTIN)
         self.define(grammar.INPUT, INPUT_BUILTIN)
+        self.define(grammar.OPEN, OPEN_BUILTIN)
+        self.define("File", FILE_BUILTIN)
 
     def visit(self, node: my_ast.Node) -> Any:
         method_name = "visit_" + to_snake(type(node).__name__)
@@ -217,7 +255,7 @@ class NodeVisitor:
         elif isinstance(value, my_ast.Type):
             return self.search_scopes(value.value).type
         elif value == grammar.VOID:
-            return my_types.Void
+            return my_types.Void()
         else:
             if value == grammar.INT64:
                 return self.search_scopes(grammar.INT64).type

@@ -63,6 +63,8 @@ class FuncDecl(Statement):
     line_num: int
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     varargs: list[str | Var | Type] = field(default_factory=list)
+    constructor: bool = False
+    destructor: bool = False
 
 
 @dataclass(kw_only=True)
@@ -85,7 +87,7 @@ class FuncCall(Expression):
 
 @dataclass(kw_only=True)
 class MethodCall(Expression):
-    obj: str
+    obj: Expression
     name: str
     arguments: list[Expression]
     line_num: int
@@ -129,7 +131,6 @@ class ClassDeclaration(StructDeclaration):
 
 @dataclass(kw_only=True)
 class Self(Statement):
-    field: str
     line_num: int
 
 
@@ -246,9 +247,10 @@ class CollectionAccess(Expression):
 
 @dataclass(kw_only=True)
 class DotAccess(Expression):
-    obj: str
+    obj: Expression
     field: str
     line_num: int
+    method_call: bool = False
 
 
 @dataclass(kw_only=True)
@@ -310,4 +312,9 @@ class Print(FuncCall):
 
 @dataclass(kw_only=True)
 class Input(FuncCall):
+    pass
+
+
+@dataclass(kw_only=True)
+class Open(FuncCall):
     pass

@@ -270,7 +270,7 @@ class Lexer:
                 self.next_char()
                 if self.char_type == LexerType.ALPHANUMERIC:
                     raise SyntaxError("Variables cannot start with numbers")
-            value = self.reset_word().replace(grammar.NUM_SEPERATOR, '')
+            value = self.reset_word().replace(grammar.NUM_SEPERATOR, "")
             if grammar.DOT in value:
                 value_type = grammar.DEC
             else:

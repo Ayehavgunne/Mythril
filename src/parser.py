@@ -146,11 +146,15 @@ class Parser:
             line_num=self.line_num,
         )
 
-    def class_self(self) -> my_ast.Self:
+    def class_self(self) -> my_ast.Expression:
         line_num = self.line_num
-        self.next_token()
-        self.eat_value(grammar.DOT)
-        return my_ast.Self(field=self.current_token.value, line_num=line_num)
+        token = self.next_token()
+        if self.current_token.value != grammar.DOT:
+            return my_ast.Self(line_num=line_num)
+        access = self.dot_access(token)
+        if self.current_token.value == grammar.ASSIGN:
+            return self.field_assignment(self.next_token(), access)
+        return access
 
     def variable_declaration(self, token: Token) -> my_ast.Var | my_ast.Assign:
         var_node = my_ast.Var(value=token.value, line_num=self.line_num)
@@ -223,11 +227,11 @@ class Parser:
             raise NotImplementedError
         self.eat_value(grammar.TYPE_DELIMETER)
         params[param_var.value] = self.type_spec()
-        param_type = params[param_var.value]
+        # param_type = params[param_var.value]
         if self.current_token.value != grammar.RPAREN:
             if self.current_token.value == grammar.ASSIGN:
                 self.eat_value(grammar.ASSIGN)
-                param_defaults[param_type] = self.expr()
+                param_defaults[param_var.value] = self.expr()
             if self.current_token.value == grammar.ELLIPSIS:
                 key, value = params.popitem()
                 varargs.append(key)
@@ -260,6 +264,7 @@ class Parser:
             line_num=self.line_num,
             parameter_defaults=param_defaults,
             varargs=varargs,
+            constructor=True,
         )
 
     def bracket_literal(self) -> my_ast.Expression:
@@ -554,15 +559,20 @@ class Parser:
         field = self.current_token.value
         self.next_token()
         if token.value == grammar.SELF:
-            return self.self_access(token, field)
-        return my_ast.DotAccess(obj=token.value, field=field, line_num=token.line_num)
+            obj = my_ast.Self(line_num=self.line_num)
+        else:
+            obj = self.variable(token)
+        access = my_ast.DotAccess(obj=obj, field=field, line_num=token.line_num)
+        if self.current_token.value == grammar.LPAREN:
+            return self.method_call(self.current_token, access)
+        return access
 
-    def self_access(self, token: Token, field: str) -> my_ast.Self:
-        return my_ast.Self(field=field, line_num=token.line_num)
+    # def self_access(self, token: Token) -> my_ast.Self:
+    #     return my_ast.Self(line_num=token.line_num)
 
     def name_statement(self) -> my_ast.Statement:
         token = self.next_token()
-        if token.value == grammar.PRINT:
+        if token.value == grammar.PRINT or token.value == grammar.OPEN:
             # node = my_ast.Print(
             #     name=grammar.PRINT, arguments=[self.expr()], line_num=self.line_num
             # )
@@ -605,7 +615,8 @@ class Parser:
     def method_call(self, _: Token, left: my_ast.DotAccess) -> my_ast.MethodCall:
         args = []
         named_args = {}
-        self.next_token()
+        if self.current_token.value == grammar.LPAREN:
+            self.next_token()
         preview_token = self.preview()
         while self.current_token.value != grammar.RPAREN:
             while self.current_token.token_type == TokenType.NEWLINE:
@@ -734,7 +745,9 @@ class Parser:
             root.children.append(node)
         return root
 
-    def assignment_statement(self, token: Token, var: my_ast.VarDecl | None = None) -> my_ast.Assign | my_ast.OpAssign:
+    def assignment_statement(
+        self, token: Token, var: my_ast.Expression | None = None
+    ) -> my_ast.Assign | my_ast.OpAssign:
         if token.value == grammar.CONST:
             read_only = True
             self.next_token()
@@ -746,7 +759,12 @@ class Parser:
             left = self.variable(token, read_only)
             token = self.next_token()
         else:
-            left = my_ast.Var(value=var.value.value, type=var.type, line_num=var.line_num)
+            if isinstance(var.value, my_ast.Self):
+                left = var
+            else:
+                left = my_ast.Var(
+                    value=var.value.value, type=var.type, line_num=var.line_num
+                )
         if token.value == grammar.ASSIGN:
             right = self.expr()
             node = my_ast.Assign(

@@ -108,6 +108,8 @@ CLASS = "class"
 CONST = "const"
 STATIC = "static"
 NEW = "new"
+ENTER = "enter"
+EXIT = "exit"
 SUPER = "super"
 SELF = "self"
 RETURN = "return"
@@ -271,8 +273,13 @@ KEYWORDS = (
     SETTER,
     ASSERT,
     STATIC,
-    NEW,
     ALIAS,
+)
+
+CONTEXTUAL_KEYWORDS = (
+    NEW,
+    ENTER,
+    EXIT,
 )
 
 TYPES = (
@@ -300,6 +307,7 @@ CONSTANTS = (TRUE, FALSE, NAN, INF, NEGATIVE_INF)
 
 PRINT = "print"
 INPUT = "input"
+OPEN = "open"
 
 BUILTIN_FUNCTIONS = (PRINT, INPUT)
 

@@ -1,5 +1,5 @@
-- named arguments
-- default values for arguments
+- file operations
+- with statement (context managers)
 - variadic functions
 - *args and **kwargs
 - truthyness ?
@@ -10,7 +10,6 @@
 - destructors ?
 - pattern matching
 - design by contract
-- with statement (context managers)
 - comprehentions
 - descriptor protocol
 - coroutines
@@ -28,7 +27,6 @@
 - fixed size arrays
 - empty lists, dicts, sets, tuples, ...
 - cli argument parsing
-- file operations
 - class inheritance
 - built in object methods (list.append(), string.split(), ...)
 - more built in functions (len, abs, ...)
