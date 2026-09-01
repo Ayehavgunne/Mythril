@@ -44,6 +44,5 @@ struct File {
 };
 
 File open(std::string name) {
-    File file = {name};
-    return file;
+    return {name};
 }

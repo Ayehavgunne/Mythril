@@ -592,7 +592,7 @@ def emit(tree: my_ast.Program, my_prog: IO[str]) -> str:
     # my_prog.write("int main(int argc, char * arg1[], char * arg2[]) {\n")
     # my_prog.write('cout << argc << " " << *arg1 << " " << *arg2 << "\\n";\n')
     for line in main:
-        my_prog.write(line)
+        my_prog.write(f"{line};\n")
     my_prog.write("\n;return 0;\n")
     my_prog.write("}\n")
     my_prog.seek(0)

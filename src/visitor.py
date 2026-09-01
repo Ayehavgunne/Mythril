@@ -143,6 +143,13 @@ FILE_BUILTIN = BuiltInClassSymbol(
             body=my_ast.Compound(children=[]),
             line_num=1,
         ),
+        "close": my_ast.FuncDecl(
+            name="close",
+            return_type=my_ast.Void(line_num=1),
+            parameters={},
+            body=my_ast.Compound(children=[]),
+            line_num=1,
+        ),
     },
 )
 

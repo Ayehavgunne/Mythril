@@ -2,4 +2,4 @@ my_file = open("todo.md")
 
 print(my_file.read())
 
-my_file
+my_file.close()

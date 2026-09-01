@@ -1,4 +1,3 @@
-- file operations
 - with statement (context managers)
 - variadic functions
 - *args and **kwargs
@@ -10,10 +9,11 @@
 - destructors ?
 - pattern matching
 - design by contract
-- comprehentions
+- comprehensions
 - descriptor protocol
 - coroutines
 - generics
+- inner functions, classes, structs
 - closures
 - ternary
 - unions
