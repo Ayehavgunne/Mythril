@@ -158,6 +158,7 @@ class NodeVisitor:
     def __init__(self) -> None:
         self._scope: list[Scope] = [{}]
         self._init_builtins()
+        self.import_names = []
 
     def _init_builtins(self):
         self.define(grammar.ANY, ANY_BUILTIN)
@@ -211,6 +212,10 @@ class NodeVisitor:
             for scope in reversed(self._scope):
                 if name in scope:
                     return scope[name]
+        for scope in reversed(self._scope):
+            for import_name in self.import_names:
+                if f"{import_name}.{name}" in scope:
+                    return scope[f"{import_name}.{name}"]
         return None
 
     def define(self, key: str, value: AccessibleSymbol, level: int = 0) -> None:

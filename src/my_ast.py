@@ -318,3 +318,9 @@ class Input(FuncCall):
 @dataclass(kw_only=True)
 class Open(FuncCall):
     pass
+
+
+@dataclass(kw_only=True)
+class Import(Statement):
+    name: str
+    path: str

@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from io import StringIO
 import os
 import re
 import subprocess
@@ -13,10 +15,12 @@ from lexer import Lexer
 from parser import Parser
 import grammar
 from preamble import Preamble
+from imports import ImportManager
 from visitor import (
     BuiltinFuncSymbol,
     ClassSymbol,
     NodeVisitor,
+    Scope,
     VarSymbol,
     FuncSymbol,
     StructSymbol,
@@ -29,11 +33,23 @@ class BuilderError(Exception):
 
 
 class Builder(NodeVisitor):
-    def __init__(self, preamble: Preamble):
+    def __init__(
+        self, preamble: Preamble, #import_parent: str = "", import_name: str = ""
+    ):
         super().__init__()
         self.preamble = preamble
         self.in_class = False
         self.in_constructor = False
+        self.classes = []
+        self.structs = []
+        self.funcs = []
+        self.imports = []
+        # self.import_parent = f"{import_parent}_" if import_parent else ""
+        # self.import_name = f"{import_name}__" if import_name else ""
+
+    @property
+    def is_imported(self) -> bool:
+        return len(self.import_path) > 0
 
     def visit_assign(self, node: my_ast.Assign) -> str:
         visited_left = self.visit(node.left)
@@ -42,7 +58,7 @@ class Builder(NodeVisitor):
                 node.right.val_type = node.left.type.value
         visited_right = self.visit(node.right)
         if isinstance(node.left, my_ast.DotAccess):
-            return f"{visited_left} {node.op} {visited_right};\n"
+            return f"{visited_left} {node.op} {visited_right}\n"
         if not hasattr(node.left, "read_only"):
             read_only = False
         else:
@@ -88,7 +104,7 @@ class Builder(NodeVisitor):
                     read_only=read_only,
                 )
                 self.define(visited_left, var_sym)
-                return f"vector<{var_sym.type.subtype.destination_type}> {visited_left} {node.op} {visited_right};\n"
+                return f";vector<{var_sym.type.subtype.destination_type}> {visited_left} {node.op} {visited_right};\n"
             case my_ast.BinOp(right=right):
                 scoped_val = self.search_scopes(right.value)
                 if scoped_val is None:
@@ -136,8 +152,15 @@ class Builder(NodeVisitor):
                 )
             case my_ast.DotAccess(obj=obj, field=field):
                 scoped_val = self.search_scopes(obj.value)
+                if scoped_val is None:
+                    scoped_val = self.search_scopes(f"{obj.value}.{field}")
                 if isinstance(scoped_val.type, Class):
-                    scoped_val = self.search_scopes(scoped_val.type.name)
+                    scoped_val_name = scoped_val.type.name
+                    scoped_val = self.search_scopes(scoped_val_name)
+                    if scoped_val is None:
+                        scoped_val = self.search_scopes(
+                            f"{obj.value}.{scoped_val_name}"
+                        )
                     field_type = scoped_val.fields.get(field)
                     if field_type is None:
                         field_type = TYPE_MAP[
@@ -153,6 +176,8 @@ class Builder(NodeVisitor):
                 )
             case my_ast.MethodCall(obj=obj, name=name):
                 scoped_val = self.search_scopes(obj.value)
+                if scoped_val is None:
+                    scoped_val = self.search_scopes(name)
                 if isinstance(scoped_val.type, Class):
                     scoped_val = self.search_scopes(scoped_val.type.name)
                     return_type = TYPE_MAP[scoped_val.methods[name].return_type.value]()
@@ -177,8 +202,8 @@ class Builder(NodeVisitor):
         )
         if visited_left.startswith("self."):
             visited_left = visited_left.replace("self.", "this->")
-        if visited_right.endswith(";"):
-            visited_right = visited_right[:-1]
+        # if visited_right.endswith(";"):
+        #     visited_right = visited_right[:-1]
         if assigned is None:
             self.define(visited_left, var_sym)
             return f";{var_sym.type.destination_type} {visited_left} {node.op} {visited_right};\n"
@@ -299,6 +324,8 @@ class Builder(NodeVisitor):
     def visit_collection_access(self, node: my_ast.CollectionAccess) -> str:
         key = self.visit(node.key)
         if node.type == grammar.LIST:
+            if "BigInt::bigint" in key:
+                key = key.replace('BigInt::bigint("', "")[:-2]
             return f"{node.name}[{key}]"
         raise NotImplementedError
 
@@ -358,10 +385,10 @@ class Builder(NodeVisitor):
         return f";while ( {' '.join(comps)} ) {{\n{''.join(block)}}}\n"
 
     def visit_continue(self, node: my_ast.Continue) -> str:
-        return "continue;"
+        return ";continue;"
 
     def visit_break(self, node: my_ast.Break) -> str:
-        return "break;"
+        return ";break;"
 
     def visit_range(self, node: my_ast.Range) -> str:
         self.preamble.range = True
@@ -397,12 +424,18 @@ class Builder(NodeVisitor):
         self.pop_scope()
         self.in_constructor = False
         if node.constructor:
-            return f"{name} ({', '.join(params)}) {{\n{body};}}\n"
-        return f"{return_type.destination_type} {name} ({', '.join(params)}) {{\n{body};}}\n"
+            return f"{name} ({', '.join(params)}) {{\n{body}}}\n"
+        if self.in_class:
+            return f"{return_type.destination_type} {name} ({', '.join(params)}) {{\n{body}}}\n"
+        else:
+            self.funcs.append(
+                f"{return_type.destination_type} {name} ({', '.join(params)}) {{\n{body}}}\n"
+            )
+        return ""
 
     def visit_return(self, node: my_ast.Return) -> str:
         return_val = self.visit(node.value)
-        return f";return {return_val};\n"
+        return f"return {return_val};\n"
 
     def visit_func_call(self, node: my_ast.FuncCall) -> str:
         func = self.search_scopes(node.name)
@@ -432,6 +465,17 @@ class Builder(NodeVisitor):
         if not isinstance(obj, str):
             obj = self.visit(obj)
         func = self.search_scopes(obj)
+        if func is None:
+            func = self.search_scopes(f"{obj}.{node.name}")
+            if isinstance(func, FuncSymbol):
+                return self.visit(
+                    my_ast.FuncCall(
+                        name=f"{obj}.{node.name}",
+                        arguments=node.arguments,
+                        line_num=node.line_num,
+                        named_arguments=node.named_arguments,
+                    )
+                )
         func = self.search_scopes(func.type.name)
         func = func.methods[node.name]
         if isinstance(node.obj, my_ast.Node):
@@ -482,6 +526,7 @@ class Builder(NodeVisitor):
 
     def visit_class_declaration(self, node: my_ast.ClassDeclaration) -> str:
         name = node.name
+        node_constructor = node.constructor
         lower_name = name.lower()
         instance_fields = []
         static_fields = []
@@ -489,18 +534,18 @@ class Builder(NodeVisitor):
         methods = []
         for field, field_type in node.static_fields.items():
             scoped_field_type = self.infer_type(field_type.value)
-            static_fields.append(
-                f"static {scoped_field_type.destination_type} {field};"
-            )
+            static_fields.append(f"static {scoped_field_type.destination_type} {field}")
             # print_fields.append(f'"    {field}: " << {name}.{field}')
         for field, field_type in node.instance_fields.items():
             scoped_field_type = self.infer_type(field_type.value)
-            instance_fields.append(f"{scoped_field_type.destination_type} {field};")
+            instance_fields.append(f"{scoped_field_type.destination_type} {field}")
             print_fields.append(f'"    {field}: " << {lower_name}.{field}')
         self.in_class = True
         for method in node.methods:
             methods.append(self.visit(method))
-        constructor: str = self.visit(node.constructor)
+        constructor: str = (
+            self.visit(node_constructor) if node.constructor is not None else ""
+        )
         self.in_class = False
         self.define(
             name,
@@ -508,15 +553,26 @@ class Builder(NodeVisitor):
                 name=name,
                 type=TYPE_MAP[grammar.CLASS](name=name),
                 fields=node.instance_fields,
-                parameters=node.constructor.parameters,
-                parameter_defaults=node.constructor.parameter_defaults,
+                parameters=node.constructor.parameters if node_constructor else {},
+                parameter_defaults=node.constructor.parameter_defaults
+                if node_constructor
+                else {},
                 methods={method.name: method for method in node.methods},
             ),
         )
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
-        return f";struct {name} {{\n{'\n'.join(static_fields)}\n{'\n'.join(instance_fields)}\n{constructor}\n{'\n'.join(methods)}\n}};\n{overload}\n"
+        self.classes.append(
+            f"struct {name} {{\n"
+            f"{'\n'.join(static_fields)}\n"
+            f"{'\n'.join(instance_fields)}\n"
+            f"{constructor}\n"
+            f"{'\n'.join(methods)}\n"
+            f"}};\n"
+            f"{overload}\n"
+        )
+        return ""
 
     def visit_self(self, _: my_ast.Self) -> str:
         return f"this->"
@@ -528,7 +584,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         print_fields = []
         for field, field_type in node.instance_fields.items():
             scoped_field_type = self.infer_type(field_type.value)
-            fields.append(f"{scoped_field_type.destination_type} {field};")
+            fields.append(f"{scoped_field_type.destination_type} {field}")
             print_fields.append(f'"    {field}: " << {lower_name}.{field}')
         self.define(
             name,
@@ -541,7 +597,10 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
-        return f";struct {name} {{\n{'\n'.join(fields)}\n}};\n{overload}\n"
+        self.structs.append(
+            f"struct {name} {{\n{'\n'.join(fields)}\n}};\n{overload}\n"
+        )
+        return ""
 
     def visit_struct_creation(self, node: my_ast.StructCreation) -> str:
         obj = self.search_scopes(node.name)
@@ -565,37 +624,87 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             return f"{visited_obj}{node.field}"
         return f"{visited_obj}.{node.field}"
 
+    def visit_import(self, node: my_ast.Import) -> str:
+        tree = parse(node.path)
+        import_name = node.name
+        my_prog = StringIO()
+        sub_prog = emit(tree=tree, my_prog=my_prog, parent_preamble=self.preamble)
+        self.top_scope.update(
+            {f"{import_name}.{name}": var for name, var in sub_prog.scope.items()}
+        )
+        self.imports.extend(sub_prog.imports)
+        self.structs.extend(sub_prog.structs)
+        self.classes.extend(sub_prog.classes)
+        self.funcs.extend(sub_prog.funcs)
+        self.imports.append(sub_prog.prog)
+        self.import_names.append(import_name)
+        return ""
+
     def visit_eof(self, _: my_ast.Eof) -> str:
         return ""
 
 
-def emit(tree: my_ast.Program, my_prog: IO[str]) -> str:
-    preamble = Preamble(my_prog)
+@dataclass
+class ProgramInfo:
+    prog: str
+    scope: Scope | None
+    imports: list[str]
+    structs: list[str]
+    classes: list[str]
+    funcs: list[str]
+
+
+def emit(
+    tree: my_ast.Program, my_prog: IO[str], parent_preamble: Preamble | None = None, import_manager: ImportManager | None = None
+) -> ProgramInfo:
+    preamble = parent_preamble or Preamble(my_prog)
+    import_manager = import_manager or ImportManager()
     builder = Builder(preamble)
-    funcs = []
-    structs = []
-    main = []
+    body = []
     for node in tree.block.children:
-        if isinstance(node, my_ast.FuncDecl):
-            funcs.append(builder.visit(node))
-        elif isinstance(node, my_ast.StructDeclaration):
-            structs.append(builder.visit(node))
-        else:
-            main.append(builder.visit(node))
-    preamble.write()
-    for func in funcs:
-        my_prog.write(f"{func}\n")
-    for struct in structs:
-        my_prog.write(f"{struct}\n")
-    my_prog.write("int main(int argc, char * argv[]) {\n")
-    # my_prog.write('copy(argv, argv + argc, ostream_iterator<char *>(cout, "\\n"))\n')
-    # my_prog.write("int main(int argc, char * arg1[], char * arg2[]) {\n")
-    # my_prog.write('cout << argc << " " << *arg1 << " " << *arg2 << "\\n";\n')
-    for line in main:
-        my_prog.write(f"{line};\n")
-    my_prog.write("\n;return 0;\n")
-    my_prog.write("}\n")
+        body.append(builder.visit(node))
+    if parent_preamble is None:
+        preamble.write()
+        for _import in builder.imports:
+            if _import:
+                my_prog.write(f"{_import}\n")
+        for func in builder.funcs:
+            if func:
+                my_prog.write(f"{func}\n")
+        for struct in builder.structs:
+            if struct:
+                my_prog.write(f"{struct};\n")
+        for _class in builder.classes:
+            if _class:
+                my_prog.write(f"{_class};\n")
+    if parent_preamble is None:
+        my_prog.write("int main(int argc, char * argv[]) {\n")
+        # my_prog.write('copy(argv, argv + argc, ostream_iterator<char *>(cout, "\\n"))\n')
+        # my_prog.write("int main(int argc, char * arg1[], char * arg2[]) {\n")
+        # my_prog.write('cout << argc << " " << *arg1 << " " << *arg2 << "\\n";\n')
+    if parent_preamble is None:
+        for line in body:
+            if line:
+                my_prog.write(f"{line};\n")
+        my_prog.write("return 0;\n")
+        my_prog.write("}\n")
     my_prog.seek(0)
+    return ProgramInfo(
+        prog=my_prog.read(),
+        scope=builder.top_scope,
+        imports=builder.imports,
+        structs=builder.structs,
+        classes=builder.classes,
+        funcs=builder.funcs,
+    )
+
+
+def parse(source_file: str) -> my_ast.Program:
+    with open(source_file) as my_file:
+        code = my_file.read()
+        lexer = Lexer(code, source_file)
+        parser = Parser(lexer)
+        return parser.parse()
 
 
 def build_prog(
@@ -609,27 +718,31 @@ def build_prog(
     o = source_file.replace(".my", "")
     if not out_path:
         out_path = o
-    with open(source_file) as my_file:
-        code = my_file.read()
-        lexer = Lexer(code, source_file)
-        parser = Parser(lexer)
-        tree = parser.parse()
-        if not ignore_warnings:
-            validator = Validator(parser.file_name)
-            validator.check(tree)
-            if validator.warnings:
-                sys.exit(1)
-        with NamedTemporaryFile(mode="+r", suffix=".cpp", delete=False) as my_prog:
-            emit(tree, my_prog)
-            with suppress(FileNotFoundError):
-                os.remove(out_path)
-            if print_out:
-                with open(my_prog.name) as my_prog_file:
-                    print(my_prog_file.read())
-            subprocess.Popen(
-                f"clang++ -Iinclude -std=c++23 {optimization_level} {my_prog.name} -o {out_path} && rm {my_prog.name}",
-                shell=True,
+    tree = parse(source_file)
+    if not ignore_warnings:
+        validator = Validator(source_file)
+        validator.check(tree)
+        if validator.warnings:
+            sys.exit(1)
+    my_str = StringIO()
+    program = emit(tree, my_str).prog
+    with NamedTemporaryFile(mode="+r", suffix=".cpp", delete=False) as my_prog:
+        my_prog.write(program)
+        with suppress(FileNotFoundError):
+            os.remove(out_path)
+        if print_out:
+            proc = subprocess.Popen(
+                f"clang-format",
+                stdout=subprocess.PIPE,
+                stdin=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
             )
-        if run:
-            sleep(0.1)
-            subprocess.Popen(out_path, shell=True)
+            proc_result = proc.communicate(input=program.encode("utf-8"))
+            print(proc_result[0].decode())
+        subprocess.Popen(
+            f"clang++ -Iinclude -std=c++23 {optimization_level} {my_prog.name} -o {out_path} && rm {my_prog.name}",
+            shell=True,
+        )
+    if run:
+        sleep(0.1)
+        subprocess.Popen(out_path, shell=True)

@@ -1,8 +1,11 @@
+- modules
+- dictionaries
+- bootstrap
 - with statement (context managers)
 - variadic functions
 - *args and **kwargs
-- truthyness ?
-- square bracket access
+- truthyness ? probably not
+- allow setting a default argument with a mutable value (i.e. `def func(my_list = [])` should work fine)
 - for loop nobreak keyword
 - operator chaining
 - class constructors
@@ -12,7 +15,7 @@
 - comprehensions
 - descriptor protocol
 - coroutines
-- generics
+- generics (c++ concepts)
 - inner functions, classes, structs
 - closures
 - ternary
@@ -22,7 +25,6 @@
 - constants
 - decimal type by default instead of float
 - duplicating pythons variable storage (all variables are pointers, pass by object reference, ...)
-- dictionaries
 - sets
 - fixed size arrays
 - empty lists, dicts, sets, tuples, ...
@@ -39,8 +41,7 @@
 - unicode support
 - type aliasing
 - networking
-- modules
-- garbage collector
+- garbage collector (can be turned off)
 - memaloc and free for option to forgo garbage collection
 - put more work into validator
 - decorators

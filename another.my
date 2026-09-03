@@ -1,0 +1,2 @@
+def plus_four(num: Int) > Int
+	return num + 4

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from prettyprinter import pprint
 
 import grammar
@@ -13,7 +15,7 @@ class ParserError(Exception):
 class Parser:
     def __init__(self, lexer: Lexer) -> None:
         self.lexer = lexer
-        self.file_name = lexer.file_name
+        self.file_path = lexer.file_path
         self.current_token = Token(TokenType.PROGRAM_START, "", 0, 0)
         self._indent_level = 0
         self.next_token()
@@ -368,6 +370,8 @@ class Parser:
             node = self.assignment_statement(self.current_token)
         elif self.current_token.value == grammar.RETURN:
             node = self.return_statement()
+        elif self.current_token.value == grammar.IMPORT:
+            node = self.import_statement()
         elif self.current_token.value in self.user_types:
             node = self.variable_declaration()
         elif self.current_token.token_type == TokenType.NAME:
@@ -380,9 +384,8 @@ class Parser:
                 node = self.struct_creation(self.next_token())
             else:
                 node = self.name_statement()
-        # elif self.current_token.value == grammar.LCURLYBRACKET:
-        #     preview_token = self.preview(-1)
-        #     print(self.current_token)
+        elif self.current_token.value == grammar.LCURLYBRACKET:
+            print(self.current_token)
         elif self.current_token.value == grammar.FUNC_DEFINITION:
             node = self.function_declaration()
         elif self.current_token.value == grammar.ALIAS:
@@ -507,8 +510,11 @@ class Parser:
             )
         raise SyntaxError
 
-    def struct_creation(self, token: Token) -> my_ast.StructCreation:
-        self.next_token()
+    def struct_creation(
+        self, token: Token, dot_access: my_ast.DotAccess | None = None
+    ) -> my_ast.StructCreation:
+        if self.current_token.value != grammar.LCURLYBRACKET:
+            self.next_token()
         self.eat_value(grammar.LCURLYBRACKET)
         args = []
         named_args = {}
@@ -529,8 +535,11 @@ class Parser:
             if self.current_token.value != grammar.RCURLYBRACKET:
                 self.eat_value(grammar.COMMA)
         self.eat_value(grammar.RCURLYBRACKET)
+        name = token.value
+        if dot_access is not None:
+            name = f"{dot_access.obj.value}.{dot_access.field}"
         return my_ast.StructCreation(
-            name=token.value,
+            name=name,
             arguments=args,
             line_num=self.line_num,
             named_arguments=named_args,
@@ -557,7 +566,7 @@ class Parser:
     def dot_access(self, token: Token) -> my_ast.DotAccess:
         self.eat_value(grammar.DOT)
         field = self.current_token.value
-        self.next_token()
+        next_token = self.next_token()
         if token.value == grammar.SELF:
             obj = my_ast.Self(line_num=self.line_num)
         else:
@@ -565,6 +574,10 @@ class Parser:
         access = my_ast.DotAccess(obj=obj, field=field, line_num=token.line_num)
         if self.current_token.value == grammar.LPAREN:
             return self.method_call(self.current_token, access)
+        if self.current_token.value == grammar.LCURLYBRACKET:
+            return self.struct_creation(self.current_token, access)
+        if self.current_token.value == grammar.DOT:
+            access.field = self.dot_access(next_token)
         return access
 
     # def self_access(self, token: Token) -> my_ast.Self:
@@ -669,6 +682,24 @@ class Parser:
         self.next_token()
         return my_ast.Return(value=self.expr(), line_num=self.line_num)
 
+    def import_statement(self) -> my_ast.Import:
+        current_file_path = Path(self.file_path).parent.resolve()
+        name = ""
+        if self.current_token.value == grammar.FROM:
+            print(self.current_token)
+        if self.current_token.value == grammar.IMPORT:
+            self.next_token()
+            name = self.current_token.value
+            import_path = (
+                current_file_path / f"{self.current_token.value.replace('.', '/')}.my"
+            )
+            if not import_path.exists():
+                raise FileNotFoundError(
+                    f"File does not exist: {import_path.as_posix()}"
+                )
+            self.next_token()
+        return my_ast.Import(name=name, path=import_path.as_posix())
+
     def if_statement(self) -> my_ast.If:
         self.next_token()
         comps = [self.expr()]
@@ -723,7 +754,7 @@ class Parser:
         self.next_token()
         elements = []
         while self.current_token.value != grammar.IN:
-            elements.append(self.expr())
+            elements.append(self.variable(self.next_token()))
             if self.current_token.value == grammar.COMMA:
                 self.eat_value(grammar.COMMA)
         self.eat_value(grammar.IN)
@@ -776,7 +807,7 @@ class Parser:
                 left=left, op=token.value, right=right, line_num=self.line_num
             )
         else:
-            raise SyntaxError(f"Unknown assignment operator: {token.value}")
+            raise SyntaxError(f"Unknown assignment operator: '{token.value.replace('\n', '\\n')}'")
         return node
 
     def variable(self, token: Token, read_only: bool = False) -> my_ast.Var:
@@ -789,6 +820,9 @@ class Parser:
 
     def factor(self) -> my_ast.Expression:
         token = self.current_token
+        if token.token_type == TokenType.EOF:
+            self.eof = True
+            return
         preview_token = self.preview()
         preview_token_value = preview_token.value if preview_token else ""
         if preview_token_value == grammar.DOT:

@@ -14,9 +14,9 @@ class Token:
 
 
 class Lexer:
-    def __init__(self, text: str, file_name: str | None = None):
+    def __init__(self, text: str, file_path: str | None = None):
         self.text = text
-        self.file_name = file_name
+        self.file_path = file_path
         self.pos = 0
         self.current_char = self.text[self.pos]
         self.char_type = None

@@ -1,5 +1,3 @@
-my_file = open("todo.md")
+my_int = "data"
 
-print(my_file.read())
-
-my_file.close()
+print(my_int)
