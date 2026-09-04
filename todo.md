@@ -1,14 +1,11 @@
-- modules
-- dictionaries
 - bootstrap
 - with statement (context managers)
 - variadic functions
 - *args and **kwargs
-- truthyness ? probably not
+- truthyness? probably not
 - allow setting a default argument with a mutable value (i.e. `def func(my_list = [])` should work fine)
 - for loop nobreak keyword
 - operator chaining
-- class constructors
 - destructors ?
 - pattern matching
 - design by contract

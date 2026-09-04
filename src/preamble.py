@@ -9,6 +9,8 @@ class Preamble:
         self.print = False
         self.format = False
         self.files = False
+        self.map = False
+        self.set = False
 
     def write(self) -> None:
         self.my_prog.write(
@@ -20,6 +22,10 @@ class Preamble:
         # self.my_prog.write("#include <iterator>\n")
         if self.list:
             self.my_prog.write("#include <vector>\n")
+        if self.map:
+            self.my_prog.write("#include <unordered_map>\n")
+        if self.set:
+            self.my_prog.write("#include <set>\n")
         if self.files:
             self.my_prog.write("#include <fstream>\n")
         if self.range:

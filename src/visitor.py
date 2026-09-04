@@ -8,6 +8,7 @@ from typing import Any
 import grammar
 import my_ast
 import my_types
+import import_manager
 
 type Scope = dict[str, AccessibleSymbol]
 
@@ -155,6 +156,8 @@ FILE_BUILTIN = BuiltInClassSymbol(
 
 
 class NodeVisitor:
+    import_manager = import_manager.ImportManager()
+
     def __init__(self) -> None:
         self._scope: list[Scope] = [{}]
         self._init_builtins()

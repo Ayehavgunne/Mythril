@@ -124,8 +124,7 @@ class Bytes(AnyVal):
 
 @dataclass
 class Collection(MyAny):
-    name: str = "Collection"
-    subtype: MyAny = field(default_factory=MyAny)
+    pass
 
 
 @dataclass
@@ -139,21 +138,34 @@ class List(Collection):
 
 
 @dataclass
-class Set(Collection):
-    name: str = grammar.SET
+class Tuple(Collection):
+    name: str = grammar.TUPLE
+    subtypes: list[MyAny] = field(default_factory=list)
 
     @property
     def destination_type(self) -> str:
-        raise NotImplementedError
+        return f"tuple<{', '.join([subtype.destination_type for subtype in self.subtypes])}>"
+
+
+@dataclass
+class Set(Collection):
+    name: str = grammar.SET
+    subtype: MyAny = field(default_factory=MyAny)
+
+    @property
+    def destination_type(self) -> str:
+        return f'set<{self.subtype.destination_type}>'
 
 
 @dataclass
 class Dict(Collection):
     name: str = grammar.DICT
+    left: MyAny = field(default_factory=MyAny)
+    right: MyAny = field(default_factory=MyAny)
 
     @property
     def destination_type(self) -> str:
-        raise NotImplementedError
+        return f"unordered_map<{self.left.destination_type}, {self.right.destination_type}>"
 
 
 @dataclass
@@ -209,6 +221,9 @@ TYPE_MAP = {
     grammar.FLOAT: Float,
     grammar.STR: Str,
     grammar.LIST: List,
+    grammar.TUPLE: Tuple,
+    grammar.SET: Set,
+    grammar.DICT: Dict,
     grammar.ENUM: MyEnum,
     grammar.STRUCT: Struct,
     grammar.CLASS: Class,

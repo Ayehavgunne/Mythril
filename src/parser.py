@@ -274,7 +274,7 @@ class Parser:
         if token.value == grammar.LCURLYBRACKET:
             return self.curly_bracket_expression(token)
         elif token.value == grammar.LPAREN:
-            return self.list_expression(token)
+            return self.tuple_expression(token)
         else:
             return self.square_bracket_expression(token)
 
@@ -436,7 +436,7 @@ class Parser:
                 return self.slice_expression(tok)
             else:
                 self.eat_value(grammar.RSQUAREBRACKET)
-                access = self.access_collection(token, tok, grammar.LIST)
+                access = self.access_collection(token, tok)
                 if self.current_token.value in grammar.ASSIGNMENT_OP:
                     op = self.current_token
                     self.next_token()
@@ -463,7 +463,7 @@ class Parser:
                 return self.slice_expression(tok)
             else:
                 self.eat_value(grammar.RSQUAREBRACKET)
-                return self.access_collection(token, tok, grammar.LIST)
+                return self.access_collection(token, tok)
         raise SyntaxError
 
     def slice_expression(self, _: my_ast.Expression) -> my_ast.Expression:
@@ -471,31 +471,60 @@ class Parser:
 
     def curly_bracket_expression(
         self, token: Token
-    ) -> my_ast.Dict | my_ast.StructLiteral:
-        dict_or_struct = None
+    ) -> my_ast.Dict | my_ast.StructLiteral | my_ast.Collection:
+        preview = self.preview(1)
+        if preview.value == grammar.COMMA:
+            return self.set_literal(token)
+        which = None
         if token.value == grammar.LCURLYBRACKET:
             pairs = {}
             while self.current_token.value != grammar.RCURLYBRACKET:
                 key = self.expr()
                 if self.current_token.value == grammar.COLON:
-                    dict_or_struct = grammar.DICT
+                    which = grammar.DICT
                     self.eat_value(grammar.COLON)
+                    pairs[key] = self.expr()
                 else:
-                    dict_or_struct = grammar.STRUCT
+                    which = grammar.STRUCT
                     self.eat_value(grammar.ASSIGN)
-                pairs[key.value] = self.expr()
+                    pairs[key.value] = self.expr()
                 if self.current_token.value == grammar.COMMA:
                     self.next_token()
                 else:
                     break
             self.eat_value(grammar.RCURLYBRACKET)
-            if dict_or_struct == grammar.DICT:
+            if which == grammar.DICT:
                 return my_ast.Dict(items=pairs, line_num=self.line_num)
-            elif dict_or_struct == grammar.STRUCT:
+            elif which == grammar.STRUCT:
                 return my_ast.StructLiteral(fields=pairs, line_num=self.line_num)
-        raise SyntaxError("Wait... what?")
+        raise SyntaxError("Expected curly bracket")
+
+    def set_literal(self, token: Token) -> my_ast.Collection:
+        if token.value == grammar.LCURLYBRACKET:
+            items = []
+            while self.current_token.value != grammar.RCURLYBRACKET:
+                items.append(self.expr())
+                if self.current_token.value == grammar.COMMA:
+                    self.next_token()
+            return my_ast.Collection(type=grammar.SET, items=items, line_num=self.line_num, read_only=False)
+        raise SyntaxError("Expected curly bracket")
 
     def list_expression(self, token: Token) -> my_ast.Collection:
+        if token.value == grammar.LSQUAREBRACKET:
+            items = []
+            while self.current_token.value != grammar.RSQUAREBRACKET:
+                items.append(self.expr())
+                if self.current_token.value == grammar.COMMA:
+                    self.next_token()
+                else:
+                    break
+            self.eat_value(grammar.RSQUAREBRACKET)
+            return my_ast.Collection(
+                type=grammar.LIST, line_num=self.line_num, read_only=False, items=items
+            )
+        raise SyntaxError
+
+    def tuple_expression(self, token: Token) -> my_ast.Collection:
         if token.value == grammar.LPAREN:
             items = []
             while self.current_token.value != grammar.RPAREN:
@@ -506,7 +535,7 @@ class Parser:
                     break
             self.eat_value(grammar.RPAREN)
             return my_ast.Collection(
-                type=grammar.LIST, line_num=self.line_num, read_only=False, items=items
+                type=grammar.TUPLE, line_num=self.line_num, read_only=False, items=items
             )
         raise SyntaxError
 
@@ -554,10 +583,10 @@ class Parser:
             raise NotImplementedError
 
     def access_collection(
-        self, token: Token, key: my_ast.Node, collection_type: str
+        self, token: Token, key: my_ast.Node
     ) -> my_ast.CollectionAccess:
         return my_ast.CollectionAccess(
-            name=token.value, type=collection_type, key=key, line_num=self.line_num
+            name=token.value, key=key, line_num=self.line_num
         )
 
     def list_of_type_assignment(self, _: Token, __: Token) -> my_ast.Collection:
@@ -807,7 +836,9 @@ class Parser:
                 left=left, op=token.value, right=right, line_num=self.line_num
             )
         else:
-            raise SyntaxError(f"Unknown assignment operator: '{token.value.replace('\n', '\\n')}'")
+            raise SyntaxError(
+                f"Unknown assignment operator: '{token.value.replace('\n', '\\n')}'"
+            )
         return node
 
     def variable(self, token: Token, read_only: bool = False) -> my_ast.Var:
@@ -872,6 +903,9 @@ class Parser:
                     items=[],
                 )
             else:
+                preview_token = self.preview(2)
+                if preview_token.value == grammar.COMMA:
+                    return self.tuple_expression(self.next_token())
                 self.next_token()
                 node = self.expr()
                 if self.current_token.token_type == TokenType.NEWLINE:

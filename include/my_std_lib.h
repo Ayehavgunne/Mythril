@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <set>
 
 inline const char * const bool_to_str(bool b) {
   return b ? "true" : "false";
@@ -46,3 +47,31 @@ struct File {
 File open(std::string name) {
     return {name};
 }
+
+// template<typename T>
+// struct Set {
+//     std::vector<T> _items;
+
+//     void add(T item) {
+//         if (this->contains(item)) {
+//             return;
+//         }
+//         this->_items.push_back(item);
+//     }
+
+//     bool contains(T item) {
+//         return find(this->_items.begin(), this->_items.end(), item) != this->_items.end();
+//     }
+
+//     void remove(T item) {
+//         if (this->contains(item)) {
+//             return;
+//         }
+//         this->_items.erase(std::remove(this->_items.begin(), this->_items.end(), item), this->_items.end());
+//     }
+// };
+
+// template<typename T>
+// Set<T> make_set() {
+//     return {}
+// }

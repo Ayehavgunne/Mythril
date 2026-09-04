@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from io import StringIO
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -11,11 +12,11 @@ from typing import IO
 
 import my_ast
 from my_types import TYPE_MAP, Bool, Class
+import my_types
 from lexer import Lexer
 from parser import Parser
 import grammar
 from preamble import Preamble
-from imports import ImportManager
 from visitor import (
     BuiltinFuncSymbol,
     ClassSymbol,
@@ -33,23 +34,17 @@ class BuilderError(Exception):
 
 
 class Builder(NodeVisitor):
-    def __init__(
-        self, preamble: Preamble, #import_parent: str = "", import_name: str = ""
-    ):
+    def __init__(self, file_path: str, preamble: Preamble, is_root : bool = False):
         super().__init__()
+        self.file_path = Path(file_path).absolute().resolve()
         self.preamble = preamble
+        self.is_root = is_root
         self.in_class = False
         self.in_constructor = False
-        self.classes = []
-        self.structs = []
-        self.funcs = []
-        self.imports = []
-        # self.import_parent = f"{import_parent}_" if import_parent else ""
-        # self.import_name = f"{import_name}__" if import_name else ""
-
-    @property
-    def is_imported(self) -> bool:
-        return len(self.import_path) > 0
+        self.classes = {}
+        self.structs = {}
+        self.funcs = {}
+        self.func_defs = {}
 
     def visit_assign(self, node: my_ast.Assign) -> str:
         visited_left = self.visit(node.left)
@@ -95,16 +90,46 @@ class Builder(NodeVisitor):
                     read_only=read_only,
                 )
             case my_ast.Collection(type=collection_type, items=items):
+                if collection_type == grammar.LIST:
+                    var_sym = VarSymbol(
+                        name=visited_left,
+                        type=TYPE_MAP[collection_type](
+                            subtype=TYPE_MAP[items[0].val_type]()
+                        ),
+                        val_assigned=True,
+                        read_only=read_only,
+                    )
+                elif collection_type == grammar.TUPLE:
+                    var_sym = VarSymbol(
+                        name=visited_left,
+                        type=TYPE_MAP[collection_type](
+                            subtypes=[TYPE_MAP[item.val_type]() for item in items]
+                        ),
+                        val_assigned=True,
+                        read_only=read_only,
+                    )
+                elif collection_type == grammar.SET:
+                    var_sym = VarSymbol(
+                        name=visited_left,
+                        type=TYPE_MAP[collection_type](
+                            subtype=TYPE_MAP[items[0].val_type]()
+                        ),
+                        val_assigned=True,
+                        read_only=read_only,
+                    )
+                    print()
+                else:
+                    raise NotImplementedError
+            case my_ast.Dict(items=items):
                 var_sym = VarSymbol(
                     name=visited_left,
-                    type=TYPE_MAP[collection_type](
-                        subtype=TYPE_MAP[items[0].val_type]()
+                    type=TYPE_MAP[grammar.DICT](
+                        left=TYPE_MAP[list(items.keys())[0].val_type](),
+                        right=TYPE_MAP[list(items.values())[0].val_type](),
                     ),
                     val_assigned=True,
                     read_only=read_only,
                 )
-                self.define(visited_left, var_sym)
-                return f";vector<{var_sym.type.subtype.destination_type}> {visited_left} {node.op} {visited_right};\n"
             case my_ast.BinOp(right=right):
                 scoped_val = self.search_scopes(right.value)
                 if scoped_val is None:
@@ -308,10 +333,17 @@ class Builder(NodeVisitor):
             return f'format("{value}", {", ".join(final_matches)})'
         return f'"{value}"'
 
+    def visit_dict(self, node: my_ast.Dict) -> str:
+        self.preamble.map = True
+        items = {self.visit(key): self.visit(node.items[key]) for key in node.items.keys()}
+        items = [f"{{{key}, {value}}}" for key, value in items.items()]
+        return f'{{ {", ".join(items)} }}'
+
     def visit_collection(self, node: my_ast.Collection) -> str:
         items = []
         for item in node.items:
             items.append(self.visit(item))
+        # scoped_val = self.infer_type(items[0])
         open_bracket = ""
         close_bracket = ""
         match node.type:
@@ -319,14 +351,25 @@ class Builder(NodeVisitor):
                 self.preamble.list = True
                 open_bracket = "{"
                 close_bracket = "}"
+            case grammar.TUPLE:
+                return f'make_tuple({", ".join(items)})'
+            # case grammar.SET:
+            #     self.preamble.set = True
+            #     return f'make_set<{scoped_val.destination_type}>();\n{"\n".join(items)}'
         return f"{open_bracket}{', '.join(items)}{close_bracket}"
 
     def visit_collection_access(self, node: my_ast.CollectionAccess) -> str:
+        scoped_val = self.search_scopes(node.name)
         key = self.visit(node.key)
-        if node.type == grammar.LIST:
-            if "BigInt::bigint" in key:
-                key = key.replace('BigInt::bigint("', "")[:-2]
-            return f"{node.name}[{key}]"
+        match scoped_val.type:
+            case my_types.List():
+                if "BigInt::bigint" in key:
+                    key = key.replace('BigInt::bigint("', "")[:-2]
+                return f"{node.name}[{key}]"
+            case my_types.Tuple():
+                if "BigInt::bigint" in key:
+                    key = key.replace('BigInt::bigint("', "")[:-2]
+                return f"get<{key}>({node.name})"
         raise NotImplementedError
 
     def visit_for(self, node: my_ast.For) -> str:
@@ -425,12 +468,19 @@ class Builder(NodeVisitor):
         self.in_constructor = False
         if node.constructor:
             return f"{name} ({', '.join(params)}) {{\n{body}}}\n"
+        decl = f"{return_type.destination_type} {name} ({', '.join(params)})"
+        result = f"{decl} {{\n{body}}}\n"
         if self.in_class:
-            return f"{return_type.destination_type} {name} ({', '.join(params)}) {{\n{body}}}\n"
+            return result
         else:
-            self.funcs.append(
-                f"{return_type.destination_type} {name} ({', '.join(params)}) {{\n{body}}}\n"
-            )
+            if self.is_root:
+                self.funcs[name] = result
+                self.func_defs[name] = decl
+            else:
+                my_import = self.import_manager.get_import_by_path(self.file_path)
+                if my_import is not None:
+                    my_import.body.funcs[name] = result
+                    my_import.body.func_defs[name] = decl
         return ""
 
     def visit_return(self, node: my_ast.Return) -> str:
@@ -563,15 +613,21 @@ class Builder(NodeVisitor):
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
-        self.classes.append(
+        result = (
             f"struct {name} {{\n"
-            f"{'\n'.join(static_fields)}\n"
-            f"{'\n'.join(instance_fields)}\n"
+            f"{';\n'.join(static_fields)};\n"
+            f"{';\n'.join(instance_fields)};\n"
             f"{constructor}\n"
             f"{'\n'.join(methods)}\n"
             f"}};\n"
             f"{overload}\n"
         )
+        if self.is_root:
+            self.classes[name] = result
+        else:
+            my_import = self.import_manager.get_import_by_path(self.file_path)
+            if my_import is not None:
+                my_import.body.classes[name] = result
         return ""
 
     def visit_self(self, _: my_ast.Self) -> str:
@@ -597,9 +653,13 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
-        self.structs.append(
-            f"struct {name} {{\n{'\n'.join(fields)}\n}};\n{overload}\n"
-        )
+        result = (f"struct {name} {{\n{';\n'.join(fields)}\n}};\n{overload}\n")
+        if self.is_root:
+            self.structs[name] = result
+        else:
+            my_import = self.import_manager.get_import_by_path(self.file_path)
+            if my_import is not None:
+                my_import.body.structs[name] = result
         return ""
 
     def visit_struct_creation(self, node: my_ast.StructCreation) -> str:
@@ -625,18 +685,17 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         return f"{visited_obj}.{node.field}"
 
     def visit_import(self, node: my_ast.Import) -> str:
-        tree = parse(node.path)
         import_name = node.name
+        self.import_manager.create_import(name=import_name, path=node.path, parent=self.file_path)
+        tree = parse(node.path)
         my_prog = StringIO()
-        sub_prog = emit(tree=tree, my_prog=my_prog, parent_preamble=self.preamble)
+        sub_prog = emit(file_path=node.path, tree=tree, my_prog=my_prog, parent_preamble=self.preamble)
         self.top_scope.update(
             {f"{import_name}.{name}": var for name, var in sub_prog.scope.items()}
         )
-        self.imports.extend(sub_prog.imports)
-        self.structs.extend(sub_prog.structs)
-        self.classes.extend(sub_prog.classes)
-        self.funcs.extend(sub_prog.funcs)
-        self.imports.append(sub_prog.prog)
+        self.structs.update(sub_prog.structs)
+        self.classes.update(sub_prog.classes)
+        self.funcs.update(sub_prog.funcs)
         self.import_names.append(import_name)
         return ""
 
@@ -646,35 +705,43 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
 
 @dataclass
 class ProgramInfo:
-    prog: str
+    body: str
     scope: Scope | None
-    imports: list[str]
-    structs: list[str]
-    classes: list[str]
-    funcs: list[str]
+    structs: dict[str, str]
+    classes: dict[str, str]
+    funcs: dict[str, str]
 
 
 def emit(
-    tree: my_ast.Program, my_prog: IO[str], parent_preamble: Preamble | None = None, import_manager: ImportManager | None = None
+    file_path: str,
+    tree: my_ast.Program,
+    my_prog: IO[str],
+    parent_preamble: Preamble | None = None,
 ) -> ProgramInfo:
     preamble = parent_preamble or Preamble(my_prog)
-    import_manager = import_manager or ImportManager()
-    builder = Builder(preamble)
+    builder = Builder(file_path=file_path, preamble=preamble, is_root=parent_preamble is None)
     body = []
     for node in tree.block.children:
         body.append(builder.visit(node))
     if parent_preamble is None:
         preamble.write()
-        for _import in builder.imports:
-            if _import:
-                my_prog.write(f"{_import}\n")
-        for func in builder.funcs:
+        for my_import in builder.import_manager:
+            if my_import:
+                for func_def in my_import.body.func_defs.values():
+                    my_prog.write(f"{func_def};\n")
+        for func_def in builder.func_defs.values():
+            for func_def in my_import.body.func_defs.values():
+                my_prog.write(f"{func_def};\n")
+        for my_import in builder.import_manager:
+            if my_import:
+                my_prog.write(f"{my_import.body.to_str()}\n")
+        for func in builder.funcs.values():
             if func:
                 my_prog.write(f"{func}\n")
-        for struct in builder.structs:
+        for struct in builder.structs.values():
             if struct:
                 my_prog.write(f"{struct};\n")
-        for _class in builder.classes:
+        for _class in builder.classes.values():
             if _class:
                 my_prog.write(f"{_class};\n")
     if parent_preamble is None:
@@ -690,9 +757,8 @@ def emit(
         my_prog.write("}\n")
     my_prog.seek(0)
     return ProgramInfo(
-        prog=my_prog.read(),
+        body=my_prog.read(),
         scope=builder.top_scope,
-        imports=builder.imports,
         structs=builder.structs,
         classes=builder.classes,
         funcs=builder.funcs,
@@ -725,7 +791,7 @@ def build_prog(
         if validator.warnings:
             sys.exit(1)
     my_str = StringIO()
-    program = emit(tree, my_str).prog
+    program = emit(source_file, tree, my_str).body
     with NamedTemporaryFile(mode="+r", suffix=".cpp", delete=False) as my_prog:
         my_prog.write(program)
         with suppress(FileNotFoundError):
