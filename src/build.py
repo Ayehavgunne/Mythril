@@ -447,9 +447,6 @@ class Builder(NodeVisitor):
     def visit_range(self, node: my_ast.Range) -> str:
         self.preamble.range = True
         visited_left = self.visit(node.left)
-#        if "BigInt::bigint(" in visited_left:
-#            # temp hack to deal with bigint incompatibility with iota
-#            visited_left = visited_left.replace('BigInt::bigint("', "")[:-2]
         visited_right = self.visit(node.right)
         return f'range({visited_left}, {visited_right}, BigInt::bigint("1"))'
 
@@ -458,6 +455,8 @@ class Builder(NodeVisitor):
 
     def visit_func_decl(self, node: my_ast.FuncDecl) -> str:
         name = node.name
+        if name in (grammar.ENTER, grammar.EXIT):
+            name = f"__{name}"
         return_type = self.search_scopes(node.return_type.name)
         if return_type is not None:
             return_type = return_type.type
@@ -606,7 +605,7 @@ class Builder(NodeVisitor):
         for field, field_type in node.instance_fields.items():
             scoped_field_type = self.search_scopes(field_type.name)
             instance_fields.append(f"{scoped_field_type.type.destination_type} {field}")
-            print_fields.append(f'"    {field}: " << *{lower_name}.{field}')
+            print_fields.append(f'"    {field}: " << {lower_name}.{field}')
         self.in_class = True
         class_sym = ClassSymbol(
             name=name,
@@ -660,7 +659,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         for field, field_type in node.instance_fields.items():
             scoped_field_type = self.infer_type(field_type.name)
             fields.append(f"{scoped_field_type.destination_type} {field}")
-            print_fields.append(f'"    {field}: " << *{lower_name}.{field}')
+            print_fields.append(f'"    {field}: " << {lower_name}.{field}')
         self.define(
             name,
             StructSymbol(
@@ -672,7 +671,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
-        result = f"struct {name} {{\n{';\n'.join(fields)}\n}};\n{overload}\n"
+        result = f"struct {name} {{\n{';\n'.join(fields)};\n}};\n{overload}\n"
         if self.is_root:
             self.structs[name] = result
         else:
@@ -688,13 +687,14 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         for arg in node.arguments:
             args.append(f"{self.visit(arg)}")
             args_visited += 1
-        for name in obj.parameters:
-            if name in node.named_arguments:
-                args.append(self.visit(node.named_arguments[name]))
-                args_visited += 1
-        if len(obj.parameters) > args_visited:
-            for arg in list(obj.parameters.keys())[args_visited:]:
-                args.append(self.visit(obj.parameter_defaults[arg]))
+        if hasattr(obj, "parameters"):
+            for name in obj.parameters:
+                if name in node.named_arguments:
+                    args.append(self.visit(node.named_arguments[name]))
+                    args_visited += 1
+            if len(obj.parameters) > args_visited:
+                for arg in list(obj.parameters.keys())[args_visited:]:
+                    args.append(self.visit(obj.parameter_defaults[arg]))
         return f"{{ {', '.join(args)} }}"
 
     def visit_with(self, node: my_ast.With) -> str:
@@ -704,12 +704,12 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         enter_func = expr_scope.methods[grammar.ENTER]
         if isinstance(expr_scope.type, my_types.Class):
             return_type = self.search_scopes(enter_func.return_type.name)
-            expr = f'shared_ptr<{expr_scope.type.destination_type}> __tmp = make_shared<{expr_scope.type.destination_type}>();\nshared_ptr<{return_type.type.destination_type}> {var} = __tmp.{expr.replace(expr_scope.type.name, grammar.ENTER)}'
+            expr = f'shared_ptr<{expr_scope.type.destination_type}> __tmp = make_shared<{expr_scope.type.destination_type}>();\nshared_ptr<{return_type.type.destination_type}> {var} = __tmp.__enter{expr.replace(expr_scope.type.name, grammar.ENTER)}'
         enter_return_type = self.search_scopes(enter_func.return_type.name)
         with self.create_scope():
             self.define(var, VarSymbol(name=var, type=enter_return_type.type))
             body = self.visit(node.body)
-        return f"{{\n{expr}\n{body}\n__tmp.exit();\n}}"
+        return f"{{\n{expr}\n{body}\n__tmp.__exit();\n}}"
 
     def visit_dot_access(self, node: my_ast.DotAccess) -> str:
         visited_obj = self.visit(node.obj)

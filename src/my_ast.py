@@ -122,12 +122,14 @@ class StructDeclaration(Statement):
     name: str
     instance_fields: dict[str, Type]
     static_fields: dict[str, Type]
+    parameter_defaults: dict[str, Node] = field(default_factory=dict)
     line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class StructLiteral(Expression):
     intsance_fields: dict[str, Type]
+    parameter_defaults: dict[str, Node] = field(default_factory=dict)
     line_num: int
 
 

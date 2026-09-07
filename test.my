@@ -6,11 +6,20 @@ class Person
 		self.name = name
 		self.age = age
 
+#	enter(path: Str) > Str
+#		return "{path} is the way"
+#
+#	exit()
+#		print("exiting")
+
 	def greet(intro: Str = "hello") > Str
 		return "{intro} {self.name}, how are you?"
 
 
 things = [1, 2, 3]
+for item in things
+	print(item)
+
 other_things = (1, 'Hello')
 stuff = {'first_name': 'Samus', 'last_name': 'Aran'}
 
@@ -18,8 +27,33 @@ print(things[1])
 print(other_things[0])
 print(stuff['first_name'])
 
+print("")
+
+if 2 in things
+	print('yes')
+if 2 not in things
+	print('no')
+
+print("")
+
+if "an" in "anthony"
+	print("has an")
+
+number = 10
+while number > 1
+	number -= 1
+	if number == 5
+		continue
+	if number == 2
+		break
+	print(number)
+
+print("")
+
 for x in 0..40
 	print(x)
+
+print("")
 
 number = 22
 if number > 23
@@ -29,10 +63,65 @@ elif number == 23
 else
 	print('less than 23')
 
-me = Person{age=40, name="Anthony"}
+print("")
+
+me = Person{"Anthony", 40}
 print(me.greet())
+#with Person{"./todo.md"} as my_path
+#	print(my_path)
 
 def plus_five(num: Int) > Int
 	return num + 5
 
 print(plus_five(2))
+
+print("")
+
+def fib(n: Int) > Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
+
+print(fib(10))
+print("")
+print('🍌')
+
+struct Circle
+	radius: Int
+	x: Int
+	y: Int
+
+cir = Circle{radius=5, x=2, y=4}
+
+print(cir.radius)
+
+print("")
+
+y = 10
+for x in 0..y + 1
+	print(x::Str + ' ' + fib(x)::Str)
+
+print("")
+
+# print(things[1 + 1])
+
+yes = true
+no = false
+h = 5
+g = 0.1
+
+if no
+	g = 2.6
+	if yes and no
+		h += h
+elif yes
+	g = 3.6
+else
+	g = 7.6
+
+print(h)
+print(g)

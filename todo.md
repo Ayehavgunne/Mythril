@@ -1,5 +1,6 @@
 - bootstrap
 - enum
+- slices
 - anonymous block
 - generate basic constructor if not provided
 - with statement (context managers)
@@ -48,3 +49,4 @@
 - metaprogramming (compile time execution, using the same constructs that are in the language, just prefixed)
 - more magic methods (these will simply not use `def` before them)
 - foreign function interface
+- make print accept varargs, more params like 'end=\n' so that it is more like Python's print

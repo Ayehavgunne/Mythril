@@ -26,6 +26,10 @@ bool contains(vector<T, V> const & v, T x) {
     return find(v.begin(), v.end(), x) != v.end();
 }
 
+bool contains(string my_str, string substring) {
+    return my_str.contains(substring);
+}
+
 struct File {
     fstream my_file;
     string path;
@@ -55,6 +59,8 @@ struct File {
     void close() {
         this->my_file.close();
     }
+
+    
 };
 
 shared_ptr<File> open(string name) {
@@ -64,7 +70,7 @@ shared_ptr<File> open(string name) {
 template<typename T>
 generator<T> range(T start, T end, T step) {
     T i = start;
-    while (i < end) {
+    while (i <= end) {
         co_yield i;
         i = i + step;
     }

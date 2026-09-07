@@ -72,6 +72,7 @@ class VarSymbol(AccessibleSymbol):
 @dataclass(kw_only=True)
 class StructSymbol(AccessibleSymbol):
     fields: dict[str, my_ast.Type]
+    parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
 
 
 @dataclass(kw_only=True)
