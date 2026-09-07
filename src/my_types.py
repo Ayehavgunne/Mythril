@@ -154,7 +154,7 @@ class Set(Collection):
 
     @property
     def destination_type(self) -> str:
-        return f'set<{self.subtype.destination_type}>'
+        return f"set<{self.subtype.destination_type}>"
 
 
 @dataclass

@@ -122,7 +122,7 @@ MATCH = "match"
 DEL = "del"
 FROM = "from"
 IMPORT = "import"
-WILDCARD = "*"
+# WILDCARD = "*"
 WITH = "with"
 AS = "as"
 PASS = "pass"
@@ -132,8 +132,8 @@ ENSURE = "ensure"
 OVERRIDE = "override"
 DOC = "doc"  # allow unquoted text in doc block
 ABSTRACT = "abstract"
-GETTER = "getter"
-SETTER = "setter"
+GETTER = "get"
+SETTER = "set"
 ASSERT = "assert"
 
 ARITHMETIC_OP = (
@@ -269,8 +269,6 @@ KEYWORDS = (
     OVERRIDE,
     DOC,
     ABSTRACT,
-    GETTER,
-    SETTER,
     ASSERT,
     STATIC,
     ALIAS,
@@ -280,6 +278,8 @@ CONTEXTUAL_KEYWORDS = (
     NEW,
     ENTER,
     EXIT,
+    GETTER,
+    SETTER,
 )
 
 TYPES = (
@@ -302,6 +302,8 @@ TYPES = (
     STRUCT,
     VOID,
 )
+
+FUNC_TYPES = (FUNC_DEFINITION, GETTER, SETTER, NEW, ENTER, EXIT)
 
 CONSTANTS = (TRUE, FALSE, NAN, INF, NEGATIVE_INF)
 

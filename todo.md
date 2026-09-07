@@ -1,4 +1,7 @@
 - bootstrap
+- enum
+- anonymous block
+- generate basic constructor if not provided
 - with statement (context managers)
 - variadic functions
 - *args and **kwargs
@@ -39,10 +42,9 @@
 - type aliasing
 - networking
 - garbage collector (can be turned off)
-- memaloc and free for option to forgo garbage collection
+- maloc and free if not using garbage collection
 - put more work into validator
 - decorators
 - metaprogramming (compile time execution)
-- computed class properties
-- magic methods
+- more magic methods (these will simply not use `def` before them)
 - foreign function interface

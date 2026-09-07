@@ -21,7 +21,7 @@ class ProgramBody:
             result.write(f"{_class};\n")
         result.seek(0)
         return result.read()
-        
+
 
 @dataclass
 class MyImport:
@@ -56,7 +56,9 @@ class ImportManager:
         if isinstance(parent, str):
             parent = Path(parent).absolute().resolve()
         if path not in self._imports:
-            my_import = MyImport(name=name, path=path, parents={parent}, body=ProgramBody())
+            my_import = MyImport(
+                name=name, path=path, parents={parent}, body=ProgramBody()
+            )
             self._imports[path] = my_import
         else:
             my_import = self._imports[path]

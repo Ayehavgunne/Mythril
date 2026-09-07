@@ -5,32 +5,37 @@
 #include <fstream>
 #include <sstream>
 #include <set>
+#include <memory>
+#include <generator>
+using namespace std;
 
 inline const char * const bool_to_str(bool b) {
   return b ? "true" : "false";
 }
 
 template<typename T, typename V>
-bool contains(std::vector<T, V> const & v, T x) {
+bool contains(vector<T, V> const & v, T x) {
     return find(v.begin(), v.end(), x) != v.end();
 }
 
 struct File {
-    std::fstream my_file;
-    std::string path;
+    fstream my_file;
+    string path;
 
-    File(std::string path) {
+    File() {}
+    
+    File(string path) {
         this->path = path;
         this->my_file.open(path);
     }
 
-    void write(std::string data) {
+    void write(string data) {
         this->my_file << data;
     }
 
-    std::string read() {
-        std::stringstream contents;
-        std::string line;
+    string read() {
+        stringstream contents;
+        string line;
         
         while ( getline (this->my_file, line) ) {
             contents << line << '\n';
@@ -44,13 +49,22 @@ struct File {
     }
 };
 
-File open(std::string name) {
-    return {name};
+shared_ptr<File> open(string name) {
+    return make_shared<File>(name);
+}
+
+template<typename T>
+std::generator<T> range(T start, T end, T step) {
+    T i = start;
+    while (i < end) {
+        co_yield i;
+        i = i + step;
+    }
 }
 
 // template<typename T>
 // struct Set {
-//     std::vector<T> _items;
+//     vector<T> _items;
 
 //     void add(T item) {
 //         if (this->contains(item)) {
@@ -67,7 +81,7 @@ File open(std::string name) {
 //         if (this->contains(item)) {
 //             return;
 //         }
-//         this->_items.erase(std::remove(this->_items.begin(), this->_items.end(), item), this->_items.end());
+//         this->_items.erase(remove(this->_items.begin(), this->_items.end(), item), this->_items.end());
 //     }
 // };
 

@@ -18,7 +18,8 @@ class Preamble:
         )
         self.my_prog.write('#include "my_std_lib.h"\n')
         self.my_prog.write('#include "bigint.h"\n')
-        # self.my_prog.write("#include <iostream>\n")
+        self.my_prog.write("#include <memory>\n")
+        # self.my_prog.write("#include <iomemorystream>\n")
         # self.my_prog.write("#include <iterator>\n")
         if self.list:
             self.my_prog.write("#include <vector>\n")

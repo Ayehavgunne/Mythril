@@ -20,7 +20,7 @@ something: Str # Initialize a String
 
 things = [1, 2, 3] # List, homogeneous, mutable
 other_things = (1, 'Hello') # Tuple, can be non-homogeneous, immutable
-stuff = {first_name: 'Samus', 'last_name': 'Aran'} # Dictionary, key strings don't have to be in quotes, mutable
+stuff = {'first_name': 'Samus', 'last_name': 'Aran'} # mutable
 other_stuff: List[Int] = [] # Empty List of Ints
 
 if number > 23

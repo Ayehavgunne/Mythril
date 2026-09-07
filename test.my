@@ -1,3 +1,38 @@
-da_set = {"one", "two", "three", "three"}
+class Person
+	name: Str
+	age: Int
+
+	new(name: Str, age: Int)
+		self.name = name
+		self.age = age
+
+	def greet(intro: Str = "hello") > Str
+		return "{intro} {self.name}, how are you?"
 
 
+things = [1, 2, 3]
+other_things = (1, 'Hello')
+stuff = {'first_name': 'Samus', 'last_name': 'Aran'}
+
+print(things[1])
+print(other_things[0])
+print(stuff['first_name'])
+
+for x in 0..40
+	print(x + 2)
+
+number = 22
+if number > 23
+	print('greater than 23')
+elif number == 23
+	print('equals 23')
+else
+	print('less than 23')
+
+me = Person{age=40, name="Anthony"}
+print(me.greet())
+
+def plus_five(num: Int) > Int
+	return num + 5
+
+print(plus_five(2))

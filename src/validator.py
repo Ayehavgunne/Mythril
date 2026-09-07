@@ -129,7 +129,7 @@ class Validator(NodeVisitor):
         return self.infer_type(node.value)
 
     def visit_type(self, node: my_ast.Type):
-        typ = self.search_scopes(node.value)
+        typ = self.search_scopes(node.name)
         if typ is self.search_scopes(grammar.FUNC):
             typ.return_type = self.visit(node.func_ret_type)
         return typ
@@ -394,10 +394,10 @@ class Validator(NodeVisitor):
 
     def visit_func_decl(self, node: my_ast.FuncDecl):
         func_name = node.name
-        if node.return_type.value == grammar.VOID:
+        if node.return_type.name == grammar.VOID:
             func_type = VarSymbol(name=grammar.VOID, type=my_types.Void)
         else:
-            func_type = self.search_scopes(node.return_type.value)
+            func_type = self.search_scopes(node.return_type.name)
         if func_type and func_type.name == grammar.FUNC:
             func_type.return_type = self.visit(node.return_type.func_ret_type)
         self.define(
@@ -413,9 +413,9 @@ class Validator(NodeVisitor):
         self.new_scope()
         if node.varargs:
             varargs_type = self.search_scopes(grammar.LIST)
-            varargs_type.type = node.varargs[1].value
+            varargs_type.type = node.varargs[1].name
             varargs = CollectionSymbol(
-                node.varargs[0], varargs_type, self.search_scopes(node.varargs[1].value)
+                node.varargs[0], varargs_type, self.search_scopes(node.varargs[1].name)
             )
             varargs.val_assigned = True
             self.define(varargs.name, varargs)
@@ -467,10 +467,10 @@ class Validator(NodeVisitor):
         self.pop_scope()
 
     def visit_anonymous_func(self, node: my_ast.AnonymousFunc):
-        func_type = self.search_scopes(node.return_type.value)
+        func_type = self.search_scopes(node.return_type.name)
         self.new_scope()
         for k, v in node.parameters.items():
-            var_type = self.search_scopes(v.value)
+            var_type = self.search_scopes(v.name)
             if var_type is self.search_scopes(grammar.FUNC):
                 sym = FuncSymbol(
                     name=k, type=v.func_ret_type, parameters=node.parameters

@@ -1,4 +1,6 @@
+from contextlib import suppress
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 import grammar
 
@@ -54,6 +56,22 @@ class Var(Expression):
     read_only: bool = False
 
 
+class FuncType(StrEnum):
+    DEF = "def"
+    CONSTRUCTOR = "new"
+    DESTRUCTOR = "del"
+    GETTER = "get"
+    SETTER = "set"
+    ENTER = "enter"
+    EXIT = "exit"
+
+    @classmethod
+    def get(cls, name: str) -> Self:
+        with suppress(KeyError):
+            return cls(name)
+        return FuncType.REGULAR
+
+
 @dataclass(kw_only=True, eq=True, frozen=True)
 class FuncDecl(Statement):
     name: str
@@ -63,8 +81,7 @@ class FuncDecl(Statement):
     line_num: int
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     varargs: list[str | Var | Type] = field(default_factory=list)
-    constructor: bool = False
-    destructor: bool = False
+    type: FuncType = FuncType.DEF
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -123,6 +140,11 @@ class StructCreation(Statement):
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
+class Enum(Statement):
+    fields: list[Expression]
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
 class ClassDeclaration(StructDeclaration):
     base: NotDoneYet
     constructor: FuncDecl | None
@@ -131,6 +153,7 @@ class ClassDeclaration(StructDeclaration):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Self(Statement):
+    value: str = grammar.SELF
     line_num: int
 
 
@@ -171,21 +194,21 @@ class Else(Statement):
 class While(Statement):
     op: str
     comp: list[Expression]
-    block: LoopBlock
+    block: Compound
     line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class For(Statement):
     iterator: Expression | list[Expression]
-    block: LoopBlock
+    block: Compound
     elements: list[Expression]
     line_num: int
 
 
-@dataclass(kw_only=True, eq=True, frozen=True)
-class LoopBlock(Statement):
-    children: list[Statement] = field(default_factory=list)
+# @dataclass(kw_only=True, eq=True, frozen=True)
+# class LoopBlock(Statement):
+#     children: list[Statement] = field(default_factory=list)
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -200,6 +223,14 @@ class Continue(Statement):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Pass(Statement):
+    line_num: int
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
+class With(Statement):
+    expr: Expression
+    var: Expression | None = None
+    body: Compound
     line_num: int
 
 
@@ -254,7 +285,7 @@ class DotAccess(Expression):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Type(Expression):
-    value: str
+    name: str
     line_num: int
     val_type: str | None = None
     func_ret_type: Type | None = None
@@ -269,7 +300,7 @@ class AliasDeclaration(Statement):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Void(Type):
-    value: str = "void"
+    name: str = "void"
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -280,14 +311,14 @@ class Constant(Expression):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Num(Type):
-    value: str
+    name: str
     val_type: str | None
     line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Str(Type):
-    value: str
+    name: str
     val_type: str = grammar.STR
     line_num: int
 

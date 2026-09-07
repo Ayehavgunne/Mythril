@@ -34,7 +34,7 @@ class BuilderError(Exception):
 
 
 class Builder(NodeVisitor):
-    def __init__(self, file_path: str, preamble: Preamble, is_root : bool = False):
+    def __init__(self, file_path: str, preamble: Preamble, is_root: bool = False):
         super().__init__()
         self.file_path = Path(file_path).absolute().resolve()
         self.preamble = preamble
@@ -50,10 +50,16 @@ class Builder(NodeVisitor):
         visited_left = self.visit(node.left)
         if isinstance(node.left, my_ast.Var) and node.left.type is not None:
             if hasattr(node.right, "val_type"):
-                node.right.val_type = node.left.type.value
+                node.right.val_type = node.left.type.name
         visited_right = self.visit(node.right)
         if isinstance(node.left, my_ast.DotAccess):
-            return f"{visited_left} {node.op} {visited_right}\n"
+            with suppress(Exception):
+                scoped_var = self.search_scopes(node.left.obj.value)
+                scoped_var = self.search_scopes(scoped_var.type.name)
+                method = scoped_var.methods.get(node.left.field)
+                if method.type == my_ast.FuncType.SETTER:
+                    return f"{visited_left}({visited_right})"
+            return f"{visited_left} {node.op} {visited_right};\n"
         if not hasattr(node.left, "read_only"):
             read_only = False
         else:
@@ -203,6 +209,8 @@ class Builder(NodeVisitor):
                 scoped_val = self.search_scopes(obj.value)
                 if scoped_val is None:
                     scoped_val = self.search_scopes(name)
+                if scoped_val is None:
+                    scoped_val = self.search_scopes(f"{obj.value}.{name}")
                 if isinstance(scoped_val.type, Class):
                     scoped_val = self.search_scopes(scoped_val.type.name)
                     return_type = TYPE_MAP[scoped_val.methods[name].return_type.value]()
@@ -227,8 +235,6 @@ class Builder(NodeVisitor):
         )
         if visited_left.startswith("self."):
             visited_left = visited_left.replace("self.", "this->")
-        # if visited_right.endswith(";"):
-        #     visited_right = visited_right[:-1]
         if assigned is None:
             self.define(visited_left, var_sym)
             return f";{var_sym.type.destination_type} {visited_left} {node.op} {visited_right};\n"
@@ -258,7 +264,7 @@ class Builder(NodeVisitor):
         return f"{visited_op} {visited_exrp}"
 
     def visit_type(self, node: my_ast.Type) -> str:
-        return self.search_scopes(node.value).type.destination_type
+        return self.search_scopes(node.name).type.destination_type
 
     def visit_operator(self, node: my_ast.Operator) -> str:
         match node.value:
@@ -276,10 +282,9 @@ class Builder(NodeVisitor):
         for comp in node.comps:
             comps.append(self.visit(comp))
         block = []
-        self.new_scope()
-        for line in node.block.children:
-            block.append(self.visit(line))
-        self.pop_scope()
+        with self.create_scope():
+            for line in node.block.children:
+                block.append(self.visit(line))
         return f";if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}}}\n"
 
     def visit_else_if(self, node: my_ast.ElseIf) -> str:
@@ -287,18 +292,16 @@ class Builder(NodeVisitor):
         for comp in node.comps:
             comps.append(self.visit(comp))
         block = []
-        self.new_scope()
-        for line in node.block.children:
-            block.append(self.visit(line))
-        self.pop_scope()
+        with self.create_scope():
+            for line in node.block.children:
+                block.append(self.visit(line))
         return f"else if ( {' '.join(comps)} ) {{\n{'\n'.join(block)}}}\n"
 
     def visit_else(self, node: my_ast.Else) -> str:
         block = []
-        self.new_scope()
-        for line in node.block.children:
-            block.append(self.visit(line))
-        self.pop_scope()
+        with self.create_scope():
+            for line in node.block.children:
+                block.append(self.visit(line))
         return f"else {{\n{'\n'.join(block)}}}\n"
 
     def visit_compound(self, node: my_ast.Compound) -> str:
@@ -315,11 +318,11 @@ class Builder(NodeVisitor):
 
     def visit_num(self, node: my_ast.Num) -> str:
         if node.val_type == grammar.INT:
-            return f'BigInt::bigint("{node.value}")'
-        return node.value
+            return f'BigInt::bigint("{node.name}")'
+        return node.name
 
     def visit_str(self, node: my_ast.Str) -> str:
-        value = node.value
+        value = node.name
         if "{" in value:
             self.preamble.format = True
             pattern = re.compile(r"\{(.*?)\}")
@@ -335,9 +338,11 @@ class Builder(NodeVisitor):
 
     def visit_dict(self, node: my_ast.Dict) -> str:
         self.preamble.map = True
-        items = {self.visit(key): self.visit(node.items[key]) for key in node.items.keys()}
+        items = {
+            self.visit(key): self.visit(node.items[key]) for key in node.items.keys()
+        }
         items = [f"{{{key}, {value}}}" for key, value in items.items()]
-        return f'{{ {", ".join(items)} }}'
+        return f"{{ {', '.join(items)} }}"
 
     def visit_collection(self, node: my_ast.Collection) -> str:
         items = []
@@ -352,7 +357,7 @@ class Builder(NodeVisitor):
                 open_bracket = "{"
                 close_bracket = "}"
             case grammar.TUPLE:
-                return f'make_tuple({", ".join(items)})'
+                return f"make_tuple({', '.join(items)})"
             # case grammar.SET:
             #     self.preamble.set = True
             #     return f'make_set<{scoped_val.destination_type}>();\n{"\n".join(items)}'
@@ -370,6 +375,14 @@ class Builder(NodeVisitor):
                 if "BigInt::bigint" in key:
                     key = key.replace('BigInt::bigint("', "")[:-2]
                 return f"get<{key}>({node.name})"
+            case my_types.Str():
+                if "BigInt::bigint" in key:
+                    key = key.replace('BigInt::bigint("', "")[:-2]
+                return f"{node.name}[{key}]"
+            case my_types.Dict():
+                if "BigInt::bigint" in key:
+                    key = key.replace('BigInt::bigint("', "")[:-2]
+                return f"{node.name}[{key}]"
         raise NotImplementedError
 
     def visit_for(self, node: my_ast.For) -> str:
@@ -377,43 +390,42 @@ class Builder(NodeVisitor):
         for element in node.elements:
             elements.append(self.visit(element))
         iterator = self.visit(node.iterator)
-        self.new_scope()
-        if not isinstance(node.iterator, my_ast.Range):
-            searched_scope = self.search_scopes(iterator)
-            my_type = searched_scope.type
-            self.define(
-                elements[0],
-                VarSymbol(
-                    name=elements[0],
-                    type=my_type,
-                    val_assigned=True,
-                    read_only=False,
-                ),
-            )
-        else:
-            left = self.visit(node.iterator.left)
-            right = self.visit(node.iterator.right)
-            left_scope = self.search_scopes(left)
-            right_scope = self.search_scopes(right)
-            if left_scope is not None:
-                my_type = left_scope.type
-            elif right_scope is not None:
-                my_type = right_scope.type
+        with self.create_scope():
+            if not isinstance(node.iterator, my_ast.Range):
+                searched_scope = self.search_scopes(iterator)
+                my_type = searched_scope.type
+                self.define(
+                    elements[0],
+                    VarSymbol(
+                        name=elements[0],
+                        type=my_type,
+                        val_assigned=True,
+                        read_only=False,
+                    ),
+                )
             else:
-                infered_left = self.infer_type(left)
-                infered_right = self.infer_type(right)
-                if infered_left is not None:
-                    my_type = infered_left
-                elif infered_right is not None:
-                    my_type = infered_right
+                left = self.visit(node.iterator.left)
+                right = self.visit(node.iterator.right)
+                left_scope = self.search_scopes(left)
+                right_scope = self.search_scopes(right)
+                if left_scope is not None:
+                    my_type = left_scope.type
+                elif right_scope is not None:
+                    my_type = right_scope.type
                 else:
-                    raise BuilderError
-        block = []
-        for elem in node.elements:
-            self.define(elem.value, VarSymbol(name=elem.value, type=my_type))
-        for line in node.block.children:
-            block.append(self.visit(line))
-        self.pop_scope()
+                    infered_left = self.infer_type(left)
+                    infered_right = self.infer_type(right)
+                    if infered_left is not None:
+                        my_type = infered_left
+                    elif infered_right is not None:
+                        my_type = infered_right
+                    else:
+                        raise BuilderError
+            block = []
+            for elem in node.elements:
+                self.define(elem.value, VarSymbol(name=elem.value, type=my_type))
+            for line in node.block.children:
+                block.append(self.visit(line))
         return f";for ( auto {elements[0]} : {iterator} ) {{\n{''.join(block)}}}\n"
 
     def visit_while(self, node: my_ast.While) -> str:
@@ -421,10 +433,9 @@ class Builder(NodeVisitor):
         block = []
         for comp in node.comp:
             comps.append(self.visit(comp))
-        self.new_scope()
-        for line in node.block.children:
-            block.append(self.visit(line))
-        self.pop_scope()
+        with self.create_scope():
+            for line in node.block.children:
+                block.append(self.visit(line))
         return f";while ( {' '.join(comps)} ) {{\n{''.join(block)}}}\n"
 
     def visit_continue(self, node: my_ast.Continue) -> str:
@@ -447,7 +458,11 @@ class Builder(NodeVisitor):
 
     def visit_func_decl(self, node: my_ast.FuncDecl) -> str:
         name = node.name
-        return_type = self.infer_type(node.return_type.value)
+        return_type = self.search_scopes(node.return_type.name)
+        if return_type is not None:
+            return_type = return_type.type
+        else:
+            return_type = self.infer_type(node.return_type.name)
         params = []
         func_symbol = FuncSymbol(
             name=name,
@@ -457,21 +472,23 @@ class Builder(NodeVisitor):
         )
         if not self.in_class:
             self.define(name, func_symbol)
-        self.new_scope()
-        for param, param_type in node.parameters.items():
-            infered_param_type = self.infer_type(param_type)
-            params.append(f"{infered_param_type.destination_type} {param}")
-            self.define(param, VarSymbol(name=param, type=infered_param_type))
-        self.in_constructor = node.constructor
-        body = self.visit(node.body)
-        self.pop_scope()
-        self.in_constructor = False
-        if node.constructor:
-            return f"{name} ({', '.join(params)}) {{\n{body}}}\n"
-        decl = f"{return_type.destination_type} {name} ({', '.join(params)})"
-        result = f"{decl} {{\n{body}}}\n"
+        with self.create_scope():
+            for param, param_type in node.parameters.items():
+                infered_param_type = self.infer_type(param_type)
+                params.append(f"{infered_param_type.destination_type} {param}")
+                self.define(param, VarSymbol(name=param, type=infered_param_type))
+            self.in_constructor = node.type == my_ast.FuncType.CONSTRUCTOR
+            body = self.visit(node.body)
+            self.in_constructor = False
+        if node.type == my_ast.FuncType.CONSTRUCTOR:
+            return f"{name} ({', '.join(params)}) {{\n{body};}}\n"
+        if return_type.destination_type == grammar.VOID:
+            decl = f"{return_type.destination_type} {name} ({', '.join(params)})"
+        else:
+            decl = f"{return_type.destination_type} {name} ({', '.join(params)})"
+        result = f"{decl} {{\n{body};}}\n"
         if self.in_class:
-            return result
+            return f"{result}"
         else:
             if self.is_root:
                 self.funcs[name] = result
@@ -583,33 +600,35 @@ class Builder(NodeVisitor):
         print_fields = []
         methods = []
         for field, field_type in node.static_fields.items():
-            scoped_field_type = self.infer_type(field_type.value)
+            scoped_field_type = self.infer_type(field_type.name)
             static_fields.append(f"static {scoped_field_type.destination_type} {field}")
             # print_fields.append(f'"    {field}: " << {name}.{field}')
         for field, field_type in node.instance_fields.items():
-            scoped_field_type = self.infer_type(field_type.value)
-            instance_fields.append(f"{scoped_field_type.destination_type} {field}")
-            print_fields.append(f'"    {field}: " << {lower_name}.{field}')
+            scoped_field_type = self.search_scopes(field_type.name)
+            instance_fields.append(f"{scoped_field_type.type.destination_type} {field}")
+            print_fields.append(f'"    {field}: " << *{lower_name}.{field}')
         self.in_class = True
-        for method in node.methods:
-            methods.append(self.visit(method))
-        constructor: str = (
-            self.visit(node_constructor) if node.constructor is not None else ""
+        class_sym = ClassSymbol(
+            name=name,
+            type=TYPE_MAP[grammar.CLASS](name=name),
+            fields=node.instance_fields,
+            parameters=node.constructor.parameters if node_constructor else {},
+            parameter_defaults=node.constructor.parameter_defaults
+            if node_constructor
+            else {},
+            methods={method.name: method for method in node.methods},
         )
-        self.in_class = False
         self.define(
             name,
-            ClassSymbol(
-                name=name,
-                type=TYPE_MAP[grammar.CLASS](name=name),
-                fields=node.instance_fields,
-                parameters=node.constructor.parameters if node_constructor else {},
-                parameter_defaults=node.constructor.parameter_defaults
-                if node_constructor
-                else {},
-                methods={method.name: method for method in node.methods},
-            ),
+            class_sym,
         )
+        with self.temp_define(key=grammar.SELF, value=class_sym):
+            for method in node.methods:
+                methods.append(self.visit(method))
+            constructor: str = (
+                self.visit(node_constructor) if node.constructor is not None else ""
+            )
+        self.in_class = False
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
@@ -620,7 +639,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             f"{constructor}\n"
             f"{'\n'.join(methods)}\n"
             f"}};\n"
-            f"{overload}\n"
+            # f"{overload}\n"
         )
         if self.is_root:
             self.classes[name] = result
@@ -639,9 +658,9 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         fields = []
         print_fields = []
         for field, field_type in node.instance_fields.items():
-            scoped_field_type = self.infer_type(field_type.value)
+            scoped_field_type = self.infer_type(field_type.name)
             fields.append(f"{scoped_field_type.destination_type} {field}")
-            print_fields.append(f'"    {field}: " << {lower_name}.{field}')
+            print_fields.append(f'"    {field}: " << *{lower_name}.{field}')
         self.define(
             name,
             StructSymbol(
@@ -653,7 +672,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
 return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
 }}"""
-        result = (f"struct {name} {{\n{';\n'.join(fields)}\n}};\n{overload}\n")
+        result = f"struct {name} {{\n{';\n'.join(fields)}\n}};\n{overload}\n"
         if self.is_root:
             self.structs[name] = result
         else:
@@ -678,18 +697,58 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
                 args.append(self.visit(obj.parameter_defaults[arg]))
         return f"{{ {', '.join(args)} }}"
 
+    def visit_with(self, node: my_ast.With) -> str:
+        expr = self.visit(node.expr)
+        var = self.visit(node.var)
+        expr_scope = self.search_scopes(node.expr.name)
+        enter_func = expr_scope.methods[grammar.ENTER]
+        if isinstance(expr_scope.type, my_types.Class):
+            return_type = self.search_scopes(enter_func.return_type.name)
+            expr = f'shared_ptr<{expr_scope.type.destination_type}> __tmp = make_shared<{expr_scope.type.destination_type}>();\nshared_ptr<{return_type.type.destination_type}> {var} = __tmp.{expr.replace(expr_scope.type.name, grammar.ENTER)}'
+        enter_return_type = self.search_scopes(enter_func.return_type.name)
+        with self.create_scope():
+            self.define(var, VarSymbol(name=var, type=enter_return_type.type))
+            body = self.visit(node.body)
+        return f"{{\n{expr}\n{body}\n__tmp.exit();\n}}"
+
     def visit_dot_access(self, node: my_ast.DotAccess) -> str:
         visited_obj = self.visit(node.obj)
+        with suppress(Exception):
+            scoped_var = self.search_scopes(visited_obj)
+            scoped_var = self.search_scopes(scoped_var.type.name)
+            method = scoped_var.methods.get(node.field)
+            if method.type == my_ast.FuncType.GETTER:
+                return f"{visited_obj}.{node.field}()"
         if isinstance(node.obj, my_ast.Self):
-            return f"{visited_obj}{node.field}"
+            if isinstance(node.field, str):
+                return f"{visited_obj}{node.field}"
+            if isinstance(node.field, my_ast.MethodCall):
+                scoped_val = self.search_scopes(node.obj.value)
+                visited_field_obj = self.visit(node.field.obj)
+                field_type = scoped_val.search_scope(visited_field_obj)
+                with self.temp_define(
+                    key=visited_field_obj,
+                    value=VarSymbol(name=visited_field_obj, type=field_type),
+                ):
+                    field = self.visit(node.field)
+            else:
+                field = self.visit(node.field)
+            return f"{visited_obj}{field}"
         return f"{visited_obj}.{node.field}"
 
     def visit_import(self, node: my_ast.Import) -> str:
         import_name = node.name
-        self.import_manager.create_import(name=import_name, path=node.path, parent=self.file_path)
+        self.import_manager.create_import(
+            name=import_name, path=node.path, parent=self.file_path
+        )
         tree = parse(node.path)
         my_prog = StringIO()
-        sub_prog = emit(file_path=node.path, tree=tree, my_prog=my_prog, parent_preamble=self.preamble)
+        sub_prog = emit(
+            file_path=node.path,
+            tree=tree,
+            my_prog=my_prog,
+            parent_preamble=self.preamble,
+        )
         self.top_scope.update(
             {f"{import_name}.{name}": var for name, var in sub_prog.scope.items()}
         )
@@ -719,7 +778,9 @@ def emit(
     parent_preamble: Preamble | None = None,
 ) -> ProgramInfo:
     preamble = parent_preamble or Preamble(my_prog)
-    builder = Builder(file_path=file_path, preamble=preamble, is_root=parent_preamble is None)
+    builder = Builder(
+        file_path=file_path, preamble=preamble, is_root=parent_preamble is None
+    )
     body = []
     for node in tree.block.children:
         body.append(builder.visit(node))
@@ -730,8 +791,7 @@ def emit(
                 for func_def in my_import.body.func_defs.values():
                     my_prog.write(f"{func_def};\n")
         for func_def in builder.func_defs.values():
-            for func_def in my_import.body.func_defs.values():
-                my_prog.write(f"{func_def};\n")
+            my_prog.write(f"{func_def};\n")
         for my_import in builder.import_manager:
             if my_import:
                 my_prog.write(f"{my_import.body.to_str()}\n")
@@ -793,6 +853,7 @@ def build_prog(
     my_str = StringIO()
     program = emit(source_file, tree, my_str).body
     with NamedTemporaryFile(mode="+r", suffix=".cpp", delete=False) as my_prog:
+        program = program.replace("\n;\n", "\n")
         my_prog.write(program)
         with suppress(FileNotFoundError):
             os.remove(out_path)
@@ -806,7 +867,7 @@ def build_prog(
             proc_result = proc.communicate(input=program.encode("utf-8"))
             print(proc_result[0].decode())
         subprocess.Popen(
-            f"clang++ -Iinclude -std=c++23 {optimization_level} {my_prog.name} -o {out_path} && rm {my_prog.name}",
+            f"/opt/homebrew/opt/llvm/bin/clang++ -Iinclude -std=c++23 {optimization_level} {my_prog.name} -o {out_path} && rm {my_prog.name}",
             shell=True,
         )
     if run:

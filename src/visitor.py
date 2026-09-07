@@ -1,4 +1,5 @@
-from contextlib import suppress
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -80,6 +81,15 @@ class ClassSymbol(AccessibleSymbol):
     parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
     methods: dict[str, my_ast.FuncDecl] = field(default_factory=dict)
 
+    def search_scope(self, key: str) -> my_ast.Type | my_ast.FuncDecl | None:
+        for field in self.fields.keys():
+            if key == field:
+                return self.fields[key]
+        for method in self.methods.keys():
+            if key == method:
+                return self.methods[key]
+        return None
+
 
 @dataclass(kw_only=True)
 class CollectionSymbol(AccessibleSymbol):
@@ -106,17 +116,17 @@ class BuiltinFuncSymbol(FuncSymbol):
 PRINT_BUILTIN = BuiltinFuncSymbol(
     name=grammar.PRINT,
     type=my_types.Void(),
-    parameters={"output": my_ast.Type(value=grammar.ANY, line_num=1)},
+    parameters={"output": my_ast.Type(name=grammar.ANY, line_num=1)},
 )
 INPUT_BUILTIN = BuiltinFuncSymbol(
     name=grammar.INPUT,
     type=my_types.Str(),
-    parameters={"prompt": my_ast.Type(value=grammar.STR, line_num=1)},
+    parameters={"prompt": my_ast.Type(name=grammar.STR, line_num=1)},
 )
 OPEN_BUILTIN = BuiltinFuncSymbol(
     name=grammar.OPEN,
     type=my_types.Class("File"),
-    parameters={"path": my_ast.Type(value=grammar.STR, line_num=1)},
+    parameters={"path": my_ast.Type(name=grammar.STR, line_num=1)},
 )
 
 
@@ -128,11 +138,11 @@ class BuiltInClassSymbol(ClassSymbol):
 FILE_BUILTIN = BuiltInClassSymbol(
     name="File",
     type=my_types.Class(name="File"),
-    fields={"name": my_ast.Str(value=grammar.STR, line_num=1)},
+    fields={"name": my_ast.Str(name=grammar.STR, line_num=1)},
     methods={
         "read": my_ast.FuncDecl(
             name="read",
-            return_type=my_ast.Str(value=grammar.STR, line_num=1),
+            return_type=my_ast.Str(name=grammar.STR, line_num=1),
             parameters={},
             body=my_ast.Compound(children=[]),
             line_num=1,
@@ -140,7 +150,7 @@ FILE_BUILTIN = BuiltInClassSymbol(
         "write": my_ast.FuncDecl(
             name="write",
             return_type=my_ast.Void(line_num=1),
-            parameters={"data": my_ast.Str(value=grammar.STR, line_num=1)},
+            parameters={"data": my_ast.Str(name=grammar.STR, line_num=1)},
             body=my_ast.Compound(children=[]),
             line_num=1,
         ),
@@ -225,6 +235,21 @@ class NodeVisitor:
         level = (len(self._scope) - level) - 1
         self._scope[level][key] = value
 
+    @contextmanager
+    def temp_define(
+        self, key: str, value: AccessibleSymbol, level: int = 0
+    ) -> Generator[None, None, None]:
+        level = (len(self._scope) - level) - 1
+        self._scope[level][key] = value
+        yield
+        del self._scope[level][key]
+
+    @contextmanager
+    def create_scope(self) -> Generator[None, None, None]:
+        self.new_scope()
+        yield
+        self.pop_scope()
+
     def new_scope(self) -> None:
         self._scope.append({})
 
@@ -268,7 +293,7 @@ class NodeVisitor:
                     return value.type
             return self.infer_type(self.search_scopes(value.type.value))
         elif isinstance(value, my_ast.Type):
-            return self.search_scopes(value.value).type
+            return self.search_scopes(value.name).type
         elif value == grammar.VOID:
             return my_types.Void()
         else:

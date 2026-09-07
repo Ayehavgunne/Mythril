@@ -209,6 +209,8 @@ class Lexer:
             self.char_type = self.get_type(self.current_char)
         if not self.word_type:
             self.word_type = self.char_type
+            if not self.word and self.current_char == grammar.NUM_SEPERATOR:
+                self.word_type = LexerType.ALPHANUMERIC
 
         if self.word_type == LexerType.OPERATIC:
             while self.char_type == LexerType.OPERATIC:
