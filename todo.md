@@ -45,6 +45,6 @@
 - maloc and free if not using garbage collection
 - put more work into validator
 - decorators
-- metaprogramming (compile time execution)
+- metaprogramming (compile time execution, using the same constructs that are in the language, just prefixed)
 - more magic methods (these will simply not use `def` before them)
 - foreign function interface

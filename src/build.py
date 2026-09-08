@@ -447,11 +447,11 @@ class Builder(NodeVisitor):
     def visit_range(self, node: my_ast.Range) -> str:
         self.preamble.range = True
         visited_left = self.visit(node.left)
-        if "BigInt::bigint(" in visited_left:
-            # temp hack to deal with bigint incompatibility with iota
-            visited_left = visited_left.replace('BigInt::bigint("', "")[:-2]
+#        if "BigInt::bigint(" in visited_left:
+#            # temp hack to deal with bigint incompatibility with iota
+#            visited_left = visited_left.replace('BigInt::bigint("', "")[:-2]
         visited_right = self.visit(node.right)
-        return f"views::iota({visited_left}, {visited_right})"
+        return f'range({visited_left}, {visited_right}, BigInt::bigint("1"))'
 
     def visit_pass(self, _: my_ast.Pass) -> str:
         return "(void)0;"
@@ -867,7 +867,7 @@ def build_prog(
             proc_result = proc.communicate(input=program.encode("utf-8"))
             print(proc_result[0].decode())
         subprocess.Popen(
-            f"/opt/homebrew/opt/llvm/bin/clang++ -Iinclude -std=c++23 {optimization_level} {my_prog.name} -o {out_path} && rm {my_prog.name}",
+            f"clang++ -Iinclude -std=c++23 {optimization_level} {my_prog.name} -o {out_path} && rm {my_prog.name}",
             shell=True,
         )
     if run:

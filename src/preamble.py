@@ -16,6 +16,9 @@ class Preamble:
         self.my_prog.write(
             '#pragma clang diagnostic ignored "-Wparentheses-equality"\n'
         )
+        self.my_prog.write(
+            '#pragma clang diagnostic ignored "-Wunqualified-std-cast-call"\n'
+        )
         self.my_prog.write('#include "my_std_lib.h"\n')
         self.my_prog.write('#include "bigint.h"\n')
         self.my_prog.write("#include <memory>\n")

@@ -19,7 +19,7 @@ print(other_things[0])
 print(stuff['first_name'])
 
 for x in 0..40
-	print(x + 2)
+	print(x)
 
 number = 22
 if number > 23

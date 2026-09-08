@@ -6,8 +6,16 @@
 #include <sstream>
 #include <set>
 #include <memory>
-#include <generator>
 using namespace std;
+
+#ifdef __APPLE__
+    #include "TargetConditionals.h"
+    #ifdef TARGET_OS_MAC
+        #include "generator.h"
+    #endif
+#else
+    #include <generator>
+#endif
 
 inline const char * const bool_to_str(bool b) {
   return b ? "true" : "false";
@@ -54,7 +62,7 @@ shared_ptr<File> open(string name) {
 }
 
 template<typename T>
-std::generator<T> range(T start, T end, T step) {
+generator<T> range(T start, T end, T step) {
     T i = start;
     while (i < end) {
         co_yield i;
