@@ -6,13 +6,8 @@ import my_ast
 import my_types
 from grammar import LexerType
 from visitor import (
-    AliasSymbol,
-    ClassSymbol,
-    CollectionSymbol,
-    FuncSymbol,
+    Symbol,
     NodeVisitor,
-    StructSymbol,
-    VarSymbol,
 )
 
 
@@ -50,6 +45,14 @@ class Validator(NodeVisitor):
         # 	self.search_scopes(DEC),
         # 	self.search_scopes(FLOAT)
         # )
+
+    @property
+    def unvisited_symbols(self) -> list[str]:
+        return [
+            sym_name
+            for sym_name, sym_val in self.items
+            if not isinstance(sym_val, Symbol) and not sym_val.accessed
+        ]
 
     def check(self, node: my_ast.Program):
         res = self.visit(node)
@@ -98,29 +101,23 @@ class Validator(NodeVisitor):
             self.define(var_sym.name, var_sym)
         self.visit(node.block)
 
-    def visit_loop_block(self, node: my_ast.LoopBlock):
-        results = []
-        for child in node.children:
-            results.append(self.visit(child))
-        return results
-
     def visit_break(self, _: my_ast.Break):
         pass
 
     def visit_continue(self, _: my_ast.Continue):
         pass
 
-    def visit_constant(self, node: my_ast.Constant):
-        if node.value == grammar.TRUE or node.value == grammar.FALSE:
-            return self.search_scopes(grammar.BOOL)
-        elif (
-            node.value == grammar.NAN
-            or node.value == grammar.INF
-            or node.value == grammar.NEGATIVE_INF
-        ):
-            return self.search_scopes(grammar.DEC)
-        else:
-            return NotImplementedError
+    # def visit_constant(self, node: my_ast.Constant):
+    #     if node.value == grammar.TRUE or node.value == grammar.FALSE:
+    #         return self.search_scopes(grammar.BOOL)
+    #     elif (
+    #         node.value == grammar.NAN
+    #         or node.value == grammar.INF
+    #         or node.value == grammar.NEGATIVE_INF
+    #     ):
+    #         return self.search_scopes(grammar.DEC)
+    #     else:
+    #         return NotImplementedError
 
     def visit_num(self, node: my_ast.Num):
         return self.infer_type(node.val_type)
@@ -709,7 +706,7 @@ if __name__ == "__main__":
         lexer = Lexer(code, f)
         parser = Parser(lexer)
         tree = parser.parse()
-        validator = Validator(parser.file_name)
+        validator = Validator(parser.file_path)
         validator.check(tree)
         if not validator.warnings:
             print("Looks good!")

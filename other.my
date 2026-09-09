@@ -2,13 +2,3 @@ import another
 
 def plus_two(arg: Int) > Int
 	return arg + 2
-
-class Person
-	name: Str
-	age: Int
-
-	def greet(intro: Str = "hello") > void
-		result = another.plus_four(5)
-		print("{intro} {self.name} num is {result}")
-
-name = "Anthony"

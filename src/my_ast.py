@@ -31,13 +31,13 @@ class Program(Statement):
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
-class Eof(Statement):
+class Eof(Expression):
     pass
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Compound(Statement):
-    children: list[Statement] = field(default_factory=list)
+    children: list[Statement | Expression] = field(default_factory=list)
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -45,7 +45,6 @@ class VarDecl(Statement):
     value: Var
     type: Type
     line_num: int
-    read_only: bool = False
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -53,7 +52,6 @@ class Var(Expression):
     value: str
     type: Type | None = None
     line_num: int
-    read_only: bool = False
 
 
 class FuncType(StrEnum):
@@ -66,10 +64,10 @@ class FuncType(StrEnum):
     EXIT = "exit"
 
     @classmethod
-    def get(cls, name: str) -> Self:
+    def get(cls, name: str) -> "FuncType":
         with suppress(KeyError):
             return cls(name)
-        return FuncType.REGULAR
+        return FuncType.DEF
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -82,6 +80,7 @@ class FuncDecl(Statement):
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     varargs: list[str | Var | Type] = field(default_factory=list)
     type: FuncType = FuncType.DEF
+    static: bool = False
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -112,7 +111,7 @@ class MethodCall(Expression):
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
-class Return(Statement):
+class Return(Expression):
     value: Node
     line_num: int
 
@@ -128,7 +127,7 @@ class StructDeclaration(Statement):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class StructLiteral(Expression):
-    intsance_fields: dict[str, Type]
+    instance_fields: dict[str, Type]
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     line_num: int
 
@@ -143,18 +142,22 @@ class StructCreation(Statement):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Enum(Statement):
+    name: str
     fields: list[Expression]
+    subtype: Type
+    methods: dict[str, FuncDecl]
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class ClassDeclaration(StructDeclaration):
     base: NotDoneYet
     constructor: FuncDecl | None
-    methods: list[FuncDecl]
+    methods: dict[str, FuncDecl]
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
-class Self(Statement):
+class Self(Expression):
     value: str = grammar.SELF
     line_num: int
 
@@ -202,7 +205,7 @@ class While(Statement):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class For(Statement):
-    iterator: Expression | list[Expression]
+    iterator: Expression  # | list[Expression]
     block: Compound
     elements: list[Expression]
     line_num: int
@@ -271,6 +274,15 @@ class Range(Expression):
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
+class Slice(Expression):
+    item: str
+    left: Expression
+    right: Expression
+    line_num: int
+    value: str = grammar.SLICE
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
 class CollectionAccess(Expression):
     name: str
     key: Node
@@ -314,7 +326,7 @@ class Constant(Expression):
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Num(Type):
     name: str
-    val_type: str | None
+    val_type: str = grammar.INT
     line_num: int
 
 
@@ -329,7 +341,6 @@ class Str(Type):
 class Collection(Expression):
     type: str
     line_num: int
-    read_only: bool
     items: list[Expression]
 
 
@@ -341,7 +352,12 @@ class Dict(Expression):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Print(FuncCall):
-    pass
+    named_arguments: dict[str, Expression] = field(
+        default_factory=lambda: {
+            "end": Str(name="\\n", line_num=1),
+            "sep": Str(name=" ", line_num=1),
+        }
+    )
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -355,6 +371,6 @@ class Open(FuncCall):
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
-class Import(Statement):
+class Import(Expression):
     name: str
     path: str

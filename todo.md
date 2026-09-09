@@ -1,13 +1,11 @@
 - bootstrap
-- enum
 - slices
 - anonymous block
-- generate basic constructor if not provided
+- generate default constructor if not provided
 - with statement (context managers)
 - variadic functions
 - *args and **kwargs
-- truthyness? probably not
-- allow setting a default argument with a mutable value (i.e. `def func(my_list = [])` should work fine)
+- allow setting a default argument with a mutable value (i.e. `def func(my_list = [])`)
 - for loop nobreak keyword
 - operator chaining
 - destructors ?

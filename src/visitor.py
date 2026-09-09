@@ -11,7 +11,7 @@ import my_ast
 import my_types
 import import_manager
 
-type Scope = dict[str, AccessibleSymbol]
+type Scope = dict[str, Symbol]
 
 
 def to_snake(s: str) -> str:
@@ -21,148 +21,134 @@ def to_snake(s: str) -> str:
     return s
 
 
-class VisitorException(Exception):
+class VisitorError(Exception):
     pass
 
 
-@dataclass(kw_only=True)
+@dataclass
 class Symbol:
     name: str
+    node: my_ast.Node
     type: my_types.MyAny
-
-
-@dataclass(kw_only=True)
-class AccessibleSymbol(Symbol):
     accessed: bool = False
-    val_assigned: bool = False
-    read_only: bool = False
 
 
-@dataclass(kw_only=True)
-class BuiltinTypeSymbol(AccessibleSymbol):
-    val_assigned: bool = True
+ANY_BUILTIN = Symbol(name=grammar.ANY, node=my_ast.Node(), type=my_types.MyAny())
+TRUE_BUILTIN = Symbol(name=grammar.TRUE, node=my_ast.Node(), type=my_types.Bool())
+FALSE_BUILTIN = Symbol(name=grammar.FALSE, node=my_ast.Node(), type=my_types.Bool())
+INT_BUILTIN = Symbol(name=grammar.INT, node=my_ast.Node(), type=my_types.Int())
+# INT8_BUILTIN = Symbol(name=grammar.INT8, node=my_ast.Node(), type="Int8")
+INT32_BUILTIN = Symbol(name=grammar.INT32, node=my_ast.Node(), type=my_types.Int32())
+INT64_BUILTIN = Symbol(name=grammar.INT64, node=my_ast.Node(), type=my_types.Int64())
+DEC_BUILTIN = Symbol(name=grammar.DEC, node=my_ast.Node(), type=my_types.Dec())
+FLOAT_BUILTIN = Symbol(name=grammar.FLOAT, node=my_ast.Node(), type=my_types.Float())
+# COMPLEX_BUILTIN = Symbol(name=grammar.COMPLEX, type="Complex")
+BOOL_BUILTIN = Symbol(name=grammar.BOOL, node=my_ast.Node(), type=my_types.Bool())
+# BYTES_BUILTIN = Symbol(name=grammar.BYTES, type="Bytes")
+STR_BUILTIN = Symbol(name=grammar.STR, node=my_ast.Node(), type=my_types.Str())
+STRUCT_BUILTIN = Symbol(name=grammar.STRUCT, node=my_ast.Node(), type=my_types.Struct())
+LIST_BUILTIN = Symbol(name=grammar.LIST, node=my_ast.Node(), type=my_types.List())
+DICT_BUILTIN = Symbol(name=grammar.DICT, node=my_ast.Node(), type=my_types.Dict())
+ENUM_BUILTIN = Symbol(name=grammar.ENUM, node=my_ast.Node(), type=my_types.MyEnum())
+FUNC_BUILTIN = Symbol(name=grammar.FUNC, node=my_ast.Node(), type=my_types.Func())
 
 
-ANY_BUILTIN = BuiltinTypeSymbol(name=grammar.ANY, type=my_types.MyAny())
-TRUE_BUILTIN = BuiltinTypeSymbol(name=grammar.TRUE, type=my_types.Bool())
-FALSE_BUILTIN = BuiltinTypeSymbol(name=grammar.FALSE, type=my_types.Bool())
-INT_BUILTIN = BuiltinTypeSymbol(name=grammar.INT, type=my_types.Int())
-# INT8_BUILTIN = BuiltinTypeSymbol(name=grammar.INT8, type="Int8")
-INT32_BUILTIN = BuiltinTypeSymbol(name=grammar.INT32, type=my_types.Int32())
-INT64_BUILTIN = BuiltinTypeSymbol(name=grammar.INT64, type=my_types.Int64())
-# INT128_BUILTIN = BuiltinTypeSymbol(name=grammar.INT128, type="Int128")
-DEC_BUILTIN = BuiltinTypeSymbol(name=grammar.DEC, type=my_types.Dec())
-FLOAT_BUILTIN = BuiltinTypeSymbol(name=grammar.FLOAT, type=my_types.Float())
-# COMPLEX_BUILTIN = BuiltinTypeSymbol(name=grammar.COMPLEX, type="Complex")
-BOOL_BUILTIN = BuiltinTypeSymbol(name=grammar.BOOL, type=my_types.Bool())
-# BYTES_BUILTIN = BuiltinTypeSymbol(name=grammar.BYTES, type="Bytes")
-STR_BUILTIN = BuiltinTypeSymbol(name=grammar.STR, type=my_types.Str())
-STRUCT_BUILTIN = BuiltinTypeSymbol(name=grammar.STRUCT, type=my_types.Struct())
-LIST_BUILTIN = BuiltinTypeSymbol(name=grammar.LIST, type=my_types.List())
-DICT_BUILTIN = BuiltinTypeSymbol(name=grammar.DICT, type=my_types.Dict())
-ENUM_BUILTIN = BuiltinTypeSymbol(name=grammar.ENUM, type=my_types.MyEnum())
-FUNC_BUILTIN = BuiltinTypeSymbol(name=grammar.FUNC, type=my_types.Func())
-
-
-@dataclass(kw_only=True)
-class VarSymbol(AccessibleSymbol):
-    pass
-
-
-@dataclass(kw_only=True)
-class StructSymbol(AccessibleSymbol):
-    fields: dict[str, my_ast.Type]
-    parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
-
-
-@dataclass(kw_only=True)
-class ClassSymbol(AccessibleSymbol):
-    fields: dict[str, my_ast.Type]
-    parameters: dict[str, my_ast.Var | my_ast.Type] = field(default_factory=dict)
-    parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
-    methods: dict[str, my_ast.FuncDecl] = field(default_factory=dict)
-
-    def search_scope(self, key: str) -> my_ast.Type | my_ast.FuncDecl | None:
-        for field in self.fields.keys():
-            if key == field:
-                return self.fields[key]
-        for method in self.methods.keys():
-            if key == method:
-                return self.methods[key]
-        return None
-
-
-@dataclass(kw_only=True)
-class CollectionSymbol(AccessibleSymbol):
-    item_types: Symbol
-
-
-@dataclass(kw_only=True)
-class FuncSymbol(AccessibleSymbol):
-    parameters: dict[str, my_ast.Var | my_ast.Type] | None
-    parameter_defaults: dict[str, my_ast.Node] = field(default_factory=dict)
-    # body: my_ast.Compound | None
-
-
-@dataclass(kw_only=True)
-class AliasSymbol(AccessibleSymbol):
-    pass
-
-
-@dataclass(kw_only=True)
-class BuiltinFuncSymbol(FuncSymbol):
-    pass
-
-
-PRINT_BUILTIN = BuiltinFuncSymbol(
+PRINT_BUILTIN = Symbol(
     name=grammar.PRINT,
+    node=my_ast.Print(
+        name=grammar.PRINT,
+        arguments=[
+            my_ast.Var(
+                value="output",
+                line_num=1,
+                type=my_ast.Type(name=grammar.STR, line_num=1, val_type=grammar.STR),
+            )
+        ],
+        line_num=1,
+    ),
     type=my_types.Void(),
-    parameters={"output": my_ast.Type(name=grammar.ANY, line_num=1)},
 )
-INPUT_BUILTIN = BuiltinFuncSymbol(
+INPUT_BUILTIN = Symbol(
     name=grammar.INPUT,
+    node=my_ast.Input(
+        name=grammar.INPUT,
+        arguments=[
+            my_ast.Var(
+                value="prompt",
+                type=my_ast.Type(name=grammar.STR, line_num=1),
+                line_num=1,
+            )
+        ],
+        line_num=1,
+    ),
     type=my_types.Str(),
-    parameters={"prompt": my_ast.Type(name=grammar.STR, line_num=1)},
 )
-OPEN_BUILTIN = BuiltinFuncSymbol(
+OPEN_BUILTIN = Symbol(
     name=grammar.OPEN,
+    node=my_ast.Open(
+        name=grammar.OPEN,
+        arguments=[
+            my_ast.Var(
+                value="path", type=my_ast.Type(name=grammar.STR, line_num=1), line_num=1
+            )
+        ],
+        line_num=1,
+    ),
     type=my_types.Class("File"),
-    parameters={"path": my_ast.Type(name=grammar.STR, line_num=1)},
 )
 
 
-@dataclass(kw_only=True)
-class BuiltInClassSymbol(ClassSymbol):
-    pass
-
-
-FILE_BUILTIN = BuiltInClassSymbol(
+FILE_BUILTIN = Symbol(
     name="File",
+    node=my_ast.ClassDeclaration(
+        name="File",
+        instance_fields={
+            "my_file": my_ast.Type(name="my_file", line_num=1),
+            "path": my_ast.Type(name=grammar.STR, line_num=1),
+        },
+        static_fields={},
+        parameter_defaults={},
+        constructor=my_ast.FuncDecl(
+            name=grammar.NEW,
+            return_type=my_ast.Void(line_num=1),
+            parameters={
+                "path": my_ast.Var(
+                    value="path",
+                    type=my_ast.Type(name=grammar.STR, line_num=1),
+                    line_num=1,
+                ),
+            },
+            type=my_ast.FuncType.CONSTRUCTOR,
+            body=my_ast.Compound(children=[]),
+            line_num=1,
+        ),
+        methods={
+            "read": my_ast.FuncDecl(
+                name="read",
+                return_type=my_ast.Str(name=grammar.STR, line_num=1),
+                parameters={},
+                body=my_ast.Compound(children=[]),
+                line_num=1,
+            ),
+            "write": my_ast.FuncDecl(
+                name="write",
+                return_type=my_ast.Void(line_num=1),
+                parameters={"data": my_ast.Str(name=grammar.STR, line_num=1)},
+                body=my_ast.Compound(children=[]),
+                line_num=1,
+            ),
+            "close": my_ast.FuncDecl(
+                name="close",
+                return_type=my_ast.Void(line_num=1),
+                parameters={},
+                body=my_ast.Compound(children=[]),
+                line_num=1,
+            ),
+        },
+        base=my_ast.NotDoneYet(),
+        line_num=1,
+    ),
     type=my_types.Class(name="File"),
-    fields={"name": my_ast.Str(name=grammar.STR, line_num=1)},
-    methods={
-        "read": my_ast.FuncDecl(
-            name="read",
-            return_type=my_ast.Str(name=grammar.STR, line_num=1),
-            parameters={},
-            body=my_ast.Compound(children=[]),
-            line_num=1,
-        ),
-        "write": my_ast.FuncDecl(
-            name="write",
-            return_type=my_ast.Void(line_num=1),
-            parameters={"data": my_ast.Str(name=grammar.STR, line_num=1)},
-            body=my_ast.Compound(children=[]),
-            line_num=1,
-        ),
-        "close": my_ast.FuncDecl(
-            name="close",
-            return_type=my_ast.Void(line_num=1),
-            parameters={},
-            body=my_ast.Compound(children=[]),
-            line_num=1,
-        ),
-    },
 )
 
 
@@ -206,19 +192,17 @@ class NodeVisitor:
 
     @staticmethod
     def generic_visit(node: my_ast.Node) -> None:
-        raise VisitorException(f"No visit_{to_snake(type(node).__name__)} method")
+        raise VisitorError(f"No visit_{to_snake(type(node).__name__)} method")
 
     @property
-    def top_scope(self) -> Scope | None:
-        return self._scope[-1] if len(self._scope) >= 1 else None
+    def top_scope(self) -> Scope:
+        return self._scope[-1] if len(self._scope) >= 1 else {}
 
     @property
-    def second_scope(self) -> Scope | None:
-        return self._scope[-2] if len(self._scope) >= 2 else None
+    def second_scope(self) -> Scope:
+        return self._scope[-2] if len(self._scope) >= 2 else {}
 
-    def search_scopes(
-        self, name: str, level: int | None = None
-    ) -> AccessibleSymbol | None:
+    def search_scopes(self, name: str, level: int | None = None) -> Symbol | None:
         if level:
             if name in self._scope[level]:
                 return self._scope[level][name]
@@ -232,13 +216,13 @@ class NodeVisitor:
                     return scope[f"{import_name}.{name}"]
         return None
 
-    def define(self, key: str, value: AccessibleSymbol, level: int = 0) -> None:
+    def define(self, key: str, value: Symbol, level: int = 0) -> None:
         level = (len(self._scope) - level) - 1
         self._scope[level][key] = value
 
     @contextmanager
     def temp_define(
-        self, key: str, value: AccessibleSymbol, level: int = 0
+        self, key: str, value: Symbol, level: int = 0
     ) -> Generator[None, None, None]:
         level = (len(self._scope) - level) - 1
         self._scope[level][key] = value
@@ -258,7 +242,7 @@ class NodeVisitor:
         self._scope.pop()
 
     @property
-    def symbols(self) -> list[AccessibleSymbol]:
+    def symbols(self) -> list[Symbol]:
         return [value for scope in self._scope for value in scope.values()]
 
     @property
@@ -266,62 +250,51 @@ class NodeVisitor:
         return [key for scope in self._scope for key in scope]
 
     @property
-    def items(self) -> list[tuple[str, AccessibleSymbol]]:
+    def items(self) -> list[tuple[str, Symbol]]:
         return [(key, value) for scope in self._scope for key, value in scope.items()]
 
-    @property
-    def unvisited_symbols(self) -> list[str]:
-        return [
-            sym_name
-            for sym_name, sym_val in self.items
-            if not isinstance(sym_val, (BuiltinTypeSymbol, BuiltinFuncSymbol))
-            and not sym_val.accessed
-        ]
-
-    def infer_type(self, value: Any) -> type[my_types.MyAny] | None:
+    def infer_type(self, value: Any) -> my_types.MyAny | None:
         with suppress(TypeError):
             if isinstance(value, my_types.MyAny):
                 return value
-        if isinstance(value, BuiltinTypeSymbol):
+        if isinstance(value, Symbol):
             return value.type
-        if isinstance(value, FuncSymbol):
-            return self.search_scopes(grammar.FUNC).type
-        elif isinstance(value, CollectionSymbol):
-            return value.type.type
-        elif isinstance(value, VarSymbol):
-            with suppress(TypeError):
-                if isinstance(value.type, my_types.MyAny):
-                    return value.type
-            return self.infer_type(self.search_scopes(value.type.value))
         elif isinstance(value, my_ast.Type):
-            return self.search_scopes(value.name).type
+            scoped_var = self.search_scopes(value.name)
+            if scoped_var is None:
+                return None
+            return scoped_var.type
         elif value == grammar.VOID:
             return my_types.Void()
         else:
+            scoped_var = None
             if value == grammar.INT64:
-                return self.search_scopes(grammar.INT64).type
+                scoped_var = self.search_scopes(grammar.INT64)
             elif value == grammar.INT32:
-                return self.search_scopes(grammar.INT32).type
+                scoped_var = self.search_scopes(grammar.INT32)
             elif isinstance(value, int) or value == grammar.INT:
-                return self.search_scopes(grammar.INT).type
+                scoped_var = self.search_scopes(grammar.INT)
             elif isinstance(value, Decimal) or value == grammar.DEC:
-                return self.search_scopes(grammar.DEC).type
+                scoped_var = self.search_scopes(grammar.DEC)
             elif isinstance(value, float) or value == grammar.FLOAT:
-                return self.search_scopes(grammar.FLOAT).type
+                scoped_var = self.search_scopes(grammar.FLOAT)
             elif isinstance(value, complex) or value == grammar.COMPLEX:
-                return self.search_scopes(grammar.COMPLEX).type
+                scoped_var = self.search_scopes(grammar.COMPLEX)
             elif isinstance(value, str) or value == grammar.STR:
-                return self.search_scopes(grammar.STR).type
+                scoped_var = self.search_scopes(grammar.STR)
             elif isinstance(value, bool) or value == grammar.BOOL:
-                return self.search_scopes(grammar.BOOL).type
+                scoped_var = self.search_scopes(grammar.BOOL)
             elif isinstance(value, bytes) or value == grammar.BYTES:
-                return self.search_scopes(grammar.BYTES).type
+                scoped_var = self.search_scopes(grammar.BYTES)
             elif isinstance(value, list) or value == grammar.LIST:
-                return self.search_scopes(grammar.LIST).type
+                scoped_var = self.search_scopes(grammar.LIST)
             elif isinstance(value, dict) or value == grammar.DICT:
-                return self.search_scopes(grammar.DICT).type
+                scoped_var = self.search_scopes(grammar.DICT)
             elif isinstance(value, Enum) or value == grammar.ENUM:
-                return self.search_scopes(grammar.ENUM).type
+                scoped_var = self.search_scopes(grammar.ENUM)
             elif callable(value) or value == grammar.FUNC:
-                return self.search_scopes(grammar.FUNC).type
-        raise TypeError(f"Type not recognized: {value}")
+                scoped_var = self.search_scopes(grammar.FUNC)
+            if scoped_var is None:
+                return None
+            return scoped_var.type
+        raise VisitorError(f"Type not recognized: {value}")

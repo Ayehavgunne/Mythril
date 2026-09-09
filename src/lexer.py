@@ -63,10 +63,12 @@ class Lexer:
             value_type=value_type,
         )
 
-    def preview_token(self, num=1) -> Token | None:
+    def preview_token(self, num=1) -> Token:
         if num < 1:
             raise ValueError("num argument must be 1 or greater")
-        next_token = None
+        next_token = Token(
+            token_type=TokenType.EOF, value="EOF", line_num=1, indent_level=0
+        )
         current_pos = self.pos
         current_char = self.current_char
         current_char_type = self.char_type
@@ -220,6 +222,8 @@ class Lexer:
                     self.current_char in grammar.SINGLE_OPERATORS
                     or self.word in grammar.SINGLE_OPERATORS
                 ):
+                    break
+                if self.word == grammar.COLON and self.current_char == grammar.MINUS:
                     break
             return self.make_token(TokenType.OP, self.reset_word())
 

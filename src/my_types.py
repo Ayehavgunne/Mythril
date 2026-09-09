@@ -18,6 +18,15 @@ class Void(MyAny):
 
 
 @dataclass
+class Auto(MyAny):
+    name: str = "auto"
+
+    @property
+    def destination_type(self) -> str:
+        return self.name
+
+
+@dataclass
 class AnyVal(MyAny):
     pass
 
@@ -170,7 +179,7 @@ class Dict(Collection):
 
 @dataclass
 class MyEnum(AnyVal):
-    name: str
+    name: str = grammar.ENUM
 
     @property
     def destination_type(self) -> str:
@@ -179,7 +188,7 @@ class MyEnum(AnyVal):
 
 @dataclass
 class Struct(AnyVal):
-    name: str
+    name: str = grammar.STRUCT
 
     @property
     def destination_type(self) -> str:
@@ -188,7 +197,7 @@ class Struct(AnyVal):
 
 @dataclass
 class Class(AnyVal):
-    name: str
+    name: str = grammar.CLASS
 
     @property
     def destination_type(self) -> str:

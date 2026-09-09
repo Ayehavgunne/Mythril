@@ -10,6 +10,7 @@ class ProgramBody:
     funcs: dict[str, str] = field(default_factory=dict)
     structs: dict[str, str] = field(default_factory=dict)
     classes: dict[str, str] = field(default_factory=dict)
+    enums: dict[str, str] = field(default_factory=dict)
 
     def to_str(self) -> str:
         result = StringIO()
@@ -19,6 +20,8 @@ class ProgramBody:
             result.write(f"{struct};\n")
         for _class in self.classes.values():
             result.write(f"{_class};\n")
+        for enum in self.enums.values():
+            result.write(f"{enum};\n")
         result.seek(0)
         return result.read()
 

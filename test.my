@@ -1,3 +1,42 @@
+import other
+
+my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+sublist = my_list[1:]
+for item in sublist
+	print(item)
+
+print()
+
+enum Suit[Str]
+	heart
+	club
+	spade
+	diamond
+
+	def do_it() > void
+		print("doing it")
+
+print(Suit.heart)
+
+print()
+
+#heart = Suit.heart
+#another_heart = Suit.heart
+#print(heart == another_heart)
+
+#print()
+
+Suit.do_it()
+
+enum State
+	good
+	bad
+	broke
+
+print()
+
+print(State.bad)
+
 class Person
 	name: Str
 	age: Int
@@ -15,29 +54,50 @@ class Person
 	def greet(intro: Str = "hello") > Str
 		return "{intro} {self.name}, how are you?"
 
+print()
+
+print(other.plus_two(2))
+
+print()
+
+my_file = open("./another.my")
+print(my_file.read())
+my_file.close()
+
+print()
 
 things = [1, 2, 3]
 for item in things
 	print(item)
 
+print()
+
 other_things = (1, 'Hello')
 stuff = {'first_name': 'Samus', 'last_name': 'Aran'}
 
 print(things[1])
+
+print()
+
 print(other_things[0])
+
+print()
+
 print(stuff['first_name'])
 
-print("")
+print()
 
 if 2 in things
 	print('yes')
 if 2 not in things
 	print('no')
 
-print("")
+print()
 
 if "an" in "anthony"
 	print("has an")
+
+print()
 
 number = 10
 while number > 1
@@ -48,12 +108,12 @@ while number > 1
 		break
 	print(number)
 
-print("")
+print()
 
 for x in 0..40
 	print(x)
 
-print("")
+print()
 
 number = 22
 if number > 23
@@ -63,9 +123,9 @@ elif number == 23
 else
 	print('less than 23')
 
-print("")
+print()
 
-me = Person{"Anthony", 40}
+me = Person{name="Anthony", age=40}
 print(me.greet())
 #with Person{"./todo.md"} as my_path
 #	print(my_path)
@@ -73,9 +133,11 @@ print(me.greet())
 def plus_five(num: Int) > Int
 	return num + 5
 
+print()
+
 print(plus_five(2))
 
-print("")
+print()
 
 def fib(n: Int) > Int
 	a = 0
@@ -87,8 +149,12 @@ def fib(n: Int) > Int
 	return a
 
 print(fib(10))
-print("")
+
+print()
+
 print('🍌')
+
+print()
 
 struct Circle
 	radius: Int
@@ -99,13 +165,13 @@ cir = Circle{radius=5, x=2, y=4}
 
 print(cir.radius)
 
-print("")
+print()
 
 y = 10
 for x in 0..y + 1
 	print(x::Str + ' ' + fib(x)::Str)
 
-print("")
+print()
 
 # print(things[1 + 1])
 
@@ -124,4 +190,13 @@ else
 	g = 7.6
 
 print(h)
+
+print()
+
 print(g)
+
+print()
+
+prompt = input("enter your fav color")
+
+print("Wow, your fav color is {prompt}?!")
