@@ -553,19 +553,23 @@ class Parser:
         elif token.token_type == TokenType.NAME:
             self.eat_value(grammar.LSQUAREBRACKET)
             preview = self.preview()
-            if preview.value == grammar.COLON:
+            if preview.value == grammar.SLICE or self.current_token.value == grammar.SLICE:
                 return self.slice_expression(token)
             tok = self.expr()
             self.eat_value(grammar.RSQUAREBRACKET)
             return self.access_collection(token, tok)
         raise ParserError
 
-    def slice_expression(self, token: Token) -> my_ast.Node:
-        left = self.expr()
+    def slice_expression(self, token: Token) -> my_ast.Slice:
+        if self.current_token.value == grammar.SLICE:
+            left = my_ast.Void(line_num=self.line_num)
+        else:
+            left = self.expr()
         self.eat_value(grammar.SLICE)
         if self.current_token.value == grammar.RSQUAREBRACKET:
-            
-        right = self.expr()
+            right = my_ast.Void(line_num=self.line_num)
+        else:
+            right = self.expr()
         self.eat_value(grammar.RSQUAREBRACKET)
         return my_ast.Slice(item=token.value, left=left, right=right, line_num=self.line_num)
 

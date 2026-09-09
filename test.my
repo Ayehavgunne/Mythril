@@ -1,7 +1,7 @@
 import other
 
 my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-sublist = my_list[1:]
+sublist = my_list[2:6]
 for item in sublist
 	print(item)
 
@@ -41,9 +41,9 @@ class Person
 	name: Str
 	age: Int
 
-	new(name: Str, age: Int)
-		self.name = name
-		self.age = age
+#	new(name: Str, age: Int)
+#		self.name = name
+#		self.age = age
 
 #	enter(path: Str) > Str
 #		return "{path} is the way"
@@ -94,8 +94,15 @@ if 2 not in things
 
 print()
 
-if "an" in "anthony"
+name = "anthony"
+
+if "an" in name
 	print("has an")
+
+print()
+
+short_name = name[:-3]
+print(short_name)
 
 print()
 

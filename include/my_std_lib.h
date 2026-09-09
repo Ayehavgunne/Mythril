@@ -75,10 +75,16 @@ generator<T> range(T start, T end, T step) {
     }
 }
 
-template <int left = 0, int right = 0, typename T>
-constexpr auto slice(T &&container)
-{
-    if constexpr (right > 0) {
+string slice(string str, int left, int right) {
+    if (right < 0) {
+        right = str.length() + right;
+    }
+    return str.substr(left, right - left);
+}
+
+template <typename T>
+constexpr auto slice(T &&container, int left, int right) {
+    if (right > 0) {
         return span(begin(forward<T>(container)) + left,
                     begin(forward<T>(container)) + right);
     } else {

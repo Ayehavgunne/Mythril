@@ -1,18 +1,19 @@
 - bootstrap
-- slices
+- make almost everything a shared smart pointer
+- weak smart pointers with `weak` keyword
+- destructors
 - anonymous block
-- generate default constructor if not provided
-- with statement (context managers)
+- finish with statement (context managers)
 - variadic functions
 - *args and **kwargs
+- generators
 - allow setting a default argument with a mutable value (i.e. `def func(my_list = [])`)
 - for loop nobreak keyword
 - operator chaining
-- destructors ?
 - pattern matching
 - design by contract
 - comprehensions
-- descriptor protocol
+- descriptor protocol ?
 - coroutines
 - generics (c++ concepts)
 - inner functions, classes, structs
@@ -20,7 +21,6 @@
 - ternary
 - unions
 - protocols
-- generators
 - constants
 - decimal type by default instead of float
 - duplicating pythons variable storage (all variables are pointers, pass by object reference, ...)

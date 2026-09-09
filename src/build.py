@@ -49,6 +49,9 @@ class Builder(NodeVisitor):
         self.funcs = {}
         self.func_defs = {}
 
+    def visit_void(self, _: my_ast.Void) -> str:
+        return ""
+
     def visit_assign(self, node: my_ast.Assign) -> str:
         visited_left = self.visit(node.left)
         if isinstance(node.left, my_ast.Var) and node.left.type is not None:
@@ -629,12 +632,12 @@ class Builder(NodeVisitor):
             for method in node.methods.values():
                 methods.append(self.visit(method))
             constructor: str = (
-                self.visit(node_constructor) if node_constructor is not None else ""
+                self.visit(node_constructor) if node_constructor is not None else self.build_default_constructor(node)
             )
         self.in_class = False
-        overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
-return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
-}}"""
+#         overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
+# return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
+# }}"""
         result = (
             f"struct {name} {{\n"
             f"{';\n'.join(static_fields)};\n"
@@ -651,6 +654,16 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             if my_import is not None:
                 my_import.body.classes[name] = result
         return ""
+
+    def build_default_constructor(self, node: my_ast.ClassDeclaration) -> str:
+        name = node.name
+        params = []
+        body = []
+        for field, field_type in node.instance_fields.items():
+            visited_field_type = self.visit(field_type)
+            params.append(f"{visited_field_type} {field}")
+            body.append(f"this->{field} = {field};")
+        return f'{name}({", ".join(params)}) {{\n{"\n".join(body)}\n}}'
 
     def visit_self(self, _: my_ast.Self) -> str:
         return f"this->"
@@ -732,7 +745,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             args_visited += 1
         params = (
             obj.node.constructor.parameters
-            if hasattr(obj.node, "constructor")
+            if hasattr(obj.node, "constructor") and obj.node.constructor is not None
             else obj.node.instance_fields
         )
         if len(params) > args_visited:
@@ -747,11 +760,12 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         enter_func = expr_scope.methods[grammar.ENTER]
         if isinstance(expr_scope.type, my_types.Class):
             return_type = self.search_scopes(enter_func.return_type.name)
+            ec_dest = expr_scope.type.destination_type
+            rt_dest = return_type.type.destination_type
+            ex_ent = expr.replace(expr_scope.type.name, grammar.ENTER)
             expr = (
-                f"shared_ptr<{expr_scope.type.destination_type}> __tmp = "
-                f"make_shared<{expr_scope.type.destination_type}>();\n"
-                f"shared_ptr<{return_type.type.destination_type}> {var} = "
-                f"__tmp.__enter{expr.replace(expr_scope.type.name, grammar.ENTER)}"
+                f"shared_ptr<{ec_dest}> __tmp = make_shared<{ec_dest}>();\n"
+                f"shared_ptr<{rt_dest}> {var} = __tmp.__{grammar.ENTER}{ex_ent}"
             )
         enter_return_type = self.search_scopes(enter_func.return_type.name)
         with self.create_scope():
@@ -759,12 +773,19 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
                 var, Symbol(name=var, node=node.var, type=enter_return_type.type)
             )
             body = self.visit(node.body)
-        return f"{{\n{expr}\n{body}\n__tmp.__exit();\n}}"
+        return f"{{\n{expr}\n{body}\n__tmp.__{grammar.EXIT}();\n}}"
 
     def visit_slice(self, node: my_ast.Slice) -> str:
-        left = bigint_to_int(self.visit(node.left))
-        right = bigint_to_int(self.visit(node.right))
-        return f'slice<{left},{right}>({node.item})'
+        item = node.item
+        if isinstance(node.left, my_ast.Void):
+            left = 0
+        else:
+            left = bigint_to_int(self.visit(node.left))
+        if isinstance(node.right, my_ast.Void):
+            right = f'size({item})'
+        else:
+            right = bigint_to_int(self.visit(node.right))
+        return f'slice({item}, {left}, {right})'
 
     def visit_dot_access(self, node: my_ast.DotAccess) -> str:
         visited_obj = self.visit(node.obj)
