@@ -41,7 +41,6 @@ class Validator(NodeVisitor):
         # 	self.search_scopes(INT),
         # 	self.search_scopes(INT8),
         # 	self.search_scopes(INT32),
-        # 	self.search_scopes(INT128),
         # 	self.search_scopes(DEC),
         # 	self.search_scopes(FLOAT)
         # )

@@ -19,7 +19,11 @@ validate:
 
 build:
     {_activate}
-	mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --optimization=fast --ignore_warnings
+    @if {$1} == "run"
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings -r
+	@else
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings
+	@fi
 
 run:
     {out}/test

@@ -72,9 +72,9 @@ LBRACKETS = (LPAREN, LSQUAREBRACKET, LCURLYBRACKET)
 ANY = "Any"
 INT = "Int"
 INT8 = "Int8"
-INT32 = "Int32"
-INT64 = "Int64"  # same as int but doesn't automatically promote to larger integer type upon overflow
-INT128 = "Int128"
+INT16 = "Int16"
+INT32 = "Int32"  # same as int but doesn't automatically promote to larger integer type upon overflow
+INT64 = "Int64"
 DEC = "Dec"
 FLOAT = "Float"
 COMPLEX = "Complex"
@@ -289,7 +289,6 @@ TYPES = (
     INT8,
     INT32,
     INT64,
-    INT128,
     DEC,
     FLOAT,
     COMPLEX,

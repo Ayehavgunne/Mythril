@@ -223,9 +223,7 @@ class Parser:
             name=name.value, collection=(self.type_spec(),), line_num=self.line_num
         )
 
-    def function_declaration(
-        self, static: bool = False
-    ) -> tuple[str, my_ast.Node]:
+    def function_declaration(self, static: bool = False) -> tuple[str, my_ast.Node]:
         func_type = my_ast.FuncType.get(self.current_token.value)
         if func_type in (my_ast.FuncType.ENTER, my_ast.FuncType.EXIT):
             name = self.next_token()
@@ -401,16 +399,17 @@ class Parser:
         else:
             self.eat_type(TokenType.TYPE)
 
-        func_ret_type = None
+        # func_ret_type = None
         if (
             self.current_token.value == grammar.LSQUAREBRACKET
             and token.value == grammar.FUNC
         ):
             self.next_token()
-            func_ret_type = self.type_spec()
+            # func_ret_type = self.type_spec()
             self.eat_value(grammar.RSQUAREBRACKET)
         type_spec = my_ast.Type(
-            name=token.value, func_ret_type=func_ret_type, line_num=self.line_num
+            name=token.value,
+            line_num=self.line_num,  # func_ret_type=func_ret_type
         )
         return type_spec
 
@@ -514,9 +513,7 @@ class Parser:
                 else:
                     break
             self.eat_value(grammar.RSQUAREBRACKET)
-            return my_ast.Collection(
-                type=grammar.LIST, line_num=self.line_num, items=items
-            )
+            return my_ast.List(items=items, line_num=self.line_num)
         elif self.current_token.token_type == TokenType.TYPE:
             type_token = self.next_token()
             if self.current_token.value == grammar.COMMA:
@@ -553,7 +550,10 @@ class Parser:
         elif token.token_type == TokenType.NAME:
             self.eat_value(grammar.LSQUAREBRACKET)
             preview = self.preview()
-            if preview.value == grammar.SLICE or self.current_token.value == grammar.SLICE:
+            if (
+                preview.value == grammar.SLICE
+                or self.current_token.value == grammar.SLICE
+            ):
                 return self.slice_expression(token)
             tok = self.expr()
             self.eat_value(grammar.RSQUAREBRACKET)
@@ -571,7 +571,9 @@ class Parser:
         else:
             right = self.expr()
         self.eat_value(grammar.RSQUAREBRACKET)
-        return my_ast.Slice(item=token.value, left=left, right=right, line_num=self.line_num)
+        return my_ast.Slice(
+            item=token.value, left=left, right=right, line_num=self.line_num
+        )
 
     def curly_bracket_expression(self, token: Token) -> my_ast.Node:
         preview = self.preview(1)
@@ -603,21 +605,20 @@ class Parser:
                 )
         raise ParserError("Expected curly bracket")
 
-    def set_literal(self, token: Token) -> my_ast.Collection:
+    def set_literal(self, token: Token) -> my_ast.Set:
         if token.value == grammar.LCURLYBRACKET:
             items = []
             while self.current_token.value != grammar.RCURLYBRACKET:
                 items.append(self.expr())
                 if self.current_token.value == grammar.COMMA:
                     self.next_token()
-            return my_ast.Collection(
-                type=grammar.SET,
+            return my_ast.Set(
                 items=items,
                 line_num=self.line_num,
             )
         raise ParserError("Expected curly bracket")
 
-    def list_expression(self, token: Token) -> my_ast.Collection:
+    def list_expression(self, token: Token) -> my_ast.List:
         if token.value == grammar.LSQUAREBRACKET:
             items = []
             while self.current_token.value != grammar.RSQUAREBRACKET:
@@ -627,14 +628,13 @@ class Parser:
                 else:
                     break
             self.eat_value(grammar.RSQUAREBRACKET)
-            return my_ast.Collection(
-                type=grammar.LIST,
-                line_num=self.line_num,
+            return my_ast.List(
                 items=items,
+                line_num=self.line_num,
             )
         raise ParserError
 
-    def tuple_expression(self, token: Token) -> my_ast.Collection:
+    def tuple_expression(self, token: Token) -> my_ast.Tuple:
         if token.value == grammar.LPAREN:
             items = []
             while self.current_token.value != grammar.RPAREN:
@@ -644,10 +644,9 @@ class Parser:
                 else:
                     break
             self.eat_value(grammar.RPAREN)
-            return my_ast.Collection(
-                type=grammar.TUPLE,
-                line_num=self.line_num,
+            return my_ast.Tuple(
                 items=items,
+                line_num=self.line_num,
             )
         raise ParserError
 
@@ -1023,10 +1022,9 @@ class Parser:
             return self.type_spec()
         elif token.value == grammar.LPAREN:
             if preview_token_value == grammar.RPAREN:
-                return my_ast.Collection(
-                    type=grammar.TUPLE,
-                    line_num=self.line_num,
+                return my_ast.Tuple(
                     items=[],
+                    line_num=self.line_num,
                 )
             else:
                 preview_token = self.preview(2)

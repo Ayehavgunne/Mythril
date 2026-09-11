@@ -211,11 +211,6 @@ class For(Statement):
     line_num: int
 
 
-# @dataclass(kw_only=True, eq=True, frozen=True)
-# class LoopBlock(Statement):
-#     children: list[Statement] = field(default_factory=list)
-
-
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Break(Statement):
     line_num: int
@@ -301,8 +296,8 @@ class DotAccess(Expression):
 class Type(Expression):
     name: str
     line_num: int
-    val_type: str | None = None
-    func_ret_type: Type | None = None
+    val_type: str = ""
+    # func_ret_type: Type | None = None
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -339,15 +334,39 @@ class Str(Type):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Collection(Expression):
-    type: str
     line_num: int
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
+class List(Collection):
     items: list[Expression]
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
-class Dict(Expression):
+class Tuple(Collection):
+    items: list[Expression]
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
+class Set(Collection):
+    items: list[Expression]
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
+class Dict(Collection):
     items: dict[Expression, Expression]
-    line_num: int
+
+
+COLLECTION_MAP = {
+    List: grammar.LIST,
+    Tuple: grammar.TUPLE,
+    Set: grammar.SET,
+    Dict: grammar.DICT,
+}
+
+
+def get_collection_type(collection: Collection) -> str:
+    return COLLECTION_MAP[type(collection)]
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)

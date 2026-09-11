@@ -26,8 +26,8 @@ class Preamble:
         # self.my_prog.write("#include <iterator>\n")
         if self.list:
             self.my_prog.write("#include <vector>\n")
-        if self.map:
-            self.my_prog.write("#include <unordered_map>\n")
+        # if self.map:
+        #     self.my_prog.write("#include <unordered_map>\n")
         if self.set:
             self.my_prog.write("#include <set>\n")
         if self.files:

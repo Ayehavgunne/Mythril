@@ -1,73 +1,85 @@
-#include <sstream>
+#pragma clang diagnostic ignored "-Wparentheses-equality"
+#pragma clang diagnostic ignored "-Wunqualified-std-cast-call"
+// #include "bigint.h"
+// #include "my_std_lib.h"
 #include <iostream>
-#include <string>
-#include <fstream>
+#include <vector>
 #include <memory>
+#include <unordered_map>
 using namespace std;
 
-struct File {
-    std::fstream my_file;
-    std::string path;
-    
-    File(std::string path) {
-        this->path = path;
-        this->my_file.open(path);
-    }
+template <typename K, typename V>
+struct Dict {
+private:
+    unordered_map<K, V> map_;
+    vector<K> keys_;
 
-    void write(std::string data) {
-        this->my_file << data;
-    }
-
-    std::string read() {
-        std::stringstream contents;
-        std::string line;
-        
-        while ( getline (this->my_file, line) ) {
-            contents << line << '\n';
+public:
+    Dict(vector<tuple<K, V>> data) {
+        for (auto [key, value] : data) {
+            this->keys_.push_back(key);
+            this->map_[key] = value;
         }
-
-        return contents.str();
     }
 
-    void close() {
-        this->my_file.close();
+    V operator [](K key) {
+        return this->map_[key];
     }
-};
 
-shared_ptr<File> open(std::string name) {
-    return make_shared<File>(name);
-}
+    vector<K>::iterator begin() {
+        return this->keys_.begin();
+    }
 
-struct ContextFile {
-  shared_ptr<File> file;
+    vector<K>::iterator end() {
+        return this->keys_.end();
+    }
 
-  ContextFile() {}
-  ContextFile(string path) {
-    this->file = open(path);
-  }
+    vector<K> keys() {
+        return this->keys_;
+    }
 
-  shared_ptr<File> enter(string path) {
-    cout << "opening file" << "\n";
-    this->file = open(path);
-    return this->file;
-  }
+    vector<V> values() {
+        vector<V> values;
+        for (auto key : this->keys_) {
+            values.push_back(this->map_[key]);
+        }
+        return values;
+    }
 
-  void exit() {
-    cout << "closing file" << "\n";
-    this->file->close();
-  }
+    vector<tuple<K, V>> items() {
+        vector<tuple<K, V>> items;
+        for (auto key : this->keys_) {
+            items.push_back({key, this->map_[key]});
+        }
+        return items;
+    }
+
+    V get(K key, V fallback) {
+        try {
+            return this->map_.at(key);
+        } catch (out_of_range _) {
+            return fallback;
+        }
+    }
+
+    V get(K key) {
+        return this->map_.at(key);
+    }
 };
 
 int main(int argc, char *argv[]) {
-  {
-    shared_ptr<ContextFile> __tmp = make_shared<ContextFile>();
-    shared_ptr<File> todo_file = __tmp->enter("./todo.md");
-    cout << todo_file->read() << "\n";
+    shared_ptr<Dict<string, int>> dict(new Dict<string, int>({{"one", 1}, {"two", 2}, {"three", 3}, {"four", 4}, {"five", 5}}));
+    cout << dict->get("six", 6) << "\n";
 
-    __tmp->exit();
-  }
+    for (auto value : dict->values()) {
+        cout << value << "\n";
+    }
+    for (auto key : dict->keys()) {
+        cout << key << "\n";
+    }
+    for (auto [key, value] : dict->items()) {
+        cout << key << " " << value << "\n";
+    }
 
-  cout << "done" << "\n";
-
-  return 0;
+    return 0;
 }

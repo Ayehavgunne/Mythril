@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum, auto
 
 import grammar
 
@@ -10,6 +11,61 @@ class MyAny:
     @property
     def destination_type(self) -> str:
         return "void"
+
+
+class PointerType(Enum):
+    none = auto()
+    raw = auto()
+    reference = auto()
+    unique = auto()
+    shared = auto()
+    weak = auto()
+
+
+@dataclass(kw_only=True)
+class Pointer:
+    type: PointerType = PointerType.shared
+    subtype: MyAny = field(default_factory=MyAny)
+
+    @property
+    def destination_type(self) -> str:
+        dest_type = self.subtype.destination_type
+        match self.type:
+            case PointerType.none:
+                return dest_type
+            case PointerType.raw:
+                return f"*{dest_type}"
+            case PointerType.reference:
+                return f"&{dest_type}"
+            case PointerType.unique:
+                return f"unique_ptr<{dest_type}>"
+            case PointerType.shared:
+                return f"shared_ptr<{dest_type}>"
+            case PointerType.weak:
+                return f"weak_ptr<{dest_type}>"
+
+    def make(self, value: str) -> str:
+        match self.type:
+            case PointerType.none:
+                return value
+            case PointerType.raw:
+                return value
+            case PointerType.reference:
+                return value
+            case PointerType.unique:
+                return f"make_unique<{self.subtype.destination_type}>({value})"
+            case PointerType.shared:
+                return f"make_shared<{self.subtype.destination_type}>({value})"
+            case PointerType.weak:
+                return f"make_weak<{self.subtype.destination_type}>({value})"
+
+    @property
+    def dereference(self) -> str:
+        match self.type:
+            case PointerType.none:
+                return ""
+            case _:
+                return "*"
 
 
 @dataclass
@@ -38,7 +94,6 @@ class Int(AnyVal):
     @property
     def destination_type(self) -> str:
         return "BigInt::bigint"
-        # return "int"
 
 
 @dataclass
@@ -48,6 +103,15 @@ class Int8(AnyVal):
     @property
     def destination_type(self) -> str:
         return "char"
+
+
+@dataclass
+class Int16(AnyVal):
+    name: str = grammar.INT16
+
+    @property
+    def destination_type(self) -> str:
+        return "short"
 
 
 @dataclass
@@ -66,15 +130,6 @@ class Int64(AnyVal):
     @property
     def destination_type(self) -> str:
         return "long long"
-
-
-@dataclass
-class Int128(AnyVal):
-    name: str = grammar.INT128
-
-    @property
-    def destination_type(self) -> str:
-        raise NotImplementedError
 
 
 @dataclass
@@ -128,7 +183,7 @@ class Bytes(AnyVal):
 
     @property
     def destination_type(self) -> str:
-        raise NotImplementedError
+        raise "byte"
 
 
 @dataclass
@@ -169,12 +224,12 @@ class Set(Collection):
 @dataclass
 class Dict(Collection):
     name: str = grammar.DICT
-    left: MyAny = field(default_factory=MyAny)
-    right: MyAny = field(default_factory=MyAny)
+    key: MyAny = field(default_factory=MyAny)
+    value: MyAny = field(default_factory=MyAny)
 
     @property
     def destination_type(self) -> str:
-        return f"unordered_map<{self.left.destination_type}, {self.right.destination_type}>"
+        return f"Dict<{self.key.destination_type}, {self.value.destination_type}>"
 
 
 @dataclass
@@ -224,6 +279,7 @@ TYPE_MAP = {
     grammar.ANY: MyAny,
     grammar.BOOL: Bool,
     grammar.INT: Int,
+    grammar.INT16: Int16,
     grammar.INT32: Int32,
     grammar.INT64: Int64,
     grammar.DEC: Dec,
