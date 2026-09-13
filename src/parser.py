@@ -353,35 +353,28 @@ class Parser:
                 self.eat_type(TokenType.NEWLINE)
             if self.current_token.value != grammar.RPAREN:
                 self.eat_value(grammar.COMMA)
-        match built_in:
-            case grammar.PRINT:
-                if named_args:
-                    func = my_ast.Print(
-                        name=token.value,
-                        arguments=args,
-                        line_num=self.line_num,
-                        named_arguments=named_args,
-                    )
-                else:
-                    func = my_ast.Print(
-                        name=token.value,
-                        arguments=args,
-                        line_num=self.line_num,
-                    )
-            case grammar.OPEN:
-                func = my_ast.Open(
-                    name=token.value,
-                    arguments=args,
-                    line_num=self.line_num,
-                    named_arguments=named_args,
-                )
-            case _:
-                func = my_ast.FuncCall(
-                    name=token.value,
-                    arguments=args,
-                    line_num=self.line_num,
-                    named_arguments=named_args,
-                )
+        # match built_in:
+        #     case grammar.PRINT:
+        #         func = my_ast.Print(
+        #             name=token.value,
+        #             parameters=args,
+        #             line_num=self.line_num,
+        #             named_arguments=named_args or {},
+        #         )
+        #     case grammar.OPEN:
+        #         func = my_ast.Open(
+        #             name=token.value,
+        #             parameters=args,
+        #             line_num=self.line_num,
+        #             named_arguments=named_args,
+        #         )
+        #     case _:
+        func = my_ast.FuncCall(
+            name=token.value,
+            arguments=args,
+            line_num=self.line_num,
+            named_arguments=named_args,
+        )
         self.next_token()
         return func
 
@@ -844,7 +837,7 @@ class Parser:
                     f"File does not exist: {import_path.as_posix()}"
                 )
             self.next_token()
-        return my_ast.Import(name=name, path=import_path.as_posix())
+        return my_ast.Import(name=name, path=import_path.as_posix(), line_num=self.line_num)
 
     def if_statement(self) -> my_ast.If:
         self.next_token()
@@ -1120,6 +1113,7 @@ class Parser:
 
 if __name__ == "__main__":
     from prettyprinter import install_extras
+
     from lexer import Lexer
 
     install_extras(include=["dataclasses"])  # pyright: ignore[reportArgumentType]

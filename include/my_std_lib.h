@@ -33,42 +33,42 @@ bool contains(string my_str, string substring) {
 }
 
 struct File {
-    shared_ptr<fstream> my_file;
+    fstream my_file;
     string path;
 
     File() {}
     File(string path) {
         this->path = path;
-        this->my_file->open(path);
+        this->my_file.open(path);
     }
 
     void write(string data) {
-        *this->my_file << data;
+        this->my_file << data;
     }
 
     string read() {
         stringstream contents;
         string line;
 
-        while (getline(*this->my_file, line)) {
+        while (getline(this->my_file, line)) {
             contents << line << '\n';
         }
 
         return contents.str();
     }
 
-    shared_ptr<fstream> __enter(string path) {
-        this->path = path;
-        this->my_file->open(path);
-        return this->my_file;
-    }
+    // fstream enter__(string path) {
+    //     this->path = path;
+    //     this->my_file.open(path);
+    //     return this->my_file;
+    // }
 
-    void __exit() {
-        this->close();
-    }
+    // void exit__() {
+    //     this->close();
+    // }
 
     void close() {
-        this->my_file->close();
+        this->my_file.close();
     }
 };
 

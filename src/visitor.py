@@ -1,15 +1,15 @@
+import re
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
-import re
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 from typing import Any
 
 import grammar
+import import_manager
 import my_ast
 import my_types
-import import_manager
 
 type Scope = dict[str, Symbol]
 
@@ -124,7 +124,7 @@ DICT_BUILTIN = Symbol(
         methods={
             "get": my_ast.FuncDecl(
                 name="get",
-                return_type=my_ast.Str(name=grammar.STR, line_num=1),
+                return_type=my_ast.Node(),
                 parameters={
                     "key": my_ast.Type(name="key", line_num=1),
                     "default": my_ast.Type(name="default", line_num=1),
@@ -149,7 +149,13 @@ DICT_BUILTIN = Symbol(
             ),
             "items": my_ast.FuncDecl(
                 name="items",
-                return_type=my_ast.Tuple(items=[my_ast.Var(value="key", line_num=1), my_ast.Var(value="value", line_num=1)], line_num=1),
+                return_type=my_ast.Tuple(
+                    items=[
+                        my_ast.Var(value="key", line_num=1),
+                        my_ast.Var(value="value", line_num=1),
+                    ],
+                    line_num=1,
+                ),
                 parameters={},
                 body=my_ast.Compound(children=[]),
                 line_num=1,
@@ -185,7 +191,7 @@ PRINT_BUILTIN = Symbol(
         ],
         line_num=1,
     ),
-    pointer=my_types.Pointer(type=my_types.PointerType.none, subtype=my_types.Void()),
+    pointer=my_types.Pointer(type=my_types.PointerType.NONE, subtype=my_types.Void()),
 )
 INPUT_BUILTIN = Symbol(
     name=grammar.INPUT,
@@ -341,7 +347,11 @@ class NodeVisitor:
         subtype_name = symbol_type
         symbol_type = my_types.TYPE_MAP.get(subtype_name)
         if symbol_type is None:
-            symbol_type = self.infer_type(symbol_type)
+            symbol_type = self.infer_type(subtype_name)
+            if symbol_type is None:
+                symbol_type = self.search_scopes(subtype_name)
+                if symbol_type is not None:
+                    symbol_type = symbol_type.pointer.subtype
         else:
             symbol_type = symbol_type()
         if isinstance(symbol_type, my_types.Dict):
@@ -360,10 +370,10 @@ class NodeVisitor:
         symbol_type: my_types.MyAny | str,
         symbol_subtype: my_types.MyAny
         | str
-        | tuple[my_types.MyAny | my_types.MyAny]
+        | tuple[my_types.MyAny]
         | tuple[str, str]
         | None = None,
-        pointer_type: my_types.PointerType = my_types.PointerType.shared,
+        pointer_type: my_types.PointerType = my_types.PointerType.SHARED,
         *,
         define: bool = False,
         level: int = 0,
@@ -400,6 +410,7 @@ class NodeVisitor:
     def search_scopes(
         self, name: str, level: int | None = None, default: Symbol | None = None
     ) -> Symbol | None:
+        name = name.removeprefix("*")
         if level:
             if name in self._scope[level]:
                 return self._scope[level][name]
@@ -420,16 +431,14 @@ class NodeVisitor:
         self._scope[level][key] = value
 
     @contextmanager
-    def temp_define(
-        self, key: str, value: Symbol, level: int = 0
-    ) -> Generator[None, None, None]:
+    def temp_define(self, key: str, value: Symbol, level: int = 0) -> Generator[None]:
         level = (len(self._scope) - level) - 1
         self._scope[level][key] = value
         yield
         del self._scope[level][key]
 
     @contextmanager
-    def create_scope(self) -> Generator[None, None, None]:
+    def create_scope(self) -> Generator[None]:
         self.new_scope()
         yield
         self.pop_scope()

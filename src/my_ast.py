@@ -64,7 +64,7 @@ class FuncType(StrEnum):
     EXIT = "exit"
 
     @classmethod
-    def get(cls, name: str) -> "FuncType":
+    def get(cls, name: str) -> FuncType:
         with suppress(KeyError):
             return cls(name)
         return FuncType.DEF
@@ -76,11 +76,11 @@ class FuncDecl(Statement):
     return_type: Type
     parameters: dict[str, Var | Type]
     body: Compound
-    line_num: int
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     varargs: list[str | Var | Type] = field(default_factory=list)
     type: FuncType = FuncType.DEF
     static: bool = False
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -88,26 +88,22 @@ class AnonymousFunc(Expression):
     return_type: Type
     parameters: dict[str, Var | Type]
     body: Compound
-    line_num: int
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     varargs: list[str | Var | Type] = field(default_factory=list)
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class FuncCall(Expression):
     name: str
     arguments: list[Expression]
-    line_num: int
     named_arguments: dict[str, Expression] = field(default_factory=dict)
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
-class MethodCall(Expression):
+class MethodCall(FuncCall):
     obj: Expression
-    name: str
-    arguments: list[Expression]
-    line_num: int
-    named_arguments: dict[str, Expression] = field(default_factory=dict)
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -122,6 +118,7 @@ class StructDeclaration(Statement):
     instance_fields: dict[str, Type]
     static_fields: dict[str, Type]
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
+    assigned_fields: dict[str, bool] = field(default_factory=dict)
     line_num: int
 
 
@@ -136,8 +133,8 @@ class StructLiteral(Expression):
 class StructCreation(Statement):
     name: str
     arguments: list[Expression]
-    line_num: int
     named_arguments: dict[str, Expression] = field(default_factory=dict)
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -264,8 +261,8 @@ class Cast(BinOp):
 class Range(Expression):
     left: Expression
     right: Expression
-    line_num: int
     value: str = grammar.RANGE
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -273,8 +270,8 @@ class Slice(Expression):
     item: str
     left: Expression
     right: Expression
-    line_num: int
     value: str = grammar.SLICE
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -288,16 +285,16 @@ class CollectionAccess(Expression):
 class DotAccess(Expression):
     obj: Expression
     field: str
-    line_num: int
     method_call: bool = False
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Type(Expression):
     name: str
-    line_num: int
     val_type: str = ""
     # func_ret_type: Type | None = None
+    line_num: int
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
@@ -393,3 +390,4 @@ class Open(FuncCall):
 class Import(Expression):
     name: str
     path: str
+    line_num: int

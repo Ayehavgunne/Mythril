@@ -1,6 +1,6 @@
 if __name__ == "__main__":
-    from enum import StrEnum
     from argparse import ArgumentParser
+    from enum import StrEnum
 
     from build import build_prog
 

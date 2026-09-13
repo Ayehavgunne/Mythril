@@ -14,55 +14,55 @@ class MyAny:
 
 
 class PointerType(Enum):
-    none = auto()
-    raw = auto()
-    reference = auto()
-    unique = auto()
-    shared = auto()
-    weak = auto()
+    NONE = auto()
+    RAW = auto()
+    REFERENCE = auto()
+    UNIQUE = auto()
+    SHARED = auto()
+    WEAK = auto()
 
 
 @dataclass(kw_only=True)
 class Pointer:
-    type: PointerType = PointerType.shared
+    type: PointerType = PointerType.SHARED
     subtype: MyAny = field(default_factory=MyAny)
 
     @property
     def destination_type(self) -> str:
         dest_type = self.subtype.destination_type
         match self.type:
-            case PointerType.none:
+            case PointerType.NONE:
                 return dest_type
-            case PointerType.raw:
+            case PointerType.RAW:
                 return f"*{dest_type}"
-            case PointerType.reference:
-                return f"&{dest_type}"
-            case PointerType.unique:
+            case PointerType.REFERENCE:
+                return f"{dest_type}&"
+            case PointerType.UNIQUE:
                 return f"unique_ptr<{dest_type}>"
-            case PointerType.shared:
+            case PointerType.SHARED:
                 return f"shared_ptr<{dest_type}>"
-            case PointerType.weak:
+            case PointerType.WEAK:
                 return f"weak_ptr<{dest_type}>"
 
     def make(self, value: str) -> str:
         match self.type:
-            case PointerType.none:
+            case PointerType.NONE:
                 return value
-            case PointerType.raw:
+            case PointerType.RAW:
                 return value
-            case PointerType.reference:
+            case PointerType.REFERENCE:
                 return value
-            case PointerType.unique:
+            case PointerType.UNIQUE:
                 return f"make_unique<{self.subtype.destination_type}>({value})"
-            case PointerType.shared:
+            case PointerType.SHARED:
                 return f"make_shared<{self.subtype.destination_type}>({value})"
-            case PointerType.weak:
+            case PointerType.WEAK:
                 return f"make_weak<{self.subtype.destination_type}>({value})"
 
     @property
     def dereference(self) -> str:
         match self.type:
-            case PointerType.none:
+            case PointerType.NONE:
                 return ""
             case _:
                 return "*"
@@ -183,7 +183,7 @@ class Bytes(AnyVal):
 
     @property
     def destination_type(self) -> str:
-        raise "byte"
+        return "byte"
 
 
 @dataclass
@@ -198,17 +198,32 @@ class List(Collection):
 
     @property
     def destination_type(self) -> str:
-        return f"vector<{self.subtype.destination_type}>"
+        if self.name == grammar.LIST:
+            return f"vector<{self.subtype.destination_type}>"
+        else:
+            return f"{self.name}<{self.subtype.destination_type}>"
 
 
 @dataclass
 class Tuple(Collection):
     name: str = grammar.TUPLE
     subtypes: list[MyAny] = field(default_factory=list)
+    _current: int = 0
 
     @property
     def destination_type(self) -> str:
         return f"tuple<{', '.join([subtype.destination_type for subtype in self.subtypes])}>"
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._current < len(self.subtypes) - 1:
+            value = self.subtypes[self._current]
+            self._current += 1
+            return value
+        else:
+            raise StopIteration
 
 
 @dataclass

@@ -6,8 +6,8 @@ import my_ast
 import my_types
 from grammar import LexerType
 from visitor import (
-    Symbol,
     NodeVisitor,
+    Symbol,
 )
 
 
