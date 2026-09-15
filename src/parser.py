@@ -284,7 +284,6 @@ class Parser:
             raise NotImplementedError
         self.eat_value(grammar.TYPE_DELIMETER)
         params[param_var.value] = self.type_spec()
-        # param_type = params[param_var.value]
         if self.current_token.value != grammar.RPAREN:
             if self.current_token.value == grammar.ASSIGN:
                 self.eat_value(grammar.ASSIGN)
@@ -333,7 +332,7 @@ class Parser:
         else:
             return self.square_bracket_expression(token)
 
-    def function_call(self, token: Token, built_in: str = "") -> my_ast.Node:
+    def function_call(self, token: Token) -> my_ast.Node:
         self.eat_value(grammar.LPAREN)
         args = []
         named_args = {}
@@ -353,22 +352,6 @@ class Parser:
                 self.eat_type(TokenType.NEWLINE)
             if self.current_token.value != grammar.RPAREN:
                 self.eat_value(grammar.COMMA)
-        # match built_in:
-        #     case grammar.PRINT:
-        #         func = my_ast.Print(
-        #             name=token.value,
-        #             parameters=args,
-        #             line_num=self.line_num,
-        #             named_arguments=named_args or {},
-        #         )
-        #     case grammar.OPEN:
-        #         func = my_ast.Open(
-        #             name=token.value,
-        #             parameters=args,
-        #             line_num=self.line_num,
-        #             named_arguments=named_args,
-        #         )
-        #     case _:
         func = my_ast.FuncCall(
             name=token.value,
             arguments=args,
@@ -392,17 +375,15 @@ class Parser:
         else:
             self.eat_type(TokenType.TYPE)
 
-        # func_ret_type = None
         if (
             self.current_token.value == grammar.LSQUAREBRACKET
             and token.value == grammar.FUNC
         ):
             self.next_token()
-            # func_ret_type = self.type_spec()
             self.eat_value(grammar.RSQUAREBRACKET)
         type_spec = my_ast.Type(
             name=token.value,
-            line_num=self.line_num,  # func_ret_type=func_ret_type
+            line_num=self.line_num,
         )
         return type_spec
 
@@ -449,6 +430,8 @@ class Parser:
             node = self.assignment_statement(self.current_token)
         elif self.current_token.value == grammar.RETURN:
             node = self.return_statement()
+        elif self.current_token.value == grammar.YIELD:
+            node = self.yield_statement()
         elif self.current_token.value == grammar.IMPORT:
             node = self.import_statement()
         elif self.current_token.value in self.user_types:
@@ -655,6 +638,7 @@ class Parser:
         while self.current_token.value != grammar.RCURLYBRACKET:
             while self.current_token.token_type == TokenType.NEWLINE:
                 self.eat_type(TokenType.NEWLINE)
+                preview_token = self.preview()
             if self.current_token.value in grammar.LBRACKETS:
                 args.append(self.bracket_literal())
             elif (preview_token.value if preview_token else "") == grammar.ASSIGN:
@@ -717,16 +701,10 @@ class Parser:
             )
         return access
 
-    # def self_access(self, token: Token) -> my_ast.Self:
-    #     return my_ast.Self(line_num=token.line_num)
-
     def name_statement(self) -> my_ast.Statement:
         token = self.next_token()
         if token.value == grammar.PRINT or token.value == grammar.OPEN:
-            # node = my_ast.Print(
-            #     name=grammar.PRINT, arguments=[self.expr()], line_num=self.line_num
-            # )
-            node = self.function_call(token, token.value)
+            node = self.function_call(token)
         elif token.value == grammar.INPUT:
             node = my_ast.Input(
                 name=grammar.INPUT, arguments=[self.expr()], line_num=self.line_num
@@ -739,7 +717,6 @@ class Parser:
         elif self.current_token.value in grammar.ASSIGNMENT_OP:
             node = self.assignment_statement(token)
         elif self.current_token.value == grammar.TYPE_DELIMETER:
-            # self.eat_value(grammar.TYPE_DELIMETER)
             node = self.variable_declaration(token)
         elif self.state == ParserState.IN_CONSTRUCTOR:
             node = self.variable(token)
@@ -821,6 +798,10 @@ class Parser:
         self.next_token()
         return my_ast.Return(value=self.expr(), line_num=self.line_num)
 
+    def yield_statement(self) -> my_ast.Yield:
+        self.next_token()
+        return my_ast.Yield(value=self.expr(), line_num=self.line_num)
+
     def import_statement(self) -> my_ast.Import:
         current_file_path = Path(self.file_path).parent.resolve()
         name = ""
@@ -837,7 +818,9 @@ class Parser:
                     f"File does not exist: {import_path.as_posix()}"
                 )
             self.next_token()
-        return my_ast.Import(name=name, path=import_path.as_posix(), line_num=self.line_num)
+        return my_ast.Import(
+            name=name, path=import_path.as_posix(), line_num=self.line_num
+        )
 
     def if_statement(self) -> my_ast.If:
         self.next_token()
@@ -880,7 +863,7 @@ class Parser:
             comp = my_ast.While(
                 op=token.value,
                 comp=comps,
-                block=self.loop_block(),
+                block=self.compound_statement(),
                 line_num=self.line_num,
             )
         return comp
@@ -897,7 +880,7 @@ class Parser:
         if self.current_token.value == grammar.NEWLINE:
             self.eat_type(TokenType.NEWLINE)
         with self.indent():
-            block = self.loop_block()
+            block = self.compound_statement()
             loop = my_ast.For(
                 iterator=iterator,
                 block=block,
@@ -905,13 +888,6 @@ class Parser:
                 line_num=self.line_num,
             )
         return loop
-
-    def loop_block(self) -> my_ast.Compound:
-        nodes = self.statement_list()
-        root = my_ast.Compound()
-        for node in nodes:
-            root.children.append(node)
-        return root
 
     def with_statement(self) -> my_ast.With:
         self.eat_value(grammar.WITH)

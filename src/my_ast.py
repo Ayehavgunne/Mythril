@@ -74,6 +74,7 @@ class FuncType(StrEnum):
 class FuncDecl(Statement):
     name: str
     return_type: Type
+    yield_type: Type | None = None
     parameters: dict[str, Var | Type]
     body: Compound
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
@@ -108,6 +109,12 @@ class MethodCall(FuncCall):
 
 @dataclass(kw_only=True, eq=True, frozen=True)
 class Return(Expression):
+    value: Node
+    line_num: int
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
+class Yield(Expression):
     value: Node
     line_num: int
 

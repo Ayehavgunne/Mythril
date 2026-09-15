@@ -1,5 +1,12 @@
 #import other
 
+def my_gen() > Int
+	for x in 0..10
+		yield x * 2
+
+for x in my_gen()
+	print(x)
+
 my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 sublist = my_list[2:6]
 for item in sublist
@@ -7,18 +14,22 @@ for item in sublist
 
 print()
 
-enum Suit[Str]
-	heart
-	club
-	spade
-	diamond
+num = 1
 
-	def do_it() > void
-		print("doing it")
+print(num)
 
-print(Suit.heart)
+#enum Suit[Str]
+#	heart
+#	club
+#	spade
+#	diamond
 
-print()
+#	def do_it() > void
+#		print("doing it")
+
+#print(Suit.heart)
+
+#print()
 
 #heart = Suit.heart
 #another_heart = Suit.heart
@@ -26,16 +37,16 @@ print()
 
 #print()
 
-Suit.do_it()
+#Suit.do_it()
 
-enum State
-	good
-	bad
-	broke
+#enum State
+#	good
+#	bad
+#	broke
 
-print()
+#print()
 
-print(State.bad)
+#print(State.bad)
 
 class ContextFile
 	path: Str
@@ -95,7 +106,7 @@ print()
 name = "anthony"
 
 if "an" in name
-	print("has an")
+	print("Name '{name}' has 'an' in it")
 
 print()
 
@@ -130,23 +141,23 @@ else
 
 print()
 
-#def plus_five(num: Int) > Int
-#	return num + 5
+def plus_five(num: Int) > Int
+	return num + 5
 
-#print(plus_five(2))
+print(plus_five(2))
 
 print()
 
-#def fib(n: Int) > Int
-#	a = 0
-#	b = 1
-#	for _ in 0..n
-#		prev_a = a
-#		a = b
-#		b = prev_a + b
-#	return a
+def fib(n: Int) > Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
 
-#print(fib(10))
+print(fib(10))
 
 print()
 
@@ -159,19 +170,27 @@ struct Circle
 	x: Int
 	y: Int
 
-cir = Circle{radius=5, x=2, y=4}
+cir = Circle{
+	radius=5,
+	x=2,
+	y=4
+}
 
 print(cir.radius)
+print()
+print(cir)
 
 print()
 
-#y = 10
-#for x in 0..y + 1
-#	print(x::Str + ' ' + fib(x)::Str)
+y = 10
+for x in 0..y + 1
+	print(x::Str + ' ' + fib(x)::Str)
 
 print()
 
-# print(things[1 + 1])
+print(things[1 + 1])
+
+print()
 
 yes = true
 no = false

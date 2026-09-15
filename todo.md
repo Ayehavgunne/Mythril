@@ -1,12 +1,11 @@
 - bootstrap
-- make almost everything a shared smart pointer
 - weak smart pointers with `weak` keyword
+- generators
 - destructors
 - anonymous block
 - finish with statement (context managers)
 - variadic functions
 - *args and **kwargs
-- generators
 - allow setting a default argument with a mutable value (i.e. `def func(my_list = [])`)
 - for loop nobreak keyword
 - operator chaining

@@ -20,9 +20,9 @@ validate:
 build:
     {_activate}
     @if {$1} == "run"
-		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings -r
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings -w test.cpp -r
 	@else
-		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings -w test.cpp
 	@fi
 
 run:

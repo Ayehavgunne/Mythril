@@ -29,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument("filename")
     parser.add_argument("-o", "--output")
     parser.add_argument("-p", "--print", action="store_true")
+    parser.add_argument("-w", "--write")
     parser.add_argument("-r", "--run", action="store_true")
     parser.add_argument("--optimization", type=OptimizationLevel)
     parser.add_argument("--ignore_warnings", action="store_true")
@@ -38,6 +39,7 @@ if __name__ == "__main__":
         args.output,
         args.run,
         args.print,
+        args.write,
         opt_map[args.optimization],
         args.ignore_warnings,
     )
