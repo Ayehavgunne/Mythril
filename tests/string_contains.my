@@ -1,0 +1,4 @@
+name = "anthony"
+
+if "an" in name
+	print("Name '{name}' has 'an' in it")

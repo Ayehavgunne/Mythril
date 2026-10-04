@@ -1,0 +1,51 @@
+- bootstrap
+- weak smart pointers with `weak` keyword
+- generators
+- destructors
+- anonymous block
+- finish with statement (context managers)
+- variadic functions
+- *args and **kwargs ?
+- allow setting a default argument with a mutable value (i.e. `def func(my_list = [])`)
+- for loop `nobreak` keyword
+- preprocessor to find variables and how they are used to set appropriate pointers (maybe using the already existing validator)
+- operator chaining
+- zero initialize all variables, struct fields
+- pattern matching
+- design by contract
+- comprehensions
+- descriptor protocol ?
+- coroutines
+- generics (c++ concepts)
+- inner functions, classes, structs
+- closures
+- ternary
+- unions
+- protocols
+- decorators
+- constants
+- decimal type by default instead of float
+- duplicating pythons variable storage (all variables are pointers, pass by object reference, ...)
+- sets
+- fixed size arrays
+- empty lists, dicts, sets, tuples, ...
+- cli argument parsing
+- class inheritance
+- built in object methods (list.append(), string.split(), ...)
+- more built in functions (len, abs, ...)
+- result and option types
+- built in result and option semantics
+- make everything an object?
+- anonymous functions
+- assigning (anonymous) functions to variables
+- first class functions
+- unicode support
+- type aliasing
+- networking
+- ref counting with smart pointers by default
+- pragma declarations to configure from source code instead of cli
+- put more work into validator
+- metaprogramming (compile time execution, using the same constructs that are in the language, just prefixed)
+- more magic methods (these will simply not use `def` before them)
+- foreign function interface
+- make print accept varargs, more params like 'end=\n' so that it is more like Python's print

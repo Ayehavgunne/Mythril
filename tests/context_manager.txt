@@ -1,0 +1,4 @@
+Opening file
+3.14
+
+Closing file

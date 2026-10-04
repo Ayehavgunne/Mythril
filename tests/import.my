@@ -1,0 +1,3 @@
+import other
+
+print(other.plus_two(2))

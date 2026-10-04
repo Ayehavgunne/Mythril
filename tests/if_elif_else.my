@@ -1,0 +1,7 @@
+number = 22
+if number > 23
+	print('greater than 23')
+elif number == 23
+	print('equals 23')
+else
+	print('less than 23')

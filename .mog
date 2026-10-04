@@ -1,0 +1,79 @@
+src = src
+out = out
+tests = tests
+
+setup:
+	uv venv --clear
+	uv sync --all-extras
+
+lex:
+	{_activate}
+	python src/lexer.py
+
+parse:
+	{_activate}
+	python {src}/parser.py
+
+validate:
+	{_activate}
+	python {src}/validator.py
+
+build:
+	{_activate}
+	@if {$1} == "run"
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings -w test.cpp -r
+	@else
+		mkdir -p {out} && python {src}/main.py test.my -o {out}/test -p --ignore_warnings -w test.cpp
+	@fi
+
+run:
+	{out}/test
+
+fmt:
+	{_activate}
+	ruff format .
+
+lint:
+	{_activate}
+	@if {$1} == fix
+		ruff check --fix .
+	@else
+		ruff check .
+	@fi
+
+check:
+	{_activate}
+	@if {$1} == ""
+		pyright .
+	@else
+		pyright {$1}
+	@fi
+
+cpp:
+    clang++ -Iinclude -I/usr/local/include -std=c++23 test.cpp -o out/test
+    {run}
+
+benchmark:
+	hyperfine -N --warmup 3 --runs 30 "out/test" "python test.py"
+
+test:
+	for file in "{tests}"/*.txt; do
+		if [[ ${file} == "tests/input.txt" ]]; then
+			OUT=$(echo green | python {src}/main.py "${file%.txt}.my" --ignore_warnings -r 2>&1)
+		else
+			OUT=$(python {src}/main.py "${file%.txt}.my" --ignore_warnings -r 2>&1)
+		fi
+		if [[ "$(< ${file})" != "$OUT" ]]; then
+			echo
+			echo Test failed: ${file%.txt}.my
+			echo Output:
+			echo ${OUT}
+			echo
+		else
+			echo Test passed: ${file%.txt}.my
+			rm ${file%.txt}
+		fi
+	done
+
+_activate:
+	. .venv/bin/activate

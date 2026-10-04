@@ -1,5 +1,1 @@
-num = 1
 
-num_str = num::Str
-
-print(num_str)

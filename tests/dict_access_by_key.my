@@ -1,0 +1,3 @@
+stuff = {'first_name': 'Samus', 'last_name': 'Aran'}
+
+print(stuff['first_name'])

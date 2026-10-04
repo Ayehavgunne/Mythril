@@ -1,0 +1,3 @@
+prompt = input("enter your fav color")
+
+print("Wow, your fav color is {prompt}?!")

@@ -1,0 +1,5 @@
+things = [1, 2, 3]
+if 2 in things
+	print('yes')
+if 2 not in things
+	print('no')

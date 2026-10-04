@@ -1,0 +1,4 @@
+import another
+
+def plus_two(arg: Int) > Int
+	return arg + 2
