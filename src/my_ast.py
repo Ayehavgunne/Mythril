@@ -2,6 +2,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+import my_types
 import grammar
 
 
@@ -74,6 +75,9 @@ class FuncType(StrEnum):
 class FuncDecl(Statement):
     name: str
     return_type: Type
+    return_pointer: my_types.Pointer = field(
+        default_factory=lambda: my_types.Pointer(type=my_types.PointerType.NONE)
+    )
     yield_type: Type | None = None
     parameters: dict[str, Var | Type]
     body: Compound
@@ -120,9 +124,15 @@ class Yield(Expression):
 
 
 @dataclass(kw_only=True, eq=True, frozen=True)
+class FieldData:
+    type: Type
+    value: Var | None
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
 class StructDeclaration(Statement):
     name: str
-    instance_fields: dict[str, Type]
+    instance_fields: dict[str, FieldData]
     static_fields: dict[str, Type]
     parameter_defaults: dict[str, Node] = field(default_factory=dict)
     assigned_fields: dict[str, bool] = field(default_factory=dict)
@@ -291,8 +301,16 @@ class CollectionAccess(Expression):
 @dataclass(kw_only=True, eq=True, frozen=True)
 class DotAccess(Expression):
     obj: Expression
-    field: str
+    field: Expression
     method_call: bool = False
+    line_num: int
+
+
+@dataclass(kw_only=True, eq=True, frozen=True)
+class TypeSpec(Expression):
+    name: str
+    val_type: str = ""
+    parameters: dict = field(default_factory=dict)
     line_num: int
 
 
@@ -300,7 +318,6 @@ class DotAccess(Expression):
 class Type(Expression):
     name: str
     val_type: str = ""
-    # func_ret_type: Type | None = None
     line_num: int
 
 

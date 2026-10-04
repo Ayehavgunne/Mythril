@@ -1,0 +1,6 @@
+enum State
+	good
+	bad
+	broke
+
+print(State.bad)

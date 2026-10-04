@@ -1,0 +1,4 @@
+def plus_five(num: Int) > Int
+	return num + 5
+
+print(plus_five(2))

@@ -1,0 +1,9 @@
+enum Suit[Str]
+	heart
+	club
+	spade
+	diamond
+
+heart = Suit.heart
+another_heart = Suit.heart
+print(heart == another_heart)

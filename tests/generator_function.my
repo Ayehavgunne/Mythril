@@ -1,0 +1,6 @@
+def my_gen() > Gen[yield=Int, return=void]
+	for x in 0..10
+		yield x * 2
+
+for x in my_gen()
+	print(x)

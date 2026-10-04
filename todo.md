@@ -5,10 +5,12 @@
 - anonymous block
 - finish with statement (context managers)
 - variadic functions
-- *args and **kwargs
+- *args and **kwargs ?
 - allow setting a default argument with a mutable value (i.e. `def func(my_list = [])`)
-- for loop nobreak keyword
+- for loop `nobreak` keyword
+- preprocessor to find variables and how they are used to set appropriate pointers (maybe using the already existing validator)
 - operator chaining
+- zero initialize all variables, struct fields
 - pattern matching
 - design by contract
 - comprehensions
@@ -20,6 +22,7 @@
 - ternary
 - unions
 - protocols
+- decorators
 - constants
 - decimal type by default instead of float
 - duplicating pythons variable storage (all variables are pointers, pass by object reference, ...)
@@ -39,10 +42,9 @@
 - unicode support
 - type aliasing
 - networking
-- garbage collector (can be turned off)
-- maloc and free if not using garbage collection
+- ref counting with smart pointers by default
+- pragma declarations to configure from source code instead of cli
 - put more work into validator
-- decorators
 - metaprogramming (compile time execution, using the same constructs that are in the language, just prefixed)
 - more magic methods (these will simply not use `def` before them)
 - foreign function interface

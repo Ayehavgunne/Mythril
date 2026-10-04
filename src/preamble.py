@@ -19,8 +19,9 @@ class Preamble:
         self.my_prog.write(
             '#pragma clang diagnostic ignored "-Wunqualified-std-cast-call"\n'
         )
-        self.my_prog.write('#include "my_std_lib.h"\n')
-        self.my_prog.write('#include "bigint.h"\n')
+        self.my_prog.write('#include "my_std_lib.hpp"\n')
+        self.my_prog.write('#include "bigint.hpp"\n')
+        self.my_prog.write('#include "boost_include.hpp"\n')
         self.my_prog.write("#include <tuple>\n")
         self.my_prog.write("#include <memory>\n")
         # self.my_prog.write("#include <iomemorystream>\n")

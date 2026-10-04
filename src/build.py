@@ -55,7 +55,9 @@ class BuilderState(Flag):
 
     def has(
         self,
-        state: Literal["root", "in_class", "in_constructor", "returning_struct_prop", "dot_access"],
+        state: Literal[
+            "root", "in_class", "in_constructor", "returning_struct_prop", "dot_access"
+        ],
     ) -> bool:
         return BuilderState[state.upper()] in self
 
@@ -115,8 +117,6 @@ class Builder(NodeVisitor):
             obj_sym = self.search_scopes(node.obj.value)
             class_sym = self.search_scopes(obj_sym.node.__class__.__name__)
             return class_sym
-            # func_type = self.get_obj_prop(class_sym.node, node.name)
-            # return_type = func_type.return_type
         return return_type
 
     def is_class_prop(self, node: my_ast.StructDeclaration, prop_name: str) -> bool:
@@ -159,6 +159,9 @@ class Builder(NodeVisitor):
                     scoped_self.node, left.removeprefix("this->")
                 )
         if assigned:
+            return f"{left} {node.op} {right};\n"
+        if self.state.has("in_class"):
+            scoped_self.node.assigned_fields[left.removeprefix("this->")] = True
             return f"{left} {node.op} {right};\n"
         match node.right:
             case my_ast.Type(val_type=val_type):
@@ -235,7 +238,8 @@ class Builder(NodeVisitor):
                     )
                 return f"{sym.pointer.destination_type} {left}(new {sym.pointer.subtype.destination_type}({right}));"
             case my_ast.Slice(item=item):
-                scoped_var = self.search_scopes(item)
+                visited_item = self.visit(item)
+                scoped_var = self.search_scopes(visited_item)
                 subtype = scoped_var.pointer.subtype
                 subtype.name = "span"
                 sym = self.build_symbol(
@@ -261,198 +265,7 @@ class Builder(NodeVisitor):
                     define=True,
                 )
                 return f"{sym.pointer.destination_type} {left}(new {sym.pointer.subtype.destination_type}({right}));"
-        if self.state.has("in_class"):
-            scoped_self.node.assigned_fields[left.removeprefix("this->")] = True
-            return f"{left} {node.op} {right}"
         return f"auto {left}({right});"
-        # visited_left = self.visit(node.left)
-        # if isinstance(node.left, my_ast.Var) and node.left.type is not None:
-        #     if hasattr(node.right, "val_type"):
-        #         node.right.val_type = node.left.type.name
-        # visited_right = self.visit(node.right)
-        # if isinstance(node.left, my_ast.DotAccess):
-        #     with suppress(Exception):
-        #         scoped_var = self.search_scopes(node.left.obj.value)
-        #         scoped_var = self.search_scopes(scoped_var.type.name)
-        #         method = scoped_var.methods.get(node.left.field)
-        #         if method.type == my_ast.FuncType.SETTER:
-        #             return f"{visited_left}({visited_right})"
-        #     return f"{visited_left} {node.op} {visited_right};\n"
-        # match node.right:
-        #     case my_ast.Num(val_type=val_type):
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=TYPE_MAP[val_type](),
-        #         )
-        #     case my_ast.Str():
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=TYPE_MAP[grammar.STR](),
-        #         )
-        #     case my_ast.Var(value=value):
-        #         scoped_val = self.search_scopes(value)
-        #         var_sym = self.build_symbol(
-        #             name=scoped_val.name,
-        #             node=node.right,
-        #             subtype=scoped_val.type,
-        #         )
-        #     case my_ast.Constant(value=value):
-        #         scoped_val = self.search_scopes(value)
-        #         var_sym = self.build_symbol(
-        #             name=scoped_val.name,
-        #             node=node.right,
-        #             subtype=scoped_val.type,
-        #         )
-        #     case my_ast.Collection(type=collection_type, items=items):
-        #         if collection_type == grammar.LIST:
-        #             var_sym = self.build_symbol(
-        #                 name=visited_left,
-        #                 node=node.right,
-        #                 subtype=TYPE_MAP[collection_type](
-        #                     subtype=TYPE_MAP[items[0].val_type]()
-        #                 ),
-        #             )
-        #         elif collection_type == grammar.TUPLE:
-        #             var_sym = self.build_symbol(
-        #                 name=visited_left,
-        #                 node=node.right,
-        #                 subtype=TYPE_MAP[collection_type](
-        #                     subtypes=[TYPE_MAP[item.val_type]() for item in items]
-        #                 ),
-        #             )
-        #         elif collection_type == grammar.SET:
-        #             var_sym = self.build_symbol(
-        #                 name=visited_left,
-        #                 node=node.right,
-        #                 subtype=TYPE_MAP[collection_type](
-        #                     subtype=TYPE_MAP[items[0].val_type]()
-        #                 ),
-        #             )
-        #             print()
-        #         else:
-        #             raise NotImplementedError
-        #     case my_ast.Dict(items=items):
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=TYPE_MAP[grammar.DICT](
-        #                 left=TYPE_MAP[list(items.keys())[0].val_type](),
-        #                 right=TYPE_MAP[list(items.values())[0].val_type](),
-        #             ),
-        #         )
-        #     case my_ast.BinOp(right=right):
-        #         scoped_val = self.search_scopes(right.value)
-        #         if scoped_val is None:
-        #             scoped_val = self.search_scopes(right.val_type)
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=scoped_val.type,
-        #         )
-        #     case my_ast.FuncCall(name=name, arguments=args):
-        #         scoped_val = self.search_scopes(name)
-        #         if scoped_val.name == grammar.INPUT:
-        #             left_type = self.infer_type(grammar.STR)
-        #             var_sym = self.build_symbol(
-        #                 name=visited_left,
-        #                 node=node.right,
-        #                 subtype=left_type,
-        #             )
-        #             assigned = self.search_scopes(
-        #                 node.left.name
-        #                 if hasattr(node.left, "name")
-        #                 else node.left.value
-        #             )
-        #             if assigned is None:
-        #                 self.define(visited_left, var_sym)
-        #             arg = self.visit(args[0])
-        #             return (
-        #                 f";{left_type.destination_type} {visited_left};\n"
-        #                 f"cout << {arg} << '\\n';\ncin >> {visited_left};\n"
-        #             )
-        #         if scoped_val.name == grammar.OPEN:
-        #             scoped_val = self.search_scopes("File")
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=scoped_val.type,
-        #         )
-        #     case my_ast.StructCreation(name=name):
-        #         scoped_val = self.search_scopes(name)
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=scoped_val.type,
-        #         )
-        #     case my_ast.DotAccess(obj=obj, field=field):
-        #         scoped_val = self.search_scopes(obj.value)
-        #         if scoped_val is None:
-        #             scoped_val = self.search_scopes(f"{obj.value}.{field}")
-        #         if isinstance(scoped_val.type, Class):
-        #             scoped_val_name = scoped_val.type.name
-        #             scoped_val = self.search_scopes(scoped_val_name)
-        #             if scoped_val is None:
-        #                 scoped_val = self.search_scopes(
-        #                     f"{obj.value}.{scoped_val_name}"
-        #                 )
-        #             field_type = scoped_val.fields.get(field)
-        #             if field_type is None:
-        #                 field_type = TYPE_MAP[
-        #                     scoped_val.methods[field].return_type.value
-        #                 ]()
-        #         else:
-        #             field_type = scoped_val.type
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=field_type,
-        #         )
-        #     case my_ast.MethodCall(obj=obj, name=name):
-        #         scoped_val = self.search_scopes(obj.value)
-        #         if scoped_val is None:
-        #             scoped_val = self.search_scopes(name)
-        #         if scoped_val is None:
-        #             scoped_val = self.search_scopes(f"{obj.value}.{name}")
-        #         if isinstance(scoped_val.type, Class):
-        #             scoped_val = self.search_scopes(scoped_val.type.name)
-        #             return_type = TYPE_MAP[scoped_val.methods[name].return_type.value]()
-        #         else:
-        #             return_type = scoped_val.type
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=return_type,
-        #         )
-        #     case my_ast.Slice(left=left, right=right, item=item):
-        #         scoped_val = self.search_scopes(item)
-        #         if scoped_val is None:
-        #             scoped_val = self.search_scopes(right.val_type)
-        #         var_sym = self.build_symbol(
-        #             name=visited_left,
-        #             node=node.right,
-        #             subtype=my_types.Auto(),
-        #         )
-        #     case _:
-        #         raise BuilderError(
-        #             f"Assignment of type {node.right.__class__.__name__} not implimented"
-        #         )
-        # assigned = self.search_scopes(
-        #     node.left.name
-        #     if hasattr(node.left, "name")
-        #     else node.left.value
-        #     if hasattr(node.left, "value")
-        #     else ""
-        # )
-        # if visited_left.startswith("self."):
-        #     visited_left = visited_left.replace("self.", "this->")
-        # visited_right = f"{var_sym.pointer.make(visited_right)}"
-        # if assigned is None:
-        #     self.define(visited_left, var_sym)
-        #     return f";{var_sym.pointer.destination_type} {visited_left} {node.op} {visited_right};\n"
-        # else:
-        #     return f";{visited_left} {node.op} {visited_right};\n"
 
     def visit_op_assign(self, node: my_ast.OpAssign) -> str:
         visited_left = self.visit(node.left)
@@ -482,6 +295,14 @@ class Builder(NodeVisitor):
         return f"{visited_op} {visited_exrp}"
 
     def visit_type(self, node: my_ast.Type) -> str:
+        scoped_var = self.search_scopes(node.name)
+        if scoped_var is None:
+            return "Any"
+        if self.state.has("in_class"):
+            return scoped_var.pointer.subtype.destination_type
+        return scoped_var.pointer.destination_type
+
+    def visit_type_spec(self, node: my_ast.TypeSpec) -> str:
         scoped_var = self.search_scopes(node.name)
         if scoped_var is None:
             return "Any"
@@ -620,7 +441,9 @@ class Builder(NodeVisitor):
         iterator_sym = self.search_scopes(iterator)
         if iterator_sym is None:
             iterator_sym = self.get_class_sym(node.iterator)
-        if iterator_sym is None and isinstance(node.iterator, (my_ast.Range, my_ast.FuncCall)):
+        if iterator_sym is None and isinstance(
+            node.iterator, (my_ast.Range, my_ast.FuncCall)
+        ):
             iterator_sym = SimpleNamespace()
             iterator_sym.node = node.iterator
         with self.create_scope():
@@ -684,7 +507,8 @@ class Builder(NodeVisitor):
                         define=True,
                     )
                 case my_ast.Slice(item=item):
-                    scoped_var = self.search_scopes(item)
+                    visited_item = self.visit(item)
+                    scoped_var = self.search_scopes(visited_item)
                     self.build_symbol(
                         name=elements[0],
                         node=node.elements[0],
@@ -733,8 +557,6 @@ class Builder(NodeVisitor):
 
     def visit_func_decl(self, node: my_ast.FuncDecl) -> str:
         name = node.name
-        if name in (grammar.ENTER, grammar.EXIT):
-            name = f"{name}__"
         symbol_type = name
         return_type = self.search_scopes(node.return_type.name)
         if return_type is None:
@@ -757,6 +579,13 @@ class Builder(NodeVisitor):
         with self.create_scope():
             for param, param_type in node.parameters.items():
                 infered_param_type = self.infer_type(param_type)
+                if isinstance(infered_param_type, my_types.Func):
+                    infered_param_type.args = [
+                        self.visit(arg) for arg in param_type.parameters.get("args", [])
+                    ]
+                    infered_param_type.return_typr = self.visit(
+                        param_type.parameters.get("return", "")
+                    )
                 params.append(f"{infered_param_type.destination_type} {param}")
                 self.build_symbol(
                     name=param,
@@ -786,6 +615,12 @@ class Builder(NodeVisitor):
         if node.type == my_ast.FuncType.CONSTRUCTOR:
             return f"{name} ({', '.join(params)}) {{\n{body};}}\n"
         if self.state.has("in_class") and return_type.destination_type != grammar.VOID:
+            if return_type.type != PointerType.NONE:
+                this_class = self.search_scopes(grammar.SELF)
+                this_class = self.search_scopes(this_class.name)
+                method = this_class.node.methods[name]
+                method.return_pointer.type = return_type.type
+                method.return_pointer.subtype = return_type.subtype
             decl = f"{return_type.destination_type} {name} ({', '.join(params)})"
         else:
             decl = f"{return_type.destination_type} {name} ({', '.join(params)})"
@@ -815,11 +650,6 @@ class Builder(NodeVisitor):
 
     def visit_yield(self, node: my_ast.Yield) -> str:
         return_val = self.visit(node.value)
-        # if hasattr(node.value, "obj") and isinstance(node.value.obj, my_ast.Self):
-        #     self.state += State.RETURNING_STRUCT_PROP
-        # scoped_return = self.search_scopes("tmp_yield__")
-        # if scoped_return and not self.state.has("returning_struct_prop"):
-        #     return f"co_yield {scoped_return.pointer.make(return_val)};\n"
         return f"co_yield {return_val};\n"
 
     def visit_func_call(self, node: my_ast.FuncCall) -> str:
@@ -829,8 +659,6 @@ class Builder(NodeVisitor):
                 return self.visit_print(node)
             if func.name == grammar.OPEN:
                 return self.visit_open(node)
-            # if func.name == grammar.INPUT:
-            #     return self.visit_input(func.node)
         params = list(
             func.node.parameters.keys()
             if hasattr(func.node, "parameters")
@@ -852,7 +680,7 @@ class Builder(NodeVisitor):
         if self.state.has("in_class"):
             self_obj = self.search_scopes(grammar.SELF)
             obj_type = self.get_obj_prop(self_obj.node, visited_obj)
-            scoped_obj = self.search_scopes(obj_type.name)
+            scoped_obj = self.search_scopes(obj_type.type.name)
             visited_obj = visited_obj.removeprefix("*")
         else:
             scoped_obj = self.search_scopes(
@@ -905,7 +733,7 @@ class Builder(NodeVisitor):
                 args.append(self.visit(named_arguments[name]))
                 args_visited += 1
         if len(parameters) > args_visited:
-            for arg in list(parameters.keys())[args_visited:]:
+            for arg in parameters[args_visited:]:
                 if arg in parameter_defaults:
                     args.append(self.visit(parameter_defaults[arg]))
         return args
@@ -916,17 +744,31 @@ class Builder(NodeVisitor):
         lower_name = name.lower()
         instance_fields = []
         static_fields = []
+        static_definitions = []
         print_fields = []
         methods = []
         for field, field_type in node.static_fields.items():
-            scoped_field_type = self.infer_type(field_type.name)
+            scoped_field_type = self.infer_type(field_type.type.name)
             static_fields.append(f"static {scoped_field_type.destination_type} {field}")
-            # print_fields.append(f'"    {field}: " << {name}.{field}')
-        for field, field_type in node.instance_fields.items():
-            scoped_field_type = self.search_scopes(field_type.name)
-            instance_fields.append(
-                f"{scoped_field_type.pointer.subtype.destination_type} {field}"
+            print_fields.append(f'"    {field}: " << {name}::{field}')
+            if field_type.value is not None:
+                val = self.visit(field_type.value)
+            else:
+                val = my_types.DEFAULT_VALUES.get(field_type.type.name, "{}")
+            static_definitions.append(
+                f"{scoped_field_type.destination_type} {name}::{field} = {val}"
             )
+        for field, field_type in node.instance_fields.items():
+            scoped_field_type = self.search_scopes(field_type.type.name)
+            if field_type.value is not None:
+                val = self.visit(field_type.value)
+                instance_fields.append(
+                    f"{scoped_field_type.pointer.subtype.destination_type} {field} = {val}"
+                )
+            else:
+                instance_fields.append(
+                    f"{scoped_field_type.pointer.subtype.destination_type} {field}"
+                )
             print_fields.append(f'"    {field}: " << {lower_name}.{field}')
         with self.temp_state(State.IN_CLASS):
             class_sym = self.build_symbol(
@@ -941,11 +783,12 @@ class Builder(NodeVisitor):
                 constructor: str = (
                     self.visit(node_constructor)
                     if node_constructor is not None
-                    else self.build_default_constructor(node)
+                    # else self.build_default_constructor(node)
+                    else ""
                 )
-        # overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
-        # return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
-        # }}"""
+        overload = f"""ostream & operator << (ostream & outs, const {name} & {lower_name}) {{
+        return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}";
+        }}"""
         result = (
             f"struct {name} {{\n"
             f"{';\n'.join(static_fields)};\n"
@@ -953,7 +796,8 @@ class Builder(NodeVisitor):
             f"{constructor}\n"
             f"{'\n'.join(methods)}\n"
             f"}};\n"
-            # f"{overload}\n"
+            f"{'\n'.join(static_definitions)};\n"
+            f"{overload}\n"
         )
         if self.state.has("root"):
             self.classes[name] = result
@@ -968,7 +812,7 @@ class Builder(NodeVisitor):
         params = []
         body = []
         for field, field_type in node.instance_fields.items():
-            visited_field_type = self.visit(field_type)
+            visited_field_type = self.visit(field_type.type)
             params.append(f"{visited_field_type} {field}")
             body.append(f"this->{field} = {field};")
         return f"{name}({', '.join(params)}) {{\n{'\n'.join(body)}\n}}"
@@ -982,8 +826,12 @@ class Builder(NodeVisitor):
         fields = []
         print_fields = []
         for field, field_type in node.instance_fields.items():
-            scoped_field_type = self.infer_type(field_type.name)
-            fields.append(f"{scoped_field_type.destination_type} {field}")
+            scoped_field_type = self.infer_type(field_type.type.name)
+            if field_type.value is not None:
+                val = self.visit(field_type.value)
+            else:
+                val = my_types.DEFAULT_VALUES[scoped_field_type.name]
+            fields.append(f"{scoped_field_type.destination_type} {field} = {val}")
             print_fields.append(f'"    {field}: " << {lower_name}.{field}')
         self.build_symbol(
             name=name,
@@ -1015,7 +863,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             parameters=params,
             named_arguments=node.named_arguments,
             parameter_defaults=obj.node.constructor.parameter_defaults
-            if isinstance(obj.node, my_ast.ClassDeclaration)
+            if hasattr(obj.node, "constructor") and obj.node.constructor is not None
             else {},
         )
         return f"{{ {', '.join(args)} }}"
@@ -1063,13 +911,8 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
         var = self.visit(node.var)
         if isinstance(node.expr, my_ast.StructCreation):
             expr_scope = self.search_scopes(node.expr.name)
-            enter_func = expr_scope.node.methods[grammar.ENTER]
-            # return_type = self.search_scopes(enter_func.return_type.name)
+            enter_func = expr_scope.node.methods[f"{grammar.ENTER}__"]
             ec_dest = expr_scope.pointer.subtype.destination_type
-            # rt_dest = return_type.pointer.destination_type
-            # ex_ent = expr.replace(grammar.LCURLYBRACKET, "", count=1)[::-1].replace(
-            #     grammar.RCURLYBRACKET, "", count=1
-            # )[::-1]
             expr = (
                 f"bool tmp_caught__ = false;\n"
                 f"shared_ptr<{ec_dest}> tmp__(new {ec_dest}{expr});\n"
@@ -1082,7 +925,6 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
                     name=var,
                     node=node.var,
                     symbol_type=enter_return_type.pointer.subtype,
-                    # pointer_type=PointerType.none,
                     define=True,
                 )
                 body = self.visit(node.body)
@@ -1107,9 +949,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             return ""
 
     def visit_slice(self, node: my_ast.Slice) -> str:
-        item = node.item
-        scoped_item = self.search_scopes(item)
-        derefrence = scoped_item.pointer.dereference
+        item = self.visit(node.item)
         if isinstance(node.left, my_ast.Void):
             left = 0
         else:
@@ -1118,28 +958,29 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             right = f"size({item})"
         else:
             right = bigint_to_int(self.visit(node.right))
-        return f"slice({derefrence}{item}, {left}, {right})"
+        return f"slice({item}, {left}, {right})"
 
     def visit_dot_access(self, node: my_ast.DotAccess) -> str:
         with self.temp_state(State.DOT_ACCESS):
             visited_obj = self.visit(node.obj)
             with suppress(Exception):
                 scoped_var = self.search_scopes(visited_obj)
-                scoped_var = self.search_scopes(scoped_var.type.name)
-                method = scoped_var.methods.get(node.field)
+                scoped_var = self.search_scopes(scoped_var.node.name)
+                method = scoped_var.node.methods.get(node.field)
                 if method.type == my_ast.FuncType.GETTER:
-                    return f"{visited_obj}.{node.field}()"
+                    return f"{method.return_pointer.dereference}{visited_obj}->{node.field}()"
             if isinstance(node.obj, my_ast.Self):
                 if isinstance(node.field, str):
                     return f"{visited_obj}{node.field}"
                 if isinstance(node.field, my_ast.MethodCall):
-                    # scoped_val = self.search_scopes(node.obj.value)
                     visited_field_obj = self.visit(node.field.obj)
                     field_type = self.search_scopes(visited_field_obj)
                     with self.temp_define(
                         key=visited_field_obj,
                         value=self.build_symbol(
-                            name=visited_field_obj, node=node.field, symbol_type=field_type
+                            name=visited_field_obj,
+                            node=node.field,
+                            symbol_type=field_type,
                         ),
                     ):
                         field = self.visit(node.field)
@@ -1336,14 +1177,13 @@ def build_prog(
                 print(f"{index + 1:>{pad}} {line}")
     p = subprocess.Popen(
         (
-            f"clang++ -Iinclude -std=c++23 {optimization_level} "
+            f"clang++ -Iinclude -I/usr/local/include -std=c++23 {optimization_level} "
             f"{my_prog.name} -o {out_path} && rm {my_prog.name}"
         ),
         shell=True,
     )
     result = p.wait()
     if run and result == 0:
-        print("\nRunning", end="\n\n")
         p = subprocess.Popen(out_path, shell=True)
         result = p.wait()
     sys.exit(result)

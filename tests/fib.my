@@ -1,0 +1,10 @@
+def fib(n: Int) > Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
+
+print(fib(10))

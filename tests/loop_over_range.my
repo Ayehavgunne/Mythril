@@ -1,0 +1,2 @@
+for x in 0..12
+	print(x)

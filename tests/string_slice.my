@@ -1,0 +1,4 @@
+name = "anthony"
+short_name = name[:-3]
+
+print(short_name)

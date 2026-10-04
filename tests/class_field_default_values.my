@@ -1,0 +1,10 @@
+class Person
+	first_name: Str = "Anthony"
+	last_name: Str
+	age: Int
+
+me = Person{}
+
+print(me.first_name)
+print(me.last_name)
+print(me.age)

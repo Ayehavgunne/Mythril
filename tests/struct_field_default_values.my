@@ -1,0 +1,8 @@
+struct Circle
+	radius: Int = 7
+	x: Int
+	y: Int
+
+cir = Circle{}
+
+print(cir.radius)

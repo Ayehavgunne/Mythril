@@ -411,6 +411,8 @@ class NodeVisitor:
         self, name: str, level: int | None = None, default: Symbol | None = None
     ) -> Symbol | None:
         name = name.removeprefix("*")
+        # if name.startswith("self."):
+        #     name = name.removeprefix("self.")
         if level:
             if name in self._scope[level]:
                 return self._scope[level][name]
@@ -467,7 +469,7 @@ class NodeVisitor:
                 return value
         if isinstance(value, Symbol):
             return value.type
-        elif isinstance(value, my_ast.Type):
+        elif isinstance(value, (my_ast.Type, my_ast.TypeSpec)):
             scoped_var = self.search_scopes(value.name)
             if scoped_var is None:
                 with suppress(AttributeError):

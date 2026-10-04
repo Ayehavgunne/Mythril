@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from enum import StrEnum
 from pathlib import Path
+from dataclasses import replace
 
 from prettyprinter import pprint
 
@@ -105,6 +106,10 @@ class Parser:
             fields = {}
             while self.current_token.indent_level > name.indent_level:
                 self.field_definition(fields)
+            fields = {
+                k: my_ast.FieldData(type=v["type"], value=v.get("value"))
+                for k, v in fields.items()
+            }
         return my_ast.StructDeclaration(
             name=name.value,
             instance_fields=fields,
@@ -116,8 +121,16 @@ class Parser:
         field = self.next_token().value
         self.eat_value(grammar.TYPE_DELIMETER)
         field_type = self.type_spec()
-        fields[field] = field_type
-        self.eat_type(TokenType.NEWLINE)
+        fields[field] = {"type": field_type}
+        if self.current_token.value == grammar.NEWLINE:
+            self.eat_type(TokenType.NEWLINE)
+        elif self.current_token.value == grammar.ASSIGN:
+            self.eat_value(grammar.ASSIGN)
+            fields[field]["value"] = self.expr()
+        else:
+            raise ParserError
+        if self.current_token.value == grammar.NEWLINE:
+            self.eat_type(TokenType.NEWLINE)
 
     def enum_field_definition(self, fields: list[my_ast.Var]) -> None:
         field = self.next_token().value
@@ -154,6 +167,14 @@ class Parser:
                     self.next_token()
                 else:
                     print("missed something")
+            static_fields = {
+                k: my_ast.FieldData(type=v["type"], value=v.get("value"))
+                for k, v in static_fields.items()
+            }
+            instance_fields = {
+                k: my_ast.FieldData(type=v["type"], value=v.get("value"))
+                for k, v in instance_fields.items()
+            }
         self.state = ParserState.REGULAR
         return my_ast.ClassDeclaration(
             name=class_name.value,
@@ -227,6 +248,7 @@ class Parser:
         func_type = my_ast.FuncType.get(self.current_token.value)
         if func_type in (my_ast.FuncType.ENTER, my_ast.FuncType.EXIT):
             name = self.next_token()
+            name.value = f"{name.value}__"
         elif self.current_token.value == grammar.LPAREN:
             name = LexerType.ANON
             self.eat_value(*grammar.FUNC_TYPES)
@@ -361,7 +383,7 @@ class Parser:
         self.next_token()
         return func
 
-    def type_spec(self) -> my_ast.Type:
+    def type_spec(self) -> my_ast.TypeSpec | my_ast.Void:
         token = self.current_token
         if token.value == grammar.VOID:
             line_num = self.line_num
@@ -369,21 +391,41 @@ class Parser:
             return my_ast.Void(line_num=line_num)
         if token.value in self.user_types:
             self.eat_type(TokenType.NAME)
-            return my_ast.Type(name=token.value, line_num=self.line_num)
+            return my_ast.TypeSpec(name=token.value, line_num=self.line_num)
         if self.current_token.token_type == TokenType.NAME:
             self.eat_type(TokenType.NAME)
         else:
             self.eat_type(TokenType.TYPE)
 
+        params = {}
         if (
             self.current_token.value == grammar.LSQUAREBRACKET
             and token.value == grammar.FUNC
         ):
             self.next_token()
+            if self.current_token.token_type == TokenType.NAME:
+                while self.current_token.value != grammar.RSQUAREBRACKET:
+                    key = self.current_token
+                    self.eat_type(TokenType.NAME, TokenType.KEYWORD)
+                    self.eat_value(grammar.ASSIGN)
+                    if self.current_token.value == grammar.LSQUAREBRACKET:
+                        self.eat_value(grammar.LSQUAREBRACKET)
+                        value = [self.type_spec()]
+                        self.eat_value(grammar.RSQUAREBRACKET)
+                    else:
+                        value = my_ast.TypeSpec(
+                            name=self.current_token.value,
+                            line_num=self.line_num,
+                        )
+                        self.eat_type(TokenType.TYPE)
+                    params[key.value] = value
+                    if self.current_token.value == grammar.COMMA:
+                        self.eat_value(grammar.COMMA)
             self.eat_value(grammar.RSQUAREBRACKET)
-        type_spec = my_ast.Type(
+        type_spec = my_ast.TypeSpec(
             name=token.value,
             line_num=self.line_num,
+            parameters=params,
         )
         return type_spec
 
@@ -536,7 +578,15 @@ class Parser:
             return self.access_collection(token, tok)
         raise ParserError
 
-    def slice_expression(self, token: Token) -> my_ast.Slice:
+    def slice_expression(
+        self, token: Token, dot_access: my_ast.DotAccess | None = None
+    ) -> my_ast.Slice:
+        if dot_access is not None:
+            item = dot_access
+        else:
+            item = my_ast.Var(value=token.value, line_num=self.line_num)
+        if self.current_token.value == grammar.LSQUAREBRACKET:
+            self.next_token()
         if self.current_token.value == grammar.SLICE:
             left = my_ast.Void(line_num=self.line_num)
         else:
@@ -547,9 +597,7 @@ class Parser:
         else:
             right = self.expr()
         self.eat_value(grammar.RSQUAREBRACKET)
-        return my_ast.Slice(
-            item=token.value, left=left, right=right, line_num=self.line_num
-        )
+        return my_ast.Slice(item=item, left=left, right=right, line_num=self.line_num)
 
     def curly_bracket_expression(self, token: Token) -> my_ast.Node:
         preview = self.preview(1)
@@ -639,6 +687,8 @@ class Parser:
             while self.current_token.token_type == TokenType.NEWLINE:
                 self.eat_type(TokenType.NEWLINE)
                 preview_token = self.preview()
+            if self.current_token.value == grammar.RCURLYBRACKET:
+                break
             if self.current_token.value in grammar.LBRACKETS:
                 args.append(self.bracket_literal())
             elif (preview_token.value if preview_token else "") == grammar.ASSIGN:
@@ -693,6 +743,8 @@ class Parser:
             return self.method_call(self.current_token, access)
         if self.current_token.value == grammar.LCURLYBRACKET:
             return self.struct_creation(self.current_token, access)
+        if self.current_token.value == grammar.LSQUAREBRACKET:
+            return self.slice_expression(self.current_token, access)
         if self.current_token.value == grammar.DOT:
             access = my_ast.DotAccess(
                 obj=access.obj,
@@ -1018,6 +1070,8 @@ class Parser:
             or token.value == grammar.LSQUAREBRACKET
         ):
             self.next_token()
+            if preview_token_value == grammar.SLICE:
+                return self.slice_expression(token)
             return self.square_bracket_expression(token)
         elif token.value == grammar.LCURLYBRACKET:
             self.next_token()

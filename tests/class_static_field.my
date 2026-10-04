@@ -1,0 +1,8 @@
+class Person
+	first_name: Str = "Anthony"
+	last_name: Str
+	static age: Int = 40
+
+me = Person{}
+
+print(me)

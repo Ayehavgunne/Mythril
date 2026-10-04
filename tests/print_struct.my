@@ -1,0 +1,12 @@
+struct Circle
+	radius: Int
+	x: Int
+	y: Int
+
+cir = Circle{
+	radius=5,
+	x=2,
+	y=4
+}
+
+print(cir)

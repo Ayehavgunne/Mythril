@@ -64,6 +64,8 @@ class Pointer:
         match self.type:
             case PointerType.NONE:
                 return ""
+            case PointerType.REFERENCE:
+                return ""
             case _:
                 return "*"
 
@@ -138,7 +140,7 @@ class Dec(AnyVal):
 
     @property
     def destination_type(self) -> str:
-        return "float"  # TODO: find a decimal type library
+        return "boost::decimal::decimal32_t"
 
 
 @dataclass
@@ -282,14 +284,25 @@ class AnyRef(MyAny):
 @dataclass
 class Func(AnyRef):
     name: str = grammar.FUNC
+    args: list[str] = field(default_factory=list)
+    return_typr: str = ""
 
     @property
     def destination_type(self) -> str:
-        raise NotImplementedError
+        return f"function<{self.return_typr} ({', '.join(self.args)})>"
 
 
 INTS = (Int, Int32, Int64)
-
+DEFAULT_VALUES = {
+    grammar.BOOL: "false",
+    grammar.INT: 'BigInt::bigint("0")',
+    grammar.INT16: "0",
+    grammar.INT32: "0",
+    grammar.INT64: "0",
+    grammar.DEC: "0",
+    grammar.FLOAT: "0.0",
+    grammar.STR: '""',
+}
 TYPE_MAP = {
     grammar.ANY: MyAny,
     grammar.BOOL: Bool,

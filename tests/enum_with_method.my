@@ -1,0 +1,10 @@
+enum Suit[Str]
+	heart
+	club
+	spade
+	diamond
+
+	def do_it() > void
+		print("doing it")
+
+Suit.do_it()

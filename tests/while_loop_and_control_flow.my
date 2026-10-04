@@ -1,0 +1,8 @@
+number = 10
+while number > 1
+	number -= 1
+	if number == 5
+		continue
+	if number == 2
+		break
+	print(number)

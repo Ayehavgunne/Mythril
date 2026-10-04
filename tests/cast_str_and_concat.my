@@ -1,0 +1,12 @@
+def fib(n: Int) > Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
+
+y = 10
+for x in 0..y + 1
+	print(x::Str + ' ' + fib(x)::Str)

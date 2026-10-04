@@ -1,0 +1,18 @@
+class ContextFile
+	path: Str
+	file: File
+
+	new(path: Str)
+		self.path = path
+		print("Opening file")
+		self.file = open(path)
+
+	enter() > File
+		return self.file
+
+	exit()
+		print("Closing file")
+		self.file.close()
+
+with ContextFile{"./.python-version"} as my_file
+	print(my_file.read())
