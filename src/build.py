@@ -25,6 +25,8 @@ from visitor import (
     Scope,
 )
 
+PROJ_PATH = Path(__file__).parent.parent
+
 
 class BuilderState(Flag):
     ROOT = auto()
@@ -164,6 +166,15 @@ class Builder(NodeVisitor):
             scoped_self.node.assigned_fields[left.removeprefix("this->")] = True
             return f"{left} {node.op} {right};\n"
         match node.right:
+            case my_ast.Num(val_type=val_type):
+                scoped_var = self.search_scopes(val_type)
+                self.build_symbol(
+                    name=left,
+                    node=node.right,
+                    symbol_type=scoped_var.pointer.subtype,
+                    define=True,
+                )
+                return f"{scoped_var.pointer.destination_type} {left}({right});"
             case my_ast.Type(val_type=val_type):
                 scoped_var = self.search_scopes(val_type)
                 self.build_symbol(
@@ -172,7 +183,7 @@ class Builder(NodeVisitor):
                     symbol_type=scoped_var.pointer.subtype,
                     define=True,
                 )
-                return f"auto {left}({scoped_var.pointer.make(right)});"
+                return f"{scoped_var.pointer.destination_type} {left}({scoped_var.pointer.make(right)});"
             case my_ast.FuncCall(name=name, arguments=args):
                 scoped_var = self.search_scopes(name)
                 if scoped_var.name == grammar.INPUT:
@@ -191,8 +202,7 @@ class Builder(NodeVisitor):
                         self.define(left, var_sym)
                     arg = self.visit(args[0])
                     return (
-                        f";{var_sym.pointer.destination_type} {left}(new string("
-                        "));\n"
+                        f';{var_sym.pointer.destination_type} {left}("");\n'
                         f"cout << {arg} << '\\n';\ncin >> {var_sym.pointer.dereference}{left};\n"
                     )
                 scoped_var = self.search_scopes(scoped_var.pointer.subtype.name)
@@ -236,7 +246,7 @@ class Builder(NodeVisitor):
                         symbol_subtype=item,
                         define=True,
                     )
-                return f"{sym.pointer.destination_type} {left}(new {sym.pointer.subtype.destination_type}({right}));"
+                return f"{sym.pointer.destination_type} {left}({sym.pointer.subtype.destination_type}({right}));"
             case my_ast.Slice(item=item):
                 visited_item = self.visit(item)
                 scoped_var = self.search_scopes(visited_item)
@@ -251,7 +261,7 @@ class Builder(NodeVisitor):
                     else None,
                     define=True,
                 )
-                return f"{sym.pointer.destination_type} {left}(new {sym.pointer.subtype.destination_type}({right}));"
+                return f"{sym.pointer.destination_type} {left}({sym.pointer.subtype.destination_type}({right}));"
             case my_ast.StructCreation():
                 scoped_var = self.search_scopes(node.right.name)
                 subtype = scoped_var.pointer.subtype
@@ -264,7 +274,7 @@ class Builder(NodeVisitor):
                     else None,
                     define=True,
                 )
-                return f"{sym.pointer.destination_type} {left}(new {sym.pointer.subtype.destination_type}({right}));"
+                return f"{sym.pointer.destination_type} {left} {node.op} {sym.pointer.make(right)};"
         return f"auto {left}({right});"
 
     def visit_op_assign(self, node: my_ast.OpAssign) -> str:
@@ -368,9 +378,12 @@ class Builder(NodeVisitor):
         return node.value
 
     def visit_num(self, node: my_ast.Num) -> str:
-        if node.val_type == grammar.INT:
-            return f'BigInt::bigint("{node.name}")'
-        return node.name
+        # if node.val_type == grammar.INT:
+        #     return f'BigInt::bigint("{node.name}")'
+        # if node.val_type == grammar.DEC:
+        #     return f'boost::decimal::decimal32_t("{node.name}")'
+        num_type = self.infer_type(node)
+        return num_type.make(node.name)
 
     def visit_str(self, node: my_ast.Str) -> str:
         value = node.name
@@ -644,7 +657,7 @@ class Builder(NodeVisitor):
         if hasattr(node.value, "obj") and isinstance(node.value.obj, my_ast.Self):
             self.state += State.RETURNING_STRUCT_PROP
         scoped_return = self.search_scopes("tmp_return__")
-        if scoped_return and not self.state.has("returning_struct_prop"):
+        if scoped_return and not self.state.has("returning_struct_prop") and not isinstance(node.value, (my_ast.BinOp, my_ast.Var)):
             return f"return {scoped_return.pointer.make(return_val)};\n"
         return f"return {return_val};\n"
 
@@ -731,6 +744,10 @@ class Builder(NodeVisitor):
         for name in parameters:
             if name in named_arguments:
                 args.append(self.visit(named_arguments[name]))
+                args_visited += 1
+                continue
+            if name in parameter_defaults and name not in arguments:
+                args.append(self.visit(parameter_defaults[name]))
                 args_visited += 1
         if len(parameters) > args_visited:
             for arg in parameters[args_visited:]:
@@ -858,15 +875,16 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             if hasattr(obj.node, "constructor") and obj.node.constructor is not None
             else obj.node.instance_fields.keys()
         )
+        defaults = {field: value.value for field, value in obj.node.instance_fields.items() if value.value is not None}
         args = self.get_args(
             arguments=node.arguments,
             parameters=params,
             named_arguments=node.named_arguments,
             parameter_defaults=obj.node.constructor.parameter_defaults
             if hasattr(obj.node, "constructor") and obj.node.constructor is not None
-            else {},
+            else defaults,
         )
-        return f"{{ {', '.join(args)} }}"
+        return f"{', '.join(args)}"
 
     def visit_enum(self, node: my_ast.Enum) -> str:
         name = node.name
@@ -913,18 +931,20 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
             expr_scope = self.search_scopes(node.expr.name)
             enter_func = expr_scope.node.methods[f"{grammar.ENTER}__"]
             ec_dest = expr_scope.pointer.subtype.destination_type
+            pntr = expr_scope.pointer
+            enter_return_type = self.search_scopes(enter_func.return_type.name)
             expr = (
                 f"bool tmp_caught__ = false;\n"
-                f"shared_ptr<{ec_dest}> tmp__(new {ec_dest}{expr});\n"
+                f"{pntr.destination_type} tmp__({ec_dest}{{{expr}}});\n"
                 f"try {{"
-                f"auto {var} = &tmp__->{grammar.ENTER}__();\n"
+                f"auto {var} = {enter_return_type.pointer.make('')}tmp__.{grammar.ENTER}__();\n"
             )
-            enter_return_type = self.search_scopes(enter_func.return_type.name)
             with self.create_scope():
                 self.build_symbol(
                     name=var,
                     node=node.var,
                     symbol_type=enter_return_type.pointer.subtype,
+                    pointer_type=enter_return_type.pointer.type,
                     define=True,
                 )
                 body = self.visit(node.body)
@@ -936,11 +956,11 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
                 f"catch (exception &e) {{\n"
                 f"tmp_caught__ = true;\n"
                 f'cerr << "Error: " << e.what() << "\\n";'
-                f"tmp__->{grammar.EXIT}__();\n"
+                f"tmp__.{grammar.EXIT}__();\n"
                 f"throw;\n"
                 f"}}\n"
                 f"if (!tmp_caught__) {{\n"
-                f"tmp__->{grammar.EXIT}__();\n"
+                f"tmp__.{grammar.EXIT}__();\n"
                 f"}}\n"
                 f"}}\n"
             )
@@ -1177,7 +1197,7 @@ def build_prog(
                 print(f"{index + 1:>{pad}} {line}")
     p = subprocess.Popen(
         (
-            f"clang++ -Iinclude -I/usr/local/include -std=c++23 {optimization_level} "
+            f"clang++ -I{PROJ_PATH.as_posix()}/include -I/usr/local/include -std=c++23 {optimization_level} "
             f"{my_prog.name} -o {out_path} && rm {my_prog.name}"
         ),
         shell=True,

@@ -166,7 +166,7 @@ class Parser:
                 elif self.current_token.token_type == TokenType.NEWLINE:
                     self.next_token()
                 else:
-                    print("missed something")
+                    raise ParserError("missed something")
             static_fields = {
                 k: my_ast.FieldData(type=v["type"], value=v.get("value"))
                 for k, v in static_fields.items()

@@ -12,6 +12,9 @@ class MyAny:
     def destination_type(self) -> str:
         return "void"
 
+    def make(self, value: str) -> str:
+        return value
+
 
 class PointerType(Enum):
     NONE = auto()
@@ -24,7 +27,7 @@ class PointerType(Enum):
 
 @dataclass(kw_only=True)
 class Pointer:
-    type: PointerType = PointerType.SHARED
+    type: PointerType = PointerType.NONE
     subtype: MyAny = field(default_factory=MyAny)
 
     @property
@@ -47,11 +50,11 @@ class Pointer:
     def make(self, value: str) -> str:
         match self.type:
             case PointerType.NONE:
-                return value
+                return self.subtype.make(value)
             case PointerType.RAW:
                 return value
             case PointerType.REFERENCE:
-                return value
+                return f"&{value}"
             case PointerType.UNIQUE:
                 return f"make_unique<{self.subtype.destination_type}>({value})"
             case PointerType.SHARED:
@@ -68,6 +71,9 @@ class Pointer:
                 return ""
             case _:
                 return "*"
+
+
+default_pointer = Pointer()
 
 
 @dataclass
@@ -96,6 +102,10 @@ class Int(AnyVal):
     @property
     def destination_type(self) -> str:
         return "BigInt::bigint"
+
+
+    def make(self, value: str) -> str:
+        return f'{self.destination_type}("{value}")'
 
 
 @dataclass
@@ -141,6 +151,9 @@ class Dec(AnyVal):
     @property
     def destination_type(self) -> str:
         return "boost::decimal::decimal32_t"
+
+    def make(self, value: str) -> str:
+        return f'{self.destination_type}("{value}")'
 
 
 @dataclass
@@ -195,15 +208,12 @@ class Collection(MyAny):
 
 @dataclass
 class List(Collection):
-    name: str = grammar.LIST
+    name: str = "vector"
     subtype: MyAny = field(default_factory=MyAny)
 
     @property
     def destination_type(self) -> str:
-        if self.name == grammar.LIST:
-            return f"vector<{self.subtype.destination_type}>"
-        else:
-            return f"{self.name}<{self.subtype.destination_type}>"
+        return f"{self.name}<{self.subtype.destination_type}>"
 
 
 @dataclass
@@ -266,6 +276,9 @@ class Struct(AnyVal):
     def destination_type(self) -> str:
         return self.name
 
+    def make(self, value: str) -> str:
+        return f"{{{value}}}"
+
 
 @dataclass
 class Class(AnyVal):
@@ -274,6 +287,9 @@ class Class(AnyVal):
     @property
     def destination_type(self) -> str:
         return self.name
+
+    def make(self, value: str) -> str:
+        return f"{{{value}}}"
 
 
 @dataclass

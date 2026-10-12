@@ -373,7 +373,7 @@ class NodeVisitor:
         | tuple[my_types.MyAny]
         | tuple[str, str]
         | None = None,
-        pointer_type: my_types.PointerType = my_types.PointerType.SHARED,
+        pointer_type: my_types.PointerType = my_types.default_pointer.type,
         *,
         define: bool = False,
         level: int = 0,
