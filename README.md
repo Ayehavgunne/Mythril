@@ -6,20 +6,27 @@ This project is super early in development.
 Some examples of the code for Mythril can be seen in the [example.my file](https://github.com/Ayehavgunne/Mythril/blob/master/example.my).
 That is where I have been placing bits of test code as I work on various features.
 
-## Goals:
-* Learn about compilers, language design
-* Create a Python like syntax and mix in some new language features and ideas. Basically Python with enforced types
-* Make it more performant than Python but make sure it is just as easy to use
-* Focus on designs that will reduce possible errors
-* Choose defaults that are simple, easy and work despite possible performance overhead but make optimization easy. Example: use dynamic lists by default but allow creation of fixed size lists with a bit more notation
+The main inspiration is Python with some ideas from a couple other languages thrown in.
+
+## Priorities in order of importance:
+* Principal of least astonishment (surprise) - POLA
+* Sane defaults
+* Correctness
+* Ease of use
+* Flexibility
+* Be more performant than Python (not a hard bar to clear)
+* Make higher performance possible through more specificity/explicitnes (make the risky operations OPT INT / make the default safety OPT OUT)
+* (Append) Zen of Python
 
 ## Planned Features:
-* Type Infrencing
+* Type Infrence
 * Pattern Matching
 * First Class Functions
 * Closures
 * Classes
-* Default to an accurate Decimal type and offer Floating Point as an option
+* Protocols (Structural typing)
+* Default to BigInt and offer sized Ints as an option
+* Default to an infinitely precise Decimal type and offer normal Floating Point as an opt in option
 * Default parameter values to functions
 * Keyword arguments
 * Design by Contract
@@ -28,10 +35,10 @@ That is where I have been placing bits of test code as I work on various feature
 * Generators
 * Comprehensions
 * Context Managers
-* Anonymous (multi statement) Functions
+* Anonymous (multi-statement) Functions
 * Decorators
-* Type Aliasing
 * Slicing
+* Type Aliasing
 
 ## Influences
 * Python

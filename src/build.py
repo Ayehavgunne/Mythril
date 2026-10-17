@@ -174,7 +174,7 @@ class Builder(NodeVisitor):
                     symbol_type=scoped_var.pointer.subtype,
                     define=True,
                 )
-                return f"{scoped_var.pointer.destination_type} {left}({right});"
+                return f"{scoped_var.pointer.destination_type} {left}({scoped_var.pointer.make(right)});"
             case my_ast.Type(val_type=val_type):
                 scoped_var = self.search_scopes(val_type)
                 self.build_symbol(
@@ -937,7 +937,7 @@ return outs << "{name} {{\\n" << {' << "\\n" << '.join(print_fields)} << "\\n}}"
                 f"bool tmp_caught__ = false;\n"
                 f"{pntr.destination_type} tmp__({ec_dest}{{{expr}}});\n"
                 f"try {{"
-                f"auto {var} = {enter_return_type.pointer.make('')}tmp__.{grammar.ENTER}__();\n"
+                f"auto {var} = {enter_return_type.pointer.make(f'tmp__.{grammar.ENTER}__()')};\n"
             )
             with self.create_scope():
                 self.build_symbol(

@@ -1,18 +1,10 @@
-class ContextFile
-	path: Str
-	file: File
+def fib(n: Int) > Int
+	a = 0
+	b = 1
+	for _ in 0..n
+		prev_a = a
+		a = b
+		b = prev_a + b
+	return a
 
-	new(path: Str)
-		self.path = path
-		print("Opening file")
-		self.file = open(path)
-
-	enter() > File
-		return self.file
-
-	exit()
-		print("Closing file")
-		self.file.close()
-
-with ContextFile{"./.python-version"} as my_file
-	print(my_file.read())
+print(fib(40))

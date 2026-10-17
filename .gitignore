@@ -170,3 +170,4 @@ fabric.properties
 /.ruff_cache/
 /.venv/
 test.cpp
+test.py

@@ -50,9 +50,9 @@ class Pointer:
     def make(self, value: str) -> str:
         match self.type:
             case PointerType.NONE:
-                return self.subtype.make(value)
-            case PointerType.RAW:
                 return value
+            case PointerType.RAW:
+                return f"new {value}"
             case PointerType.REFERENCE:
                 return f"&{value}"
             case PointerType.UNIQUE:
